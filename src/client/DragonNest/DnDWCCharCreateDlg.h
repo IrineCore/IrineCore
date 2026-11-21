@@ -54,6 +54,7 @@ protected:
 	CEtUIComboBox *m_pComboChar;
 	std::vector<SDWCClassPreset> m_vecPresets;
 	int m_nSelectedIndex;
+	bool m_bSyncingSelection;
 	CDnDWCCharCreateDlg *m_pParentBaseDlg;
 
 	void LoadPresets();

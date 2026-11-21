@@ -74,6 +74,7 @@ CDnDWCCharCreateSelectDlg::CDnDWCCharCreateSelectDlg( UI_DIALOG_TYPE dialogType,
 	: CEtUIDialog( dialogType, pParentDialog, nID, pCallback )
 	, m_pComboChar( NULL )
 	, m_nSelectedIndex( 0 )
+	, m_bSyncingSelection( false )
 	, m_pParentBaseDlg( NULL )
 {
 }
@@ -172,9 +173,13 @@ void CDnDWCCharCreateSelectDlg::Show( bool bShow )
 
 	if( bShow && !m_vecPresets.empty() )
 	{
+		m_bSyncingSelection = true;
 		m_nSelectedIndex = 0;
 		if( !m_vecRadioClass.empty() && m_vecRadioClass[0] )
 			m_vecRadioClass[0]->SetChecked( true, true, false );
+		if( m_pComboChar )
+			m_pComboChar->SetSelectedByIndex( 0 );
+		m_bSyncingSelection = false;
 		if( m_pParentBaseDlg )
 			m_pParentBaseDlg->OnSelectPreset( GetSelectedPreset() );
 	}
@@ -186,14 +191,22 @@ void CDnDWCCharCreateSelectDlg::ProcessCommand( UINT nCommand, bool bTriggeredBy
 {
 	SetCmdControlName( pControl->GetControlName() );
 
+	if( m_bSyncingSelection )
+	{
+		CEtUIDialog::ProcessCommand( nCommand, bTriggeredByUser, pControl, uMsg );
+		return;
+	}
+
 	if( nCommand == EVENT_RADIOBUTTON_CHANGED )
 	{
 		int nIdx = -1;
 		if( sscanf_s( pControl->GetControlName(), "ID_RBT_%d", &nIdx ) == 1 && nIdx >= 0 && nIdx < (int)m_vecPresets.size() )
 		{
+			m_bSyncingSelection = true;
 			m_nSelectedIndex = nIdx;
-			if( m_pComboChar )
+			if( m_pComboChar && m_pComboChar->GetSelectedIndex() != nIdx )
 				m_pComboChar->SetSelectedByIndex( nIdx );
+			m_bSyncingSelection = false;
 			if( m_pParentBaseDlg )
 				m_pParentBaseDlg->OnSelectPreset( GetSelectedPreset() );
 			return;
@@ -206,9 +219,11 @@ void CDnDWCCharCreateSelectDlg::ProcessCommand( UINT nCommand, bool bTriggeredBy
 			int nIdx = m_pComboChar->GetSelectedIndex();
 			if( nIdx >= 0 && nIdx < (int)m_vecPresets.size() )
 			{
+				m_bSyncingSelection = true;
 				m_nSelectedIndex = nIdx;
-				if( nIdx < (int)m_vecRadioClass.size() && m_vecRadioClass[nIdx] )
-					m_vecRadioClass[nIdx]->SetChecked( true, false, false );
+				if( nIdx < (int)m_vecRadioClass.size() && m_vecRadioClass[nIdx] && !m_vecRadioClass[nIdx]->IsChecked() )
+					m_vecRadioClass[nIdx]->SetChecked( true, true, false );
+				m_bSyncingSelection = false;
 				if( m_pParentBaseDlg )
 					m_pParentBaseDlg->OnSelectPreset( GetSelectedPreset() );
 			}
