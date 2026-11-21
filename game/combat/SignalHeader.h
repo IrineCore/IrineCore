@@ -2022,4 +2022,66 @@ static int GetSignalDataUsingCount64(int signalIdx) {
 	return 64;
 };
 
+static bool IsSignalPointerSlot32(int signalIdx, int slot32) {
+	switch(signalIdx) {
+	case 1: return (slot32 == 1 || slot32 == 5 || slot32 == 6); // InputStruct
+	case 2: return (slot32 == 2 || slot32 == 3); // CanMoveStruct
+	case 4: return (slot32 == 1 || slot32 == 8 || slot32 == 9 || slot32 == 15 || slot32 == 23 || slot32 == 29 || slot32 == 30 || slot32 == 45 || slot32 == 46 || slot32 == 48 || slot32 == 50); // HitStruct
+	case 5: return (slot32 == 0 || slot32 == 1); // VelocityAccelStruct
+	case 11: return (slot32 == 0 || slot32 == 4); // SoundStruct (szFileName + runtime nVecSoundIndex)
+	case 12: return (slot32 == 0 || slot32 == 3 || slot32 == 9 || slot32 == 10); // ParticleStruct
+	case 14: return (slot32 == 0); // SendAction_WeaponStruct
+	case 15: return (slot32 == 1 || slot32 == 14 || slot32 == 27 || slot32 == 40); // ProjectileStruct
+	case 16: return (slot32 == 1 || slot32 == 2 || slot32 == 6); // EnvironmentEffectStruct
+	case 21: return (slot32 == 0 || slot32 == 1); // AttachTrailStruct
+	case 23: return (slot32 == 0 || slot32 == 3 || slot32 == 4); // CustomActionStruct
+	case 29: return (slot32 == 2 || slot32 == 11); // InputHasPassiveSkillStruct
+	case 33: return (slot32 == 0 || slot32 == 2 || slot32 == 5 || slot32 == 6); // FXStruct
+	case 37: return (slot32 == 0 || slot32 == 1 || slot32 == 2 || slot32 == 4 || slot32 == 5 || slot32 == 6 || slot32 == 10); // ActionObjectStruct
+	case 43: return (slot32 == 0 || slot32 == 1); // AttachSwordTrailStruct
+	case 44: return (slot32 == 6 || slot32 == 7); // ShowSwordTrailStruct
+	case 45: return (slot32 == 0); // CameraEffect_RadialBlurStruct
+	case 48: return (slot32 == 1); // SummonMonsterStruct
+	case 49: return (slot32 == 1 || slot32 == 2 || slot32 == 3); // SummonPropStruct
+	case 51: return (slot32 == 0 || slot32 == 2); // DecalStruct
+	case 56: return (slot32 == 0 || slot32 == 4 || slot32 == 5); // ShaderCustomParameterStruct
+	case 57: return (slot32 == 0); // ChangeWeaponLinkStruct
+	case 59: return (slot32 == 0 || slot32 == 3); // SocialActionStruct
+	case 65: return (slot32 == 1); // ChangeActionStruct
+	case 69: return (slot32 == 0); // CanBumpWallStruct
+	case 70: return (slot32 == 1 || slot32 == 2); // DropItemStruct
+	case 71: return (slot32 == 3 || slot32 == 4 || slot32 == 5); // SummonChestPropStruct
+	case 72: return (slot32 == 5 || slot32 == 6 || slot32 == 7); // SummonBrokenPropStruct
+	case 73: return (slot32 == 6 || slot32 == 7 || slot32 == 8); // SummonBrokenDamagePropStruct
+	case 74: return (slot32 == 6 || slot32 == 7 || slot32 == 8); // SummonHitMoveDamageBrokenPropStruct
+	case 75: return (slot32 == 5 || slot32 == 6 || slot32 == 7); // SummonBuffPropStruct
+	case 76: return (slot32 == 6 || slot32 == 7 || slot32 == 8); // SummonBuffBrokenPropStruct
+	case 78: return (slot32 == 2); // ParringStruct
+	case 79: return (slot32 == 0 || slot32 == 1); // Particle_LoopEndStruct
+	case 80: return (slot32 == 0); // FX_LoopEndStruct
+	case 81: return (slot32 == 1); // OutlineFilterStruct
+	case 85: return (slot32 == 0 || slot32 == 2); // EyeLightTrailStruct
+	case 87: return (slot32 == 0 || slot32 == 1 || slot32 == 2); // PointLightStruct
+	case 88: return (slot32 == 0); // ImmediatelyAttachStruct
+	case 91: return (slot32 == 0 || slot32 == 7 || slot32 == 8 || slot32 == 9); // DialogueStruct
+	case 92: return (slot32 == 1 || slot32 == 2 || slot32 == 5); // OtherSelfEffectStruct
+	case 93: return (slot32 == 5); // GravityStruct
+	case 94: return (slot32 == 0); // AttachLineStruct
+	case 95: return (slot32 == 0 || slot32 == 4); // SyncChangeActionStruct
+	case 99: return (slot32 == 2); // CooltimeParringStruct
+	case 100: return (slot32 == 0); // SkillCheckerStruct
+	case 101: return (slot32 == 1); // ChangeActionSECheckStruct
+	case 103: return (slot32 == 0); // CancelChangeStandEndActionSEStruct
+	case 104: return (slot32 == 1 || slot32 == 3 || slot32 == 13); // CatchActorStruct
+	case 107: return (slot32 == 0); // ChangeEmissiveTextureStruct
+	case 118: return (slot32 == 3); // RotateStruct
+	case 120: return (slot32 == 0 || slot32 == 3 || slot32 == 11); // AttachEffectTrailStruct
+	case 122: return (slot32 == 0); // CameraEffect_MovementStruct
+	case 123: return (slot32 == 0); // CameraEffect_KeyFrameStruct
+	case 124: return (slot32 == 0 || slot32 == 4); // MarkProjectileStruct
+	case 128: return (slot32 == 0 || slot32 == 1); // ChangeSkinStruct
+	default: return false;
+	}
+};
+
 #pragma pack(pop)

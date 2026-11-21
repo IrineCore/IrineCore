@@ -89,6 +89,33 @@ bool CEtWorldProp::LoadCustomInfo( CStream *pStream )
 	m_pData = new int[256];
 	memset( m_pData, 0, 1024 );
 	pStream->Read( m_pData, 1024 );
+#elif defined(WIN64)
+	int usingCount = 256;
+	m_pData = AllocPropData(usingCount);
+	if (usingCount * 4 > 1024)
+	{
+		_ASSERT(0);
+		SAFE_DELETEA( m_pData );
+		return false;
+	}
+
+	// PropInfo.ini custom blocks are always serialized in 32-bit (256 x 4-byte) slot layout.
+	int rawData32[256];
+	memset( rawData32, 0, sizeof(rawData32) );
+	int usingCount32 = 0;
+	if (m_pData != NULL)
+	{
+		const int schema32 = GetPropSignalDataUsingCount(m_nClassID);
+		usingCount32 = (usingCount >= 256) ? 256 : ((schema32 > 0 && schema32 <= 256) ? schema32 : 256);
+		int dataSize32 = usingCount32 * 4;
+		pStream->Read( rawData32, dataSize32 );
+		if (dataSize32 < 1024)
+			pStream->Seek((1024 - dataSize32), SEEK_CUR);
+	}
+	else
+	{
+		pStream->Seek(1024, SEEK_CUR);
+	}
 #else
 	int usingCount = 256;
 	m_pData = AllocPropData(usingCount);
@@ -157,36 +184,36 @@ bool CEtWorldProp::LoadCustomInfo( CStream *pStream )
 		szVecList.push_back( szStr );
 	}
 #ifdef WIN64
-	// For 64-bit, buffer must be realigned due to pointer size.
-	m_nVec2Index64.assign( m_nVec2Index.size(), 0 );
-	m_nVec3Index64.assign( m_nVec3Index.size(), 0 );
-	m_nVec4Index64.assign( m_nVec4Index.size(), 0 );
-	m_nVecStrIndex64.assign( m_nVecStrIndex.size(), 0 );
+	// For 64-bit, expand every schema pointer slot (even if empty/omitted in older map data,
+	// e.g. ChestStruct::strLevelBound*) and serialized pointer table slot from 4 bytes to 8 bytes.
+	m_nVec2Index64.clear();
+	m_nVec3Index64.clear();
+	m_nVec4Index64.clear();
+	m_nVecStrIndex64.clear();
 
 #ifdef _TEST_DEFAULT_PROP_ALLOC
-	int nAddSize = 256 + (int)( m_nVec2Index.size() + m_nVec3Index.size() + m_nVec4Index.size() + m_nVecStrIndex.size() );
-	int *pTempBuf = new int[nAddSize];
-	memset( pTempBuf, 0, nAddSize * 4 );
+	int slotMap[256];
 	int nTargetOffset = 0;
 	for( int i=0; i<256; i++ ) {
-		char cFlag = IsPointerTable(i);
-		if( cFlag == -1 ) {
-			pTempBuf[nTargetOffset] = ((int*)m_pData)[i];
-			nTargetOffset++;
-		}
-		else {
-			IncreasePointerTableIndex(i);
+		slotMap[i] = nTargetOffset;
+		if( IsPropPointerSlot32(m_nClassID, i) || IsPointerTable(i) != -1 )
 			nTargetOffset += 2;
-		}
+		else
+			nTargetOffset += 1;
 	}
-	for( DWORD i=0; i<m_nVec2Index.size(); i++ ) m_nVec2Index[i] += m_nVec2Index64[i];
-	for( DWORD i=0; i<m_nVec3Index.size(); i++ ) m_nVec3Index[i] += m_nVec3Index64[i];
-	for( DWORD i=0; i<m_nVec4Index.size(); i++ ) m_nVec4Index[i] += m_nVec4Index64[i];
-	for( DWORD i=0; i<m_nVecStrIndex.size(); i++ ) m_nVecStrIndex[i] += m_nVecStrIndex64[i];
+	int *pTempBuf = new int[nTargetOffset];
+	memset( pTempBuf, 0, nTargetOffset * sizeof(int) );
+	for( int i=0; i<256; i++ ) {
+		if( !IsPropPointerSlot32(m_nClassID, i) && IsPointerTable(i) == -1 )
+			pTempBuf[slotMap[i]] = ((int*)m_pData)[i];
+	}
+	for( DWORD i=0; i<m_nVec2Index.size(); i++ ) if( m_nVec2Index[i] >= 0 && m_nVec2Index[i] < 256 ) m_nVec2Index[i] = slotMap[m_nVec2Index[i]];
+	for( DWORD i=0; i<m_nVec3Index.size(); i++ ) if( m_nVec3Index[i] >= 0 && m_nVec3Index[i] < 256 ) m_nVec3Index[i] = slotMap[m_nVec3Index[i]];
+	for( DWORD i=0; i<m_nVec4Index.size(); i++ ) if( m_nVec4Index[i] >= 0 && m_nVec4Index[i] < 256 ) m_nVec4Index[i] = slotMap[m_nVec4Index[i]];
+	for( DWORD i=0; i<m_nVecStrIndex.size(); i++ ) if( m_nVecStrIndex[i] >= 0 && m_nVecStrIndex[i] < 256 ) m_nVecStrIndex[i] = slotMap[m_nVecStrIndex[i]];
 	SAFE_DELETEA( m_pData );
 	m_pData = pTempBuf;
 #else
-	int *pTempBuf = NULL;
 	int nCorrectionSize = (int)( m_nVec2Index.size() + m_nVec3Index.size() + m_nVec4Index.size() + m_nVecStrIndex.size() );
 	if (m_pData == NULL && nCorrectionSize != 0)
 	{
@@ -196,26 +223,64 @@ bool CEtWorldProp::LoadCustomInfo( CStream *pStream )
 
 	if (m_pData != NULL)
 	{
-		int nAddSize = usingCount + nCorrectionSize;
-		int *pTempBuf = new int[nAddSize];
-		memset( pTempBuf, 0, nAddSize * 4 );
+		int slotMap[256];
 		int nTargetOffset = 0;
-		for( int i=0; i<usingCount; i++ ) {
-			char cFlag = IsPointerTable(i);
-			if( cFlag == -1 ) {
-				pTempBuf[nTargetOffset] = ((int*)m_pData)[i];
-				nTargetOffset++;
-			}
-			else {
-				IncreasePointerTableIndex(i);
+		for( int i=0; i<usingCount32; i++ ) {
+			slotMap[i] = nTargetOffset;
+			if( IsPropPointerSlot32(m_nClassID, i) || IsPointerTable(i) != -1 )
 				nTargetOffset += 2;
-			}
+			else
+				nTargetOffset += 1;
 		}
 
-		for( DWORD i=0; i<m_nVec2Index.size(); i++ ) m_nVec2Index[i] += m_nVec2Index64[i];
-		for( DWORD i=0; i<m_nVec3Index.size(); i++ ) m_nVec3Index[i] += m_nVec3Index64[i];
-		for( DWORD i=0; i<m_nVec4Index.size(); i++ ) m_nVec4Index[i] += m_nVec4Index64[i];
-		for( DWORD i=0; i<m_nVecStrIndex.size(); i++ ) m_nVecStrIndex[i] += m_nVecStrIndex64[i];
+		int nAllocCount = (usingCount > nTargetOffset) ? usingCount : nTargetOffset;
+		int *pTempBuf = new int[nAllocCount];
+		memset( pTempBuf, 0, nAllocCount * sizeof(int) );
+		for( int i=0; i<usingCount32; i++ ) {
+			if( !IsPropPointerSlot32(m_nClassID, i) && IsPointerTable(i) == -1 )
+				pTempBuf[slotMap[i]] = rawData32[i];
+		}
+
+		{
+			std::vector<int> keptIdx; std::vector<EtVector2> keptVal;
+			for( DWORD i=0; i<m_nVec2Index.size(); i++ ) {
+				if( m_nVec2Index[i] >= 0 && m_nVec2Index[i] < usingCount32 ) {
+					keptIdx.push_back( slotMap[m_nVec2Index[i]] );
+					keptVal.push_back( vVec2List[i] );
+				}
+			}
+			m_nVec2Index.swap( keptIdx ); vVec2List.swap( keptVal );
+		}
+		{
+			std::vector<int> keptIdx; std::vector<EtVector3> keptVal;
+			for( DWORD i=0; i<m_nVec3Index.size(); i++ ) {
+				if( m_nVec3Index[i] >= 0 && m_nVec3Index[i] < usingCount32 ) {
+					keptIdx.push_back( slotMap[m_nVec3Index[i]] );
+					keptVal.push_back( vVec3List[i] );
+				}
+			}
+			m_nVec3Index.swap( keptIdx ); vVec3List.swap( keptVal );
+		}
+		{
+			std::vector<int> keptIdx; std::vector<EtVector4> keptVal;
+			for( DWORD i=0; i<m_nVec4Index.size(); i++ ) {
+				if( m_nVec4Index[i] >= 0 && m_nVec4Index[i] < usingCount32 ) {
+					keptIdx.push_back( slotMap[m_nVec4Index[i]] );
+					keptVal.push_back( vVec4List[i] );
+				}
+			}
+			m_nVec4Index.swap( keptIdx ); vVec4List.swap( keptVal );
+		}
+		{
+			std::vector<int> keptIdx; std::vector<std::string> keptVal;
+			for( DWORD i=0; i<m_nVecStrIndex.size(); i++ ) {
+				if( m_nVecStrIndex[i] >= 0 && m_nVecStrIndex[i] < usingCount32 ) {
+					keptIdx.push_back( slotMap[m_nVecStrIndex[i]] );
+					keptVal.push_back( szVecList[i] );
+				}
+			}
+			m_nVecStrIndex.swap( keptIdx ); szVecList.swap( keptVal );
+		}
 
 		SAFE_DELETEA( m_pData );
 		m_pData = pTempBuf;
@@ -262,8 +327,8 @@ bool CEtWorldProp::LoadCustomInfo( CStream *pStream )
 	}
 
 	SAFE_DELETE_VEC( vVec2List );
-	SAFE_DELETE_VEC( vVec2List );
 	SAFE_DELETE_VEC( vVec3List );
+	SAFE_DELETE_VEC( vVec4List );
 	SAFE_DELETE_VEC( szVecList );
 
 	return true;

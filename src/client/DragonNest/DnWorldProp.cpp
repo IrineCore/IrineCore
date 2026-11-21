@@ -340,7 +340,11 @@ void CDnWorldProp::EnableIgnoreBuildColMesh( bool bEnable )
 
 void* CDnWorldProp::AllocPropData(int& usingCount)
 {
+#ifdef WIN64
+	usingCount = GetPropSignalDataUsingCount64(GetClassID());
+#else
 	usingCount = GetPropSignalDataUsingCount(GetClassID());
+#endif
 	if (usingCount > 0)
 		return new int[usingCount];
 	return NULL;

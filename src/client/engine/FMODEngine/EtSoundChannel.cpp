@@ -49,6 +49,7 @@ void CEtSoundChannel::SetLoopCount( int nCount )
 
 int CEtSoundChannel::GetLoopCount()
 {
+	if( !m_pChannel ) return 0;
 	ScopeLock<CSyncLock> Lock(CEtSoundEngine::s_FMODFuncLock);
 	int nLoopCount = 0;
 	m_pChannel->getLoopCount( &nLoopCount );
@@ -57,7 +58,8 @@ int CEtSoundChannel::GetLoopCount()
 
 bool CEtSoundChannel::IsPlay()
 {
-	bool bPlay;
+	if( !m_pChannel ) return false;
+	bool bPlay = false;
 
 	CEtSoundEngine::s_FMODFuncLock.Lock();
 	FMOD_RESULT fr = m_pChannel->isPlaying( &bPlay );
@@ -65,19 +67,20 @@ bool CEtSoundChannel::IsPlay()
 	if( fr != FMOD_ERR_CHANNEL_STOLEN && fr != FMOD_ERR_INVALID_HANDLE  ) {
 		FMOD_API_CHECK( fr );
 	}
-	return bPlay;
+	return ( fr == FMOD_OK ) ? bPlay : false;
 }
 
 bool CEtSoundChannel::IsPause()
 {
-	bool bPause;
+	if( !m_pChannel ) return false;
+	bool bPause = false;
 	CEtSoundEngine::s_FMODFuncLock.Lock();
 	FMOD_RESULT fr = m_pChannel->getPaused( &bPause );
 	CEtSoundEngine::s_FMODFuncLock.UnLock();
 	if( fr != FMOD_ERR_CHANNEL_STOLEN && fr != FMOD_ERR_INVALID_HANDLE ) {
 		FMOD_API_CHECK( fr );
 	}
-	return bPause;
+	return ( fr == FMOD_OK ) ? bPause : false;
 }
 
 void CEtSoundChannel::Pause()

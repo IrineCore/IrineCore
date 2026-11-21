@@ -54,6 +54,7 @@ public:
 	static FMOD_RESULT F_CALLBACK ChannelStopCallbackFunc( FMOD_CHANNEL *channel, FMOD_CHANNEL_CALLBACKTYPE type, void *commanddata1, void *commanddata2 );
 
 	void CheckSoundIndexAndRemoveChannel( int nSoundIndex );
+	bool HasActiveOneShotChannel( int nSoundIndex );
 
 	void RemoveAllChannel();
 

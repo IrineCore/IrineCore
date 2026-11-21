@@ -88,6 +88,8 @@ protected:
 
 protected:
 	void ProcessRemoveSoundQueue();
+	bool IsSoundPlayingOneShot( int nSoundIndex );
+	void DestroySoundLocked( int nSoundIndex );
 	void LockFMODFunc();
 	void UnLockFMODFunc();
 	void UnLockExceptionFMODFunc();

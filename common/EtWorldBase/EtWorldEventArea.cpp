@@ -86,14 +86,27 @@ bool CEtWorldEventArea::Load( CStream *pStream )
 	m_pData = new int[256];
 	memset( m_pData, 0, 1024 );
 	pStream->Read( m_pData, 1024 );
+#elif defined(WIN64)
+	const int eventID = (GetControl() != NULL) ? GetControl()->GetUniqueID() : -1;
+	const int usingCount32 = (eventID >= 0) ? GetEventSignalDataUsingCount(eventID) : 256;
+	const int usingCount = (eventID >= 0) ? GetEventSignalDataUsingCount64(eventID) : 256;
+	int rawData32[256];
+	memset( rawData32, 0, sizeof(rawData32) );
+	int datasize32 = (usingCount32 > 0 && usingCount32 <= 256) ? (usingCount32 * (int)sizeof(int)) : 0;
+	if (datasize32 > 0)
+	{
+		pStream->Read( rawData32, datasize32 );
+		if (datasize32 < 1024)
+			pStream->Seek((1024 - datasize32), SEEK_CUR);
+	}
+	else
+	{
+		pStream->Seek(1024, SEEK_CUR);
+	}
 #else
 	int usingCount = 256;
 	if( GetControl() != NULL ) {
-#ifdef WIN64
-		usingCount = GetEventSignalDataUsingCount64(GetControl()->GetUniqueID());
-#else
 		usingCount = GetEventSignalDataUsingCount(GetControl()->GetUniqueID());
-#endif
 	}
 	int datasize = usingCount * sizeof(int);
 
@@ -152,105 +165,142 @@ bool CEtWorldEventArea::Load( CStream *pStream )
 		szVecList.push_back( szStr );
 	}
 #ifdef WIN64
-	// For 64-bit, buffer must be realigned due to pointer size.
-	m_nVec2Index64.assign( m_nVec2Index.size(), 0 );
-	m_nVec3Index64.assign( m_nVec3Index.size(), 0 );
-	m_nVec4Index64.assign( m_nVec4Index.size(), 0 );
-	m_nVecStrIndex64.assign( m_nVecStrIndex.size(), 0 );
+	// For 64-bit, expand every schema pointer slot (even if empty/omitted in older maps)
+	// as well as serialized pointer table slots from 4 bytes to 8 bytes.
+	m_nVec2Index64.clear();
+	m_nVec3Index64.clear();
+	m_nVec4Index64.clear();
+	m_nVecStrIndex64.clear();
 
 #ifdef _TEST_DEFAULT_EVENT_ALLOC
-	int nAddSize = 256 + (int)( m_nVec2Index.size() + m_nVec3Index.size() + m_nVec4Index.size() + m_nVecStrIndex.size() );
-	int *pTempBuf = new int[nAddSize];
-	memset( pTempBuf, 0, nAddSize * 4 );
+	const int eventID = (GetControl() != NULL) ? GetControl()->GetUniqueID() : -1;
+	int slotMap[256];
 	int nTargetOffset = 0;
 	for( int i=0; i<256; i++ ) {
-		char cFlag = IsPointerTable(i);
-		if( cFlag == -1 ) {
-			pTempBuf[nTargetOffset] = ((int*)m_pData)[i];
-			nTargetOffset++;
-		}
-		else {
-			IncreasePointerTableIndex(i);
+		slotMap[i] = nTargetOffset;
+		if( IsEventPointerSlot32(eventID, i) || IsPointerTable(i) != -1 )
 			nTargetOffset += 2;
-		}
+		else
+			nTargetOffset += 1;
 	}
-	for( DWORD i=0; i<m_nVec2Index.size(); i++ ) m_nVec2Index[i] += m_nVec2Index64[i];
-	for( DWORD i=0; i<m_nVec3Index.size(); i++ ) m_nVec3Index[i] += m_nVec3Index64[i];
-	for( DWORD i=0; i<m_nVec4Index.size(); i++ ) m_nVec4Index[i] += m_nVec4Index64[i];
-	for( DWORD i=0; i<m_nVecStrIndex.size(); i++ ) m_nVecStrIndex[i] += m_nVecStrIndex64[i];
+	int *pTempBuf = new int[nTargetOffset];
+	memset( pTempBuf, 0, nTargetOffset * sizeof(int) );
+	for( int i=0; i<256; i++ ) {
+		if( !IsEventPointerSlot32(eventID, i) && IsPointerTable(i) == -1 )
+			pTempBuf[slotMap[i]] = ((int*)m_pData)[i];
+	}
+	for( DWORD i=0; i<m_nVec2Index.size(); i++ ) if( m_nVec2Index[i] >= 0 && m_nVec2Index[i] < 256 ) m_nVec2Index[i] = slotMap[m_nVec2Index[i]];
+	for( DWORD i=0; i<m_nVec3Index.size(); i++ ) if( m_nVec3Index[i] >= 0 && m_nVec3Index[i] < 256 ) m_nVec3Index[i] = slotMap[m_nVec3Index[i]];
+	for( DWORD i=0; i<m_nVec4Index.size(); i++ ) if( m_nVec4Index[i] >= 0 && m_nVec4Index[i] < 256 ) m_nVec4Index[i] = slotMap[m_nVec4Index[i]];
+	for( DWORD i=0; i<m_nVecStrIndex.size(); i++ ) if( m_nVecStrIndex[i] >= 0 && m_nVecStrIndex[i] < 256 ) m_nVecStrIndex[i] = slotMap[m_nVecStrIndex[i]];
 	SAFE_DELETEA( m_pData );
 	m_pData = pTempBuf;
 #else
-	int *pTempBuf = NULL;
-	int nCorrectionSize = (int)( m_nVec2Index.size() + m_nVec3Index.size() + m_nVec4Index.size() + m_nVecStrIndex.size() );
-	if (m_pData == NULL && nCorrectionSize != 0)
+	if (usingCount32 > 0 && usingCount32 <= 256)
 	{
-		_ASSERT(0);
-		return false;
-	}
-
-	if (m_pData != NULL)
-	{
-		int nAddSize = usingCount + (int)( m_nVec2Index.size() + m_nVec3Index.size() + m_nVec4Index.size() + m_nVecStrIndex.size() );
-		pTempBuf = new int[nAddSize];
-		memset( pTempBuf, 0, nAddSize * 4 );
+		int slotMap[256];
 		int nTargetOffset = 0;
-		for( int i=0; i<usingCount; i++ ) {
-			char cFlag = IsPointerTable(i);
-			if( cFlag == -1 ) {
-				pTempBuf[nTargetOffset] = ((int*)m_pData)[i];
-				nTargetOffset++;
-			}
-			else {
-				IncreasePointerTableIndex(i);
+		for( int i=0; i<usingCount32; i++ ) {
+			slotMap[i] = nTargetOffset;
+			if( IsEventPointerSlot32(eventID, i) || IsPointerTable(i) != -1 )
 				nTargetOffset += 2;
-			}
+			else
+				nTargetOffset += 1;
 		}
 
-		for( DWORD i=0; i<m_nVec2Index.size(); i++ ) m_nVec2Index[i] += m_nVec2Index64[i];
-		for( DWORD i=0; i<m_nVec3Index.size(); i++ ) m_nVec3Index[i] += m_nVec3Index64[i];
-		for( DWORD i=0; i<m_nVec4Index.size(); i++ ) m_nVec4Index[i] += m_nVec4Index64[i];
-		for( DWORD i=0; i<m_nVecStrIndex.size(); i++ ) m_nVecStrIndex[i] += m_nVecStrIndex64[i];
+		int nAllocCount = (usingCount > nTargetOffset) ? usingCount : nTargetOffset;
+		int *pTempBuf = new int[nAllocCount];
+		memset( pTempBuf, 0, nAllocCount * sizeof(int) );
+		for( int i=0; i<usingCount32; i++ ) {
+			if( !IsEventPointerSlot32(eventID, i) && IsPointerTable(i) == -1 )
+				pTempBuf[slotMap[i]] = rawData32[i];
+		}
 
-		if (m_pData != NULL)
 		{
-			SAFE_DELETEA( m_pData );
-			m_pData = pTempBuf;
+			std::vector<int> keptIdx; std::vector<EtVector2> keptVal;
+			for( DWORD i=0; i<m_nVec2Index.size(); i++ ) {
+				if( m_nVec2Index[i] >= 0 && m_nVec2Index[i] < usingCount32 ) {
+					keptIdx.push_back( slotMap[m_nVec2Index[i]] );
+					keptVal.push_back( vVec2List[i] );
+				}
+			}
+			m_nVec2Index.swap( keptIdx ); vVec2List.swap( keptVal );
 		}
+		{
+			std::vector<int> keptIdx; std::vector<EtVector3> keptVal;
+			for( DWORD i=0; i<m_nVec3Index.size(); i++ ) {
+				if( m_nVec3Index[i] >= 0 && m_nVec3Index[i] < usingCount32 ) {
+					keptIdx.push_back( slotMap[m_nVec3Index[i]] );
+					keptVal.push_back( vVec3List[i] );
+				}
+			}
+			m_nVec3Index.swap( keptIdx ); vVec3List.swap( keptVal );
+		}
+		{
+			std::vector<int> keptIdx; std::vector<EtVector4> keptVal;
+			for( DWORD i=0; i<m_nVec4Index.size(); i++ ) {
+				if( m_nVec4Index[i] >= 0 && m_nVec4Index[i] < usingCount32 ) {
+					keptIdx.push_back( slotMap[m_nVec4Index[i]] );
+					keptVal.push_back( vVec4List[i] );
+				}
+			}
+			m_nVec4Index.swap( keptIdx ); vVec4List.swap( keptVal );
+		}
+		{
+			std::vector<int> keptIdx; std::vector<std::string> keptVal;
+			for( DWORD i=0; i<m_nVecStrIndex.size(); i++ ) {
+				if( m_nVecStrIndex[i] >= 0 && m_nVecStrIndex[i] < usingCount32 ) {
+					keptIdx.push_back( slotMap[m_nVecStrIndex[i]] );
+					keptVal.push_back( szVecList[i] );
+				}
+			}
+			m_nVecStrIndex.swap( keptIdx ); szVecList.swap( keptVal );
+		}
+
+		m_pData = pTempBuf;
+	}
+	else
+	{
+		m_nVec2Index.clear(); vVec2List.clear();
+		m_nVec3Index.clear(); vVec3List.clear();
+		m_nVec4Index.clear(); vVec4List.clear();
+		m_nVecStrIndex.clear(); szVecList.clear();
 	}
 #endif // _TEST_DEFAULT_EVENT_ALLOC
 #endif
 	////////////////////
-	nTableCount = (int)m_nVec2Index.size();
-	for( int i=0; i<nTableCount; i++ ) {
-		EtVector2 *pVec = new EtVector2;
-		*pVec = vVec2List[i];
-		memcpy( (int*)m_pData + ( m_nVec2Index[i] ), &pVec, sizeof(int*) );
-	}
-	nTableCount = (int)m_nVec3Index.size();
-	for( int i=0; i<nTableCount; i++ ) {
-		EtVector3 *pVec = new EtVector3;
-		*pVec = vVec3List[i];
-		memcpy( (int*)m_pData + ( m_nVec3Index[i] ), &pVec, sizeof(int*) );
-	}
-	nTableCount = (int)m_nVec4Index.size();
-	for( int i=0; i<nTableCount; i++ ) {
-		EtVector4 *pVec = new EtVector4;
-		*pVec = vVec4List[i];
-		memcpy( (int*)m_pData + ( m_nVec4Index[i] ), &pVec, sizeof(int*) );
-	}
-	nTableCount = (int)m_nVecStrIndex.size();
-	for( int i=0; i<nTableCount; i++ ) {
-		char *pStr = new char[szVecList[i].size()+1];
-		memset( pStr, 0, szVecList[i].size()+1 );
-		strcpy_s( pStr, szVecList[i].size()+1, szVecList[i].c_str() );
+	if( m_pData != NULL ) {
+		nTableCount = (int)m_nVec2Index.size();
+		for( int i=0; i<nTableCount; i++ ) {
+			EtVector2 *pVec = new EtVector2;
+			*pVec = vVec2List[i];
+			memcpy( (int*)m_pData + ( m_nVec2Index[i] ), &pVec, sizeof(int*) );
+		}
+		nTableCount = (int)m_nVec3Index.size();
+		for( int i=0; i<nTableCount; i++ ) {
+			EtVector3 *pVec = new EtVector3;
+			*pVec = vVec3List[i];
+			memcpy( (int*)m_pData + ( m_nVec3Index[i] ), &pVec, sizeof(int*) );
+		}
+		nTableCount = (int)m_nVec4Index.size();
+		for( int i=0; i<nTableCount; i++ ) {
+			EtVector4 *pVec = new EtVector4;
+			*pVec = vVec4List[i];
+			memcpy( (int*)m_pData + ( m_nVec4Index[i] ), &pVec, sizeof(int*) );
+		}
+		nTableCount = (int)m_nVecStrIndex.size();
+		for( int i=0; i<nTableCount; i++ ) {
+			char *pStr = new char[szVecList[i].size()+1];
+			memset( pStr, 0, szVecList[i].size()+1 );
+			strcpy_s( pStr, szVecList[i].size()+1, szVecList[i].c_str() );
 
-		memcpy( (int*)m_pData + ( m_nVecStrIndex[i] ), &pStr, sizeof(int*) );
+			memcpy( (int*)m_pData + ( m_nVecStrIndex[i] ), &pStr, sizeof(int*) );
+		}
 	}
 
-	SAFE_DELETE_VEC( vVec2List );
 	SAFE_DELETE_VEC( vVec2List );
 	SAFE_DELETE_VEC( vVec3List );
+	SAFE_DELETE_VEC( vVec4List );
 	SAFE_DELETE_VEC( szVecList );
 
 	return true;

@@ -80,8 +80,13 @@ bool CEtSoundEngine::Initialize( OutputTypeEnum Type )
 		}
 
 		// Channel settings
-		int n2DChannel, n3DChannel, nTotalChannel;
+		int n2DChannel = 0, n3DChannel = 0, nTotalChannel = 0;
 		Result = m_pSystem->getHardwareChannels( &n2DChannel, &n3DChannel, &nTotalChannel );
+		if( Result != FMOD_OK ) {
+			n2DChannel = 0;
+			n3DChannel = 0;
+			nTotalChannel = 0;
+		}
 		Result = m_pSystem->setHardwareChannels( n2DChannel, n2DChannel, n3DChannel, n3DChannel );
 		Result = m_pSystem->setSoftwareChannels( 64 );
 		nNumChannel = n2DChannel + 64;
@@ -179,6 +184,10 @@ bool CEtSoundEngine::_Finalize()
 		m_pVecSoundList.erase( m_pVecSoundList.begin() + i );
 		i--;
 	}
+	m_nMapSearch.clear();
+	m_szMapSearch.clear();
+	m_nVecRemoveSoundQueue.clear();
+	m_nTotalSoundSize = 0;
 
 	LockFMODFunc();
 	FMOD_API_CHECK( m_pSystem->close() );
@@ -402,6 +411,50 @@ void CEtSoundEngine::RemoveSound( int nSoundIndex )
 	}
 }
 
+bool CEtSoundEngine::IsSoundPlayingOneShot( int nSoundIndex )
+{
+	ScopeLock<CSyncLock> Lock(s_ChannelLock);
+	for( DWORD i=0; i<m_pVecChannelGroupList.size(); i++ ) {
+		if( m_pVecChannelGroupList[i]->HasActiveOneShotChannel( nSoundIndex ) )
+			return true;
+	}
+	return false;
+}
+
+void CEtSoundEngine::DestroySoundLocked( int nSoundIndex )
+{
+	std::map<int, SoundStruct *>::iterator it = m_nMapSearch.find( nSoundIndex );
+	if( it == m_nMapSearch.end() ) return;
+	if( it->second->nRefCount > 0 ) return;
+
+	SoundStruct *pStruct = it->second;
+	std::pair< MapSearchIter, MapSearchIter > range = m_szMapSearch.equal_range( pStruct->szFileName );
+	for( MapSearchIter itSearch = range.first; itSearch != range.second; ++itSearch ) {
+		if( itSearch->second == pStruct ) {
+			m_szMapSearch.erase( itSearch );
+			break;
+		}
+	}
+	m_nMapSearch.erase( it );
+
+	for( DWORD i=0; i<m_pVecSoundList.size(); i++ ) {
+		if( m_pVecSoundList[i] == pStruct ) {
+			m_pVecSoundList.erase( m_pVecSoundList.begin() + i );
+			break;
+		}
+	}
+
+	{
+		ScopeLock<CSyncLock> ChannelLock(s_ChannelLock);
+		for( DWORD i=0; i<m_pVecChannelGroupList.size(); i++ ) {
+			m_pVecChannelGroupList[i]->CheckSoundIndexAndRemoveChannel( nSoundIndex );
+		}
+	}
+
+	m_nTotalSoundSize -= pStruct->nSize;
+	SAFE_DELETE( pStruct );
+}
+
 void CEtSoundEngine::_RemoveSound( int nSoundIndex )
 {
 	ScopeLock<CSyncLock> Lock(m_LoadLock);
@@ -410,51 +463,37 @@ void CEtSoundEngine::_RemoveSound( int nSoundIndex )
 	if( it != m_nMapSearch.end() ) {
 		it->second->nRefCount--;
 		if( it->second->nRefCount <= 0 ) {
-			if( m_dwMainThreadID != GetCurrentThreadId() ) {
+			it->second->nRefCount = 0;
+			// Defer release when called off the main thread or while a non-looping one-shot
+			// channel (e.g. CDnItemTask::PlayItemSound / DPT_PICKINSTANT) is still playing it.
+			if( m_dwMainThreadID != GetCurrentThreadId() || IsSoundPlayingOneShot( nSoundIndex ) ) {
 				if( std::find( m_nVecRemoveSoundQueue.begin(), m_nVecRemoveSoundQueue.end(), nSoundIndex ) == m_nVecRemoveSoundQueue.end() ) {
 					m_nVecRemoveSoundQueue.push_back( nSoundIndex );
 				}
 				return;
 			}
 
-			std::pair<  MapSearchIter, MapSearchIter > range =  m_szMapSearch.equal_range( it->second->szFileName );
-			for ( MapSearchIter itSearch = range.first; itSearch != range.second; ++itSearch ) {
-				if( itSearch->second == it->second ) {
-					m_szMapSearch.erase( itSearch );
-					break;
-				}
-			}
-			m_nMapSearch.erase( it );
-
-			for( DWORD i=0; i<m_pVecSoundList.size(); i++ ) {
-				if( m_pVecSoundList[i]->nIndex == nSoundIndex ) {
-					m_pVecSoundList[i]->nRefCount--;
-					if( m_pVecSoundList[i]->nRefCount <= 0 ) {
-						SoundStruct *pStruct = m_pVecSoundList[i];
-						m_nTotalSoundSize -= pStruct->nSize;
-						SAFE_DELETE( pStruct );
-						m_pVecSoundList.erase( m_pVecSoundList.begin() + i );
-					}
-					return;
-				}
-			}
-			for( DWORD i=0; i<m_pVecChannelGroupList.size(); i++ ) {
-				CEtSoundChannelGroup *pGroup = m_pVecChannelGroupList[i];
-				pGroup->CheckSoundIndexAndRemoveChannel( nSoundIndex );
-			}
+			DestroySoundLocked( nSoundIndex );
 		}
 	}
 }
 
 void CEtSoundEngine::ProcessRemoveSoundQueue()
 {
+	if( m_nVecRemoveSoundQueue.empty() ) return;
+	std::vector<int> vecPending;
 	for( DWORD i=0; i<m_nVecRemoveSoundQueue.size(); i++ ) {
-		SoundStruct *pStruct = FindSoundStruct( m_nVecRemoveSoundQueue[i] );
-		if( !pStruct ) continue;
-		if( pStruct->nRefCount > 0 ) continue;
-		RemoveSound( m_nVecRemoveSoundQueue[i] );
+		int nSoundIndex = m_nVecRemoveSoundQueue[i];
+		std::map<int, SoundStruct *>::iterator it = m_nMapSearch.find( nSoundIndex );
+		if( it == m_nMapSearch.end() ) continue;
+		if( it->second->nRefCount > 0 ) continue;
+		if( IsSoundPlayingOneShot( nSoundIndex ) ) {
+			vecPending.push_back( nSoundIndex );
+			continue;
+		}
+		DestroySoundLocked( nSoundIndex );
 	}
-	m_nVecRemoveSoundQueue.clear();
+	m_nVecRemoveSoundQueue.swap( vecPending );
 }
 
 void CEtSoundEngine::GetCPUUsage( float &fDSP, float &fStream, float &fUpdate, float &fTotal )

@@ -117,8 +117,9 @@ FMOD_RESULT F_CALLBACK CEtSoundChannelGroup::ChannelStopCallbackFunc( FMOD_CHANN
 {
 #pragma warning(disable:4312)
 	if( type == FMOD_CHANNEL_CALLBACKTYPE_END ) {
-		void *pUserData;
-		FMOD_API_CHECK(  ((FMOD::Channel *)channel)->getUserData( &pUserData ) );
+		void *pUserData = NULL;
+		FMOD_RESULT fr = ((FMOD::Channel *)channel)->getUserData( &pUserData );
+		if( fr != FMOD_OK || pUserData == NULL ) return FMOD_OK;
 		int nIndex = *(int*)pUserData;
 
 		EtSoundChannelHandle hChannel = CEtSoundChannel::GetSmartPtr( nIndex );
@@ -159,12 +160,31 @@ void CEtSoundChannelGroup::CheckSoundIndexAndRemoveChannel( int nSoundIndex )
 {
 	ScopeLock<CSyncLock> Lock(m_InsertLock);
 	for( DWORD i=0; i<m_hVecChannelList.size(); i++ ) {
+		if( !m_hVecChannelList[i] ) {
+			m_hVecChannelList.erase( m_hVecChannelList.begin() + i );
+			i--;
+			continue;
+		}
 		if( m_hVecChannelList[i]->GetSoundIndex() == nSoundIndex ) {
 			SAFE_RELEASE_SPTR( m_hVecChannelList[i] );
 			m_hVecChannelList.erase( m_hVecChannelList.begin() + i );
 			i--;
 		}
 	}
+}
+
+bool CEtSoundChannelGroup::HasActiveOneShotChannel( int nSoundIndex )
+{
+	ScopeLock<CSyncLock> Lock(m_InsertLock);
+	for( DWORD i=0; i<m_hVecChannelList.size(); i++ ) {
+		if( !m_hVecChannelList[i] ) continue;
+		if( m_hVecChannelList[i]->GetSoundIndex() == nSoundIndex ) {
+			if( m_hVecChannelList[i]->IsPlay() && m_hVecChannelList[i]->GetLoopCount() == 0 ) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 

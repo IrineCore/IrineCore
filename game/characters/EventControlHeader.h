@@ -141,4 +141,21 @@ static int GetEventSignalDataUsingCount64(int signalIdx) {
 	return 256;
 };
 
+static bool IsEventPointerSlot32(int signalIdx, int slot32) {
+	switch(signalIdx) {
+	case 0: return (slot32 == 0 || slot32 == 4); // UnitAreaStruct
+	case 1: return (slot32 == 1); // EventAreaStruct
+	case 2: return (slot32 == 0 || slot32 == 2 || slot32 == 15); // VolumeFogStruct
+	case 3: return (slot32 == 3); // PvPRespawnAreaStruct
+	case 4: return (slot32 == 3); // PvPRespawnItemAreaStruct
+	case 5: return (slot32 == 4); // MonsterSetAreaStruct
+	case 6: return (slot32 == 1); // FarmGrowingAreaStruct
+	case 7: return (slot32 == 0); // FarmFishingAreaStruct
+	case 8: return (slot32 == 0); // GuildWarFlagStruct
+	case 9: return (slot32 == 3); // PvPOccupationItemAreaStruct
+	case 10: return (slot32 == 0); // EnvironmentEffectAeraStruct
+	default: return false;
+	}
+};
+
 #pragma pack(pop)

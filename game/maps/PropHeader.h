@@ -256,4 +256,15 @@ static int GetPropSignalDataUsingCount64(int signalIdx) {
 	return 256;
 };
 
+static bool IsPropPointerSlot32(int signalIdx, int slot32) {
+	switch(signalIdx) {
+	case 4: return (slot32 == 1 || slot32 == 2 || slot32 == 3 || slot32 == 4); // LightStruct
+	case 6: return (slot32 == 5 || slot32 == 6); // ChestStruct
+	case 12: return (slot32 == 5); // BuffStruct
+	case 16: return (slot32 == 1 || slot32 == 2); // EnvironmentPropStruct
+	case 17: return (slot32 == 4 || slot32 == 6 || slot32 == 8 || slot32 == 10); // MultiDurabilityBrokenPropStruct
+	default: return false;
+	}
+};
+
 #pragma pack(pop)
