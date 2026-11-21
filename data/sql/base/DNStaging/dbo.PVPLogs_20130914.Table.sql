@@ -1,0 +1,39 @@
+USE [dnstaging]
+GO
+/****** Object:  Table [dbo].[PVPLogs_20130914]    Script Date: 11/14/2026 9:00:07 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[PVPLogs_20130914](
+	[PVPStartDate] [datetime2](0) NOT NULL,
+	[PVPEndDate] [datetime2](0) NULL,
+	[PVPStartID] [bigint] NOT NULL,
+	[MaxPlayerCount] [tinyint] NOT NULL,
+	[PVPModeCode] [tinyint] NOT NULL,
+	[PVPModeDetailCode] [tinyint] NOT NULL,
+	[BreakIntoFlag] [bit] NOT NULL,
+	[ItemUseFlag] [bit] NOT NULL,
+	[SecreteFlag] [bit] NOT NULL,
+	[MapID] [int] NOT NULL,
+	[WorldID] [int] NULL,
+	[RoomOpenCharacterID] [bigint] NULL,
+	[CheifCharacterID] [bigint] NULL
+) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_NC_PVPLogs_20130914_PVPStartDate]    Script Date: 11/14/2026 9:00:07 AM ******/
+CREATE CLUSTERED INDEX [IX_NC_PVPLogs_20130914_PVPStartDate] ON [dbo].[PVPLogs_20130914]
+(
+	[PVPStartDate] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_NN_PVPLogs_20130914_PVPStartID]    Script Date: 11/14/2026 9:01:05 AM ******/
+CREATE NONCLUSTERED INDEX [IX_NN_PVPLogs_20130914_PVPStartID] ON [dbo].[PVPLogs_20130914]
+(
+	[PVPStartID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[PVPLogs_20130914]  WITH CHECK ADD  CONSTRAINT [CK_PVPLogs_20130914_PVPStartDate] CHECK  (([PVPStartDate]>='2013-09-14' AND [PVPStartDate]<'2013-09-15'))
+GO
+ALTER TABLE [dbo].[PVPLogs_20130914] CHECK CONSTRAINT [CK_PVPLogs_20130914_PVPStartDate]
+GO

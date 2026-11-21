@@ -1,0 +1,52 @@
+USE [dnworld]
+GO
+/****** Object:  View [dbo].[VIX_PVPLadderRanking]    Script Date: 11/14/2026 8:54:15 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE VIEW [dbo].[VIX_PVPLadderRanking]
+WITH SCHEMABINDING
+AS
+SELECT A.PVPLadderCode, A.CharacterID, B.CharacterName, C.JobCode, A.PVPLadderGradePoint, A.Win, A.Lose, A.Draw
+	, CASE (A.Win + A.Lose + A.Draw)
+		WHEN 0 THEN 0
+		ELSE A.Win * 10000 / (A.Win + A.Lose + A.Draw)
+	END AS WinRatio
+FROM dbo.PVPLadderScores A
+	INNER JOIN dbo.Characters B ON A.CharacterID = B.CharacterID
+	INNER JOIN dbo.CharacterStatus C ON A.CharacterID = C.CharacterID
+WHERE A.Win > 0 OR A.Lose > 0 OR A.Draw > 0;
+GO
+SET ARITHABORT ON
+SET CONCAT_NULL_YIELDS_NULL ON
+SET QUOTED_IDENTIFIER ON
+SET ANSI_NULLS ON
+SET ANSI_PADDING ON
+SET ANSI_WARNINGS ON
+SET NUMERIC_ROUNDABORT OFF
+GO
+/****** Object:  Index [IX_UC_VIX_PVPLadderRanking]    Script Date: 11/14/2026 8:54:15 AM ******/
+CREATE UNIQUE CLUSTERED INDEX [IX_UC_VIX_PVPLadderRanking] ON [dbo].[VIX_PVPLadderRanking]
+(
+	[PVPLadderCode] ASC,
+	[CharacterID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [IndexFG1]
+GO
+SET ARITHABORT ON
+SET CONCAT_NULL_YIELDS_NULL ON
+SET QUOTED_IDENTIFIER ON
+SET ANSI_NULLS ON
+SET ANSI_PADDING ON
+SET ANSI_WARNINGS ON
+SET NUMERIC_ROUNDABORT OFF
+GO
+/****** Object:  Index [IX_NN_VIX_PVPLadderRanking_PVPLadderCode_PVPLadderGradePoint_WinRatio_Lose]    Script Date: 11/14/2026 8:54:37 AM ******/
+CREATE NONCLUSTERED INDEX [IX_NN_VIX_PVPLadderRanking_PVPLadderCode_PVPLadderGradePoint_WinRatio_Lose] ON [dbo].[VIX_PVPLadderRanking]
+(
+	[PVPLadderCode] ASC,
+	[PVPLadderGradePoint] DESC,
+	[WinRatio] DESC,
+	[Lose] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [IndexFG1]
+GO

@@ -1,0 +1,73 @@
+USE [dnworld]
+GO
+/****** Object:  StoredProcedure [dbo].[P_SaveCharacterAbility]    Script Date: 11/14/2026 8:54:39 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/**
+version : 2
+author : ???
+e-mail : purumae@eyedentitygames.com
+created date : 2012-03-20
+description : ??? ???? ?????.
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+**/
+
+CREATE PROCEDURE [dbo].[P_SaveCharacterAbility]
+	  @inbCharacterID bigint --// ??? ID
+	, @vchCharacterAbilityCodes varchar(8000) = NULL --// ,? ?????? ??? ??? ?? ???. 0=?, 1=??, 2=??, 3=??, 4=????? Min, 5=????? Max, 6=????? Min, 7=????? Max, 8=?????, 9=?????, 10=???, 11=?? ??, 12=????, 13=???? ??, 14=??, 15=?? ??, 16=??????17=??????, 18=??????, 19=??????, 20=???????, 21=??????, 22=??????, 23=??????, 24=???????, 25=????, 26=Max HP, 27=Max MP
+	, @vchAbilityPoints varchar(8000) = NULL --// ,? ?????? ??? ???? ??? ???. (??? ???? ?????. ?) 5.4% => 54, 205% => 2050
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int;
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	;WITH T AS (
+		SELECT CharacterID, CharacterAbilityCode, AbilityPoint
+		FROM dbo.CharacterAbilities WITH (NOLOCK, INDEX(PK_CharacterAbilities), FORCESEEK)
+		WHERE CharacterID = @inbCharacterID
+	), S (CharacterID, CharacterAbilityCode, AbilityPoint) AS (
+		SELECT @inbCharacterID, CAST(A.string AS tinyint), CAST(B.string AS int)
+		FROM dbo.TF_Split(@vchCharacterAbilityCodes, ',') A
+			INNER JOIN dbo.TF_Split(@vchAbilityPoints, ',') B ON A.seq = B.seq
+		WHERE A.string > '' AND B.string > ''
+	)
+	MERGE T
+	USING S
+	ON T.CharacterID = S.CharacterID AND T.CharacterAbilityCode = S.CharacterAbilityCode
+	WHEN MATCHED THEN
+		UPDATE SET AbilityPoint = S.AbilityPoint
+	WHEN NOT MATCHED BY TARGET THEN
+		INSERT (CharacterID, CharacterAbilityCode, AbilityPoint) VALUES (S.CharacterID, S.CharacterAbilityCode, S.AbilityPoint)
+	WHEN NOT MATCHED BY SOURCE THEN
+		DELETE;
+END TRY
+BEGIN CATCH
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+
+RETURN @intReturnValue;
+GO

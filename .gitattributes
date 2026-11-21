@@ -1,0 +1,46 @@
+# =============================================================================
+# IrineCore — .gitattributes
+# Consistent line endings and binary asset handling across Windows and Linux.
+# =============================================================================
+* text=auto
+
+# Source code & build scripts
+*.c        text
+*.cc       text
+*.cpp      text
+*.h        text
+*.hpp      text
+*.inl      text
+*.rc       text
+*.cmake    text
+CMakeLists.txt text
+*.json     text
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.xml      text
+*.ini      text
+*.md       text
+*.txt      text
+*.sql      text
+Dockerfile text eol=lf
+
+# Platform-specific shell scripts
+*.sh       text eol=lf
+*.ps1      text eol=crlf
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
+
+# Binary assets
+*.ico      binary
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.webp     binary
+*.ui       binary
+*.dnt      binary
+*.pak      binary
+*.dat      binary
+*.dll      binary
+*.lib      binary
+*.exe      binary
+*.so       binary

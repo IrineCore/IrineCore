@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<ChannelInfo>
+	<MeritBonusTable>
+		<Bonus ID="1" MinLevel="1" MaxLevel="9" BonusType="CompleteExp" ExtendValue="100"></Bonus>
+		<Bonus ID="2" MinLevel="9" MaxLevel="16" BonusType="CompleteExp" ExtendValue="150"></Bonus>
+		<Bonus ID="3" MinLevel="16" MaxLevel="24" BonusType="CompleteExp" ExtendValue="150"></Bonus>
+		<Bonus ID="4" MinLevel="24" MaxLevel="32" BonusType="CompleteExp" ExtendValue="200"></Bonus>
+		<Bonus ID="5" MinLevel="40" MaxLevel="50" BonusType="CompleteExp" ExtendValue="250"></Bonus>
+		<Bonus ID="6" MinLevel="32" MaxLevel="60" BonusType="CompleteExp" ExtendValue="250"></Bonus>
+	</MeritBonusTable>
+	<ServerInfo>
+		<Server ID="1" Name="Althea" WorldMaxUser="200" DefaultMaxUser="300">
+			<VillageServerInfo ID="1" IP="127.0.0.1" Port="14400">
+				<VillageInfo CID="1" ID="1" Name="PrairieTown" Attribute="Normal|Merit" MeritBonusID="1" Visibility="True"></VillageInfo>
+				<VillageInfo CID="2" ID="5" Name="ManaRidge" Attribute="Normal|Merit" MeritBonusID="1" Visibility="True"></VillageInfo>
+				<VillageInfo CID="3" ID="8" Name="CataractGateway" Attribute="Normal|Merit" MeritBonusID="2" Visibility="True"></VillageInfo>
+				<VillageInfo CID="4" ID="8" Name="CataractGateway" Attribute="Normal|Merit" MeritBonusID="3" Visibility="True"></VillageInfo>
+				<VillageInfo CID="5" ID="11" Name="SaintHaven" Attribute="Normal|Merit" MeritBonusID="4" Visibility="True"></VillageInfo>
+				<VillageInfo CID="6" ID="11" Name="SaintHaven" Attribute="Normal|Merit" MeritBonusID="6" Visibility="True"></VillageInfo>
+				<VillageInfo CID="7" ID="15" Name="LotusMarshTown" Attribute="Normal" MeritBonusID="5" Visibility="True"></VillageInfo>
+
+				<!-- Dragon Nest classic has the map data -->
+				<!-- <VillageInfo CID="8" ID="17"  Name="TelNumara" Attribute="Normal" Visibility="True"></VillageInfo> -->
+
+				<VillageInfo CID="9" ID="40" Name="ColosseumChannel" Attribute="Normal|PvP" Visibility="True" LimitLevel="10"></VillageInfo>
+				<VillageInfo CID="10" ID="41" Name="ColosseumLobbyMap" MaxUser="200" Attribute="Normal|PvPLobby" Visibility="True"></VillageInfo>
+				<VillageInfo CID="11" ID="42" Name="GM_Map" MaxUser="200" Attribute="Normal|GM" Visibility="True"></VillageInfo>
+				<VillageInfo CID="12" ID="23" Name="DarkVillage" Attribute="Normal|DarkLair" Visibility="True" LimitLevel="15"></VillageInfo>
+				<VillageInfo CID="13" ID="15107" Name="Farm_Town" Attribute="Normal|FarmTown" Visibility="True" LimitLevel="24" DependentMapID="11"></VillageInfo>
+				
+				<!-- Dragon Nest classic has the map data -->
+				<!-- <VillageInfo CID="14" ID="44"  Name="ColosseumChannel_DWC" Attribute="Normal|DWC" Visibility="True"></VillageInfo> -->
+			</VillageServerInfo>
+		</Server>
+	</ServerInfo>
+
+	<!-- EXP definitions for Altea? Blessing System -->
+	<!-- If a character still has FTG points -->
+	<FTGExpTable>
+		<FTGExp ID="1" Value="70" />
+	</FTGExpTable>
+
+	<!-- If a character has NO FTG points -->
+	<NoFTGExpTable>
+		<NoFTGExp Value="40" />
+	</NoFTGExpTable>
+</ChannelInfo>

@@ -1,0 +1,20 @@
+[Unit]
+Description=IrineCore %i Server (OpenSource Dragon Nest Server Emulator)
+After=network-online.target mssql-server.service
+Wants=network-online.target
+PartOf=irine.target
+
+[Service]
+Type=simple
+User=irine
+Group=irine
+WorkingDirectory=/opt/irinecore/env/dist
+Environment=ODBCINI=/opt/irinecore/env/dist/config/odbc.ini
+Environment=LD_LIBRARY_PATH=/opt/irinecore/env/dist
+ExecStart=/opt/irinecore/env/dist/%i
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=irine.target

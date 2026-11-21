@@ -1,0 +1,94 @@
+USE [dnworld]
+GO
+/****** Object:  StoredProcedure [dbo].[P_AddField]    Script Date: 11/14/2026 8:54:37 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/**
+version : 4
+author : ???
+e-mail : purumae@eyedentitygames.com
+created date : 2010-10-13
+description : ???? ???? ????.
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+103279 = ??? ????.
+103282 = ?? ???? ??????.
+103284 = ??? ? ?????.
+history :
+2 = ??? ?? ????? ?? at 2010-10-27
+3 = ??? ?? ??? ? VIX_FieldCountByCharacter ? ????? ?? at 2010-10-28
+4 = TF_Split(), TF_NSplit() ??? ????? ?? by ??? at 2011-11-01
+**/
+
+CREATE PROCEDURE [dbo].[P_AddField]
+	  @intFarmID int --// ?? ID
+	, @insFieldIndex smallint --// ?? ID
+	, @inbCharacterID bigint --// ???? ?? ??? ID
+	, @intItemID int --// ?? ???? ??? ID
+	, @intElapsedTime int --// ??? ?? ?? ?? ?? (?)
+	, @vchAttachedItemIDs varchar(max) --// ,? ?????? ??? ?? ???? ??? ???? ??? ID ???
+	, @intMaxFieldCount int = 10 --// ?? ??? ? ?? ??? ?
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int;
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	IF (SELECT SUM(FieldCount) FROM dbo.VIX_FieldCountByCharacter WITH (NOLOCK, NOEXPAND) WHERE CharacterID = @inbCharacterID) >= @intMaxFieldCount
+	BEGIN
+		SET @intReturnValue = 103284;
+		GOTO ErrorHandler;
+	END
+
+	BEGIN TRANSACTION;
+
+	/**_# [Fields] ???? INSERT???.*/
+	/**_## ?? ???? ??? ?? ????? 103282? ?????.*/
+	/**_## ??? ???? ??? 103279? ?????.*/
+	INSERT dbo.Fields (FarmID, FieldIndex, CharacterID, ItemID, PlantDate, ElapsedTime)
+	VALUES (@intFarmID, @insFieldIndex, @inbCharacterID, @intItemID, GETDATE(), @intElapsedTime);
+
+	IF @vchAttachedItemIDs > ''
+		/**_# [FieldAttachments] ???? INSERT???.*/
+		INSERT dbo.FieldAttachments (FarmID, FieldIndex, AttachedItemID)
+		SELECT @intFarmID, @insFieldIndex, CAST(string AS int)
+		FROM dbo.TF_Split(@vchAttachedItemIDs, ',')
+		WHERE string > ''
+		OPTION (KEEPFIXED PLAN);
+
+	COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+	IF ERROR_NUMBER() = 547 AND ERROR_MESSAGE() LIKE N'%FK_Farms_Fields_FarmID%'
+		SET @intReturnValue = 103279;
+
+	ELSE IF ERROR_NUMBER() = 2627 AND ERROR_MESSAGE() LIKE N'%PK_Fields%'
+		SET @intReturnValue = 103282;
+
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+
+RETURN @intReturnValue;
+GO

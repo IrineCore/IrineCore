@@ -1,0 +1,5 @@
+*
+!data/sql/base/
+!deploy/mssql/scripts/build-sql-bundle.py
+!deploy/mssql/scripts/entrypoint.sh
+!deploy/mssql/scripts/init-db.sh

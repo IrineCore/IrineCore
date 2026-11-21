@@ -1,0 +1,20 @@
+# Build & Git artifacts
+build/
+build-*/
+env/dist/
+env/client/
+.git/
+*.pdb
+*.obj
+*.lib
+*.exp
+*.ilk
+*.log
+*.dmp
+
+# Windows-only client & infrastructure contexts (not needed by Linux server Dockerfile)
+src/client/
+data/sql/
+deploy/mssql/
+deploy/webserver/
+*.pak

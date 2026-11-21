@@ -1,0 +1,101 @@
+USE [dnworld]
+GO
+/****** Object:  StoredProcedure [dbo].[P_AddItemLog]    Script Date: 11/14/2026 8:54:37 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/**
+version : 14
+author : ???
+e-mail : purumae@eyedentitygames.com
+created date : 2010-03-01
+description : ??? ??? ?????.
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+history :
+4 = SkipLoggingItems ???? ???? ?? ??? ????? ?? at 2010-08-09
+5 = ??? ??? ??? ????? ?? at 2010-08-11
+6 = MapID, ItemDurability? ??? ????? ?? at 2010-09-03
+7 = MapID? ItemLogFKey1 ??? ?? ???? ?? at 2010-09-03
+8 = input param. @inyItemLevelBefore, @inyItemLevel ?? at 2010-09-16
+9 = Input param ?? ??     by 20110412.wgkim
+10 = ??? @inyItemLevelBefore, @inyItemLevel ?? ???? ???? ?? ?? ?? at 2011-09-16
+11 = Input param (@inyItemLogCode) ?? ??     by 20111019.wgkim
+12 = ?? ?? ?? ?? ??? ???? ?? by ??? at 2012-04-18
+13 = ?????? ???? SkipItem? ???? ???? ??? ???? ?? by ??? at 2012-10-16
+**/
+
+CREATE PROCEDURE [dbo].[P_AddItemLog]
+	  @dt2LogDate datetime2(0) --// ?? ??
+	, @inbItemSerial bigint --// ??? ???
+	, @intItemID int --// ???ID
+	, @inyItemLogCode tinyint --// 1=??,2=??,3=???,4=??,5=??(?????),6=??(??),7=??(??),8=??(DNA???),9=??(????),10=??? ??(??),11=??,12=??,13=??,14=??,15=?? ??,16=PVP ??,17=?? ??,18=??? ??, 20=??,21=???,22=???,23=??(??),24=??(??),25=??? ??(?? ??),26=?? ?? ???,27=??? ??,28=??? ??(???),29=??? ??(??),30=??? ??(?? ??),31=??? ??(?? ??,33=?? ???? ??,34=?? ???? ??, 35=???(????), 36=???(New), 37=??? ???? ? ??? ??, 38=??? ??, 39=?? ?? ??, 40=??? ?? ??, 41=??? ??, 42=NPC?? ??, 43=??? ??, 44=??? ?? ?? By ???, 45=?? ??? ??, 46=?? ???? ??, 47=??, 48=??, 49=???, 50=??(PVP?????), 51=??(?? ???), 52=??? ??, 53=??(????????), 54=???
+	, @inbOwnerCharacterID bigint --// ?? ??? ID
+	, @inbOwnerCharacterIDBefore bigint --// ?? ?? ??? ID
+	, @insItemCount smallint --// ??? ??
+	, @insItemCountBefore smallint --// ?? ??? ??
+	, @inbItemLogFKey1 bigint --// 1:MapID,2:MissionID,3:QuestID,4:PurchaseOrderID,5:NULL,6:PurchaseOrderID,7:PurchaseOrderID,8:PurchaseOrderID,9:NULL,10:MailID,11:NULL,12:ItemEnchantLogID,13:NULL,14:NULL,15:NULL,16:NULL,17:NULL,18:MailID,19:ItemSerial,20:NULL,21:NULL,22:NULL,23:NULL,24:ItemEnchantLogID,25:MailID,26:MailID,27:NULL,28:TradeID,29:NULL,30:MailID,31:MailID,32:ItemSerial,33:ItemSerial,34:ItemSerial
+	, @inbItemLogFKey2 bigint --// 
+	, @dt2OwnershipStartDate datetime2(0) --// ?? ?? ??
+	, @intIP int --// IP ??
+	, @inySealCount tinyint = NULL --// ?? ???
+	, @bitSoulBoundFlag bit = NULL --// 0=??, 1=??
+	, @inyItemOption tinyint = NULL --// ??? ??
+	, @inyItemPotential tinyint = NULL --// ???
+	, @insItemDurability smallint = NULL --// ?? ??? ???? ??? (???? ???? ????? ???, ??? ??? ???? ????.)
+	, @inyItemLevelBefore tinyint = NULL --// ?? ? ?? ??
+	, @inyItemLevel tinyint = NULL --// ?? ? ?? ??
+	, @inyItemPotentialMoveCount tinyint = NULL --// ?? ?? ??
+	, @inyDragonJewelType tinyint = NULL --// ??????
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int, @intLogTableSuffix int;
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	IF EXISTS (SELECT * FROM dbo.SkipLoggingItems WITH (NOLOCK) WHERE ItemID = @intItemID AND (ItemLogCode = @inyItemLogCode OR ItemLogCode IS NULL)) AND @inyItemLogCode <> 3
+		RETURN 0;
+
+	SET @intLogTableSuffix = dbo.FN_LogTableSuffix(@dt2LogDate);
+
+	/**_# [ItemLogs] ???? INSERT???.*/
+	IF @intLogTableSuffix = 0
+		INSERT dbo.ItemLogs0 (LogDate, ItemSerial, ItemID, ItemLogCode, OwnerCharacterID, OwnerCharacterIDBefore, ItemCount, ItemCountBefore, ItemLogFKey1, ItemLogFKey2, OwnershipStartDate, IP, SealCount, ItemOption, SoulBoundFlag, ItemPotential, ItemDurability, ItemLevel, ItemLevelBefore, ItemPotentialMoveCount, DragonJewelType)
+		VALUES (@dt2LogDate, @inbItemSerial, @intItemID, @inyItemLogCode, @inbOwnerCharacterID, @inbOwnerCharacterIDBefore, @insItemCount, @insItemCountBefore, @inbItemLogFKey1, @inbItemLogFKey2, @dt2OwnershipStartDate, @intIP, @inySealCount, @inyItemOption, @bitSoulBoundFlag, @inyItemPotential, @insItemDurability, @inyItemLevel, @inyItemLevelBefore, @inyItemPotentialMoveCount, @inyDragonJewelType);
+
+	ELSE IF @intLogTableSuffix = 1
+		INSERT dbo.ItemLogs1 (LogDate, ItemSerial, ItemID, ItemLogCode, OwnerCharacterID, OwnerCharacterIDBefore, ItemCount, ItemCountBefore, ItemLogFKey1, ItemLogFKey2, OwnershipStartDate, IP, SealCount, ItemOption, SoulBoundFlag, ItemPotential, ItemDurability, ItemLevel, ItemLevelBefore, ItemPotentialMoveCount, DragonJewelType)
+		VALUES (@dt2LogDate, @inbItemSerial, @intItemID, @inyItemLogCode, @inbOwnerCharacterID, @inbOwnerCharacterIDBefore, @insItemCount, @insItemCountBefore, @inbItemLogFKey1, @inbItemLogFKey2, @dt2OwnershipStartDate, @intIP, @inySealCount, @inyItemOption, @bitSoulBoundFlag, @inyItemPotential, @insItemDurability, @inyItemLevel, @inyItemLevelBefore, @inyItemPotentialMoveCount, @inyDragonJewelType);
+
+	ELSE
+		INSERT dbo.ItemLogs2 (LogDate, ItemSerial, ItemID, ItemLogCode, OwnerCharacterID, OwnerCharacterIDBefore, ItemCount, ItemCountBefore, ItemLogFKey1, ItemLogFKey2, OwnershipStartDate, IP, SealCount, ItemOption, SoulBoundFlag, ItemPotential, ItemDurability, ItemLevel, ItemLevelBefore, ItemPotentialMoveCount, DragonJewelType)
+		VALUES (@dt2LogDate, @inbItemSerial, @intItemID, @inyItemLogCode, @inbOwnerCharacterID, @inbOwnerCharacterIDBefore, @insItemCount, @insItemCountBefore, @inbItemLogFKey1, @inbItemLogFKey2, @dt2OwnershipStartDate, @intIP, @inySealCount, @inyItemOption, @bitSoulBoundFlag, @inyItemPotential, @insItemDurability, @inyItemLevel, @inyItemLevelBefore, @inyItemPotentialMoveCount, @inyDragonJewelType);
+
+END TRY
+BEGIN CATCH
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+
+RETURN @intReturnValue;
+GO

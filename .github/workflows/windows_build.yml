@@ -1,0 +1,54 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server-x64:
+    name: Windows x64 Server Cluster & CTest
+    runs-on: windows-2022
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure CMake (x64 Servers)
+        run: cmake -S . -B build -A x64 -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/env/dist"
+
+      - name: Build all libraries, modules & 7 servers
+        run: cmake --build build --config Release --parallel
+
+      - name: Run CTest suite
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Install into env/dist
+        run: cmake --install build --config Release
+
+      - name: Verify env/dist layout
+        shell: pwsh
+        run: |
+          $required = @(
+            "env/dist/DNLogServer64.exe",
+            "env/dist/DNDBServer64.exe",
+            "env/dist/DNCashServer64.exe",
+            "env/dist/DNLoginServer64.exe",
+            "env/dist/DNMasterServer64.exe",
+            "env/dist/DNVillageServer64.exe",
+            "env/dist/DNGameServer64.exe",
+            "env/dist/config/DNLogin.ini",
+            "env/dist/config/DNGame.ini",
+            "env/dist/module/FPS-PING.ini",
+            "env/dist/module/Hero-Ally.ini",
+            "env/dist/module/Player-Bots.ini",
+            "env/dist/systems/ChannelInfo.xml"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) { throw "Missing expected file: $path" }
+          }
+          Write-Host "Verified IrineCore env/dist layout successfully."

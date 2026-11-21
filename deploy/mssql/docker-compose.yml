@@ -1,0 +1,38 @@
+# =============================================================================
+# IrineCore — deploy/mssql/docker-compose.yml
+# Standalone SQL Server 2022 Docker service auto-populating all 5 Dragon Nest DBs:
+#   dngsm, dnmembership, dnserverlog, dnstaging, dnworld
+# =============================================================================
+services:
+  mssql:
+    build:
+      context: ../..
+      dockerfile: deploy/mssql/Dockerfile
+    image: irinecore-mssql:2022
+    container_name: irine-database
+    restart: unless-stopped
+    ports:
+      - "${MSSQL_PORT:-1433}:1433"
+    environment:
+      ACCEPT_EULA: "${ACCEPT_EULA:-Y}"
+      MSSQL_PID: "${MSSQL_PID:-Developer}"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-DnCap60!Local2026}"
+      DN_APP_USER: "${DN_APP_USER:-DragonNest}"
+      DN_APP_PASSWORD: "${DN_APP_PASSWORD:-DnCap60!App2026}"
+    volumes:
+      - irine-mssql-data:/var/opt/mssql
+      - ../../data/sql/updates:/opt/dn-init/updates:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "test -f /var/opt/mssql/.dn_initialized && SQLCMDPASSWORD=\"$$MSSQL_SA_PASSWORD\" /opt/mssql-tools18/bin/sqlcmd -C -S 127.0.0.1 -U sa -h -1 -W -Q \"SET NOCOUNT ON; IF (SELECT COUNT(*) FROM sys.databases WHERE state = 0 AND name IN (N'dngsm',N'dnmembership',N'dnserverlog',N'dnstaging',N'dnworld')) = 5 AND OBJECT_ID(N'dnworld.dbo.P_AddDWCCharacter',N'P') IS NOT NULL AND OBJECT_ID(N'dnworld.dbo.P_UpsEquipment',N'P') IS NOT NULL AND OBJECT_ID(N'dnmembership.dbo.Auth_ResetAuthByAccountWorld',N'P') IS NOT NULL SELECT 1 ELSE THROW 50000, 'DBs not ready', 1;\" || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+
+volumes:
+  irine-mssql-data:
+    name: irine-mssql-data

@@ -1,0 +1,93 @@
+USE [dngsm]
+GO
+/****** Object:  Table [dbo].[ExtRepute]    Script Date: 11/14/2026 8:47:03 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[ExtRepute](
+	[id] [int] NULL,
+	[_NpcID] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_NpcIcon] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_QuestID] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_QuestID2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MaxFavor] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_TakeFavor] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MaxMalice] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_AddMalice] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PlusItemID] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PlusProb] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentID1] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentID2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentID3] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentID4] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentID5] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentID6] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_FavorNpc] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_FavorGroupBomb] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MaliceNpc] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MaliceGroupBomb] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_NPCInfoID] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_BromideQuest1] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_BromideS1] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Bromide1] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_BromideQuest2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_BromideS2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Bromide2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_BromideQuest3] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_BromideS3] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Bromide3] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID1] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability1] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID3] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability3] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID4] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability4] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID5] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability5] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID6] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability6] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID7] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability7] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID8] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability8] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID9] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability9] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID10] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability10] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID11] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability11] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MailID12] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Probability12] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_UnionID] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_RibbonTypeID] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_RibbonRewardInforID] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_5_RibbonRewardInforID] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentPointID1] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentPointID2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentPointID3] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentPointID4] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentPointID5] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_PresentPointID6] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_UnionIconID] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_MapID] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_BromideRepute1] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_BromideRepute2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_NpcPresentRepute1] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_NpcPresentRepute2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_NpcPresentID1] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_NpcPresentID2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_Mission] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_BromideQuestName1] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[_BromideQuestName2] [nvarchar](1024) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[PartitionKey] [nvarchar](255) COLLATE SQL_Latin1_General_CP1_CI_AS NULL
+) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_UN_ExtRepute_id]    Script Date: 11/14/2026 8:47:09 AM ******/
+CREATE UNIQUE NONCLUSTERED INDEX [IX_UN_ExtRepute_id] ON [dbo].[ExtRepute]
+(
+	[id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = ON, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO

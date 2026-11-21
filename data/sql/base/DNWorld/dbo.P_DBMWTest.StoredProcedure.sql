@@ -1,0 +1,13 @@
+USE [dnworld]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE PROCEDURE [dbo].[P_DBMWTest]
+	  @inyThreadID tinyint
+	, @intCount int
+AS
+SET NOCOUNT ON;
+RETURN 0;
+GO

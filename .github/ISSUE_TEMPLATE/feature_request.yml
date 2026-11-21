@@ -1,0 +1,25 @@
+name: Feature / Module Proposal
+description: Propose a new feature, cross-platform improvement, or modular extension for IrineCore.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature or Module Summary
+      placeholder: Describe the proposed capability or module (`modules/<ModuleName>/`).
+    validations:
+      required: true
+
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Motivation & Gameplay Impact
+      placeholder: Explain why this feature is valuable and whether it preserves unmodified client and DB compatibility.
+    validations:
+      required: true
+
+  - type: textarea
+    id: design
+    attributes:
+      label: Proposed Architecture / Configuration
+      placeholder: Describe any new `modules/<ModuleName>/modules/<ModuleName>.ini` keys, hooks, or assets.

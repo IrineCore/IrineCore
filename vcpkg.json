@@ -1,0 +1,27 @@
+{
+  "name": "irinecore",
+  "version-string": "0.1.0",
+  "description": "IrineCore - Cross-Platform Dragon Nest Cap 60 MMORPG Server Framework",
+  "homepage": "https://github.com/IrineCore/IrineCore",
+  "license": "Proprietary",
+  "dependencies": [
+    "zlib",
+    "boost-smart-ptr",
+    "boost-pool",
+    "boost-crc",
+    "boost-random",
+    "boost-tuple",
+    "boost-lexical-cast",
+    "boost-algorithm",
+    "boost-bind",
+    "boost-function",
+    "boost-format",
+    "boost-static-assert",
+    "boost-timer",
+    "gtest",
+    {
+      "name": "unixodbc",
+      "platform": "linux"
+    }
+  ]
+}

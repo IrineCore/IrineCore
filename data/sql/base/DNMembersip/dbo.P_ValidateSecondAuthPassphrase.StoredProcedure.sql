@@ -1,0 +1,130 @@
+USE [dnmembership]
+GO
+/****** Object:  StoredProcedure [dbo].[P_ValidateSecondAuthPassphrase]    Script Date: 11/14/2026 8:51:10 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[P_ValidateSecondAuthPassphrase]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[P_ValidateSecondAuthPassphrase] AS' 
+END
+GO
+/**
+version : 9
+author : ???
+e-mail : purumae@eyedentitygames.com
+created date : 2010-01-18
+description : 2? ?? ?? ??? ?????.
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+101115 = ??? ???? ????.
+101125 = 2? ?? ?? ?? ??? ??? ?????.
+101127 = 2? ?? ????? ???? ????.
+history :
+7	2? ?? ?? ??? ??? ???? ? ?? ??? 0?? ?????? ??
+8	?? ?? 0?? ????? ??? ?? at 2010-04-26
+**/
+
+ALTER PROCEDURE [dbo].[P_ValidateSecondAuthPassphrase]
+	  @intAccountID int --// ??? ?? ID
+	, @vchSecondAuthPassphrase varchar(12) --// 2? ?? ?? ??
+	, @inySecondAuthLimit tinyint --// 2? ?? ?? ?? ?? ?? ? (per day)
+	, @inySecondAuthFailCount tinyint OUTPUT --// 2? ?? ?? ??
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int, @binSecondPassphrase binary(20), @binHashedSecondPassphrase binary(20), @intBeforeAccountID int = 0;
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	SET @inySecondAuthFailCount = 0;
+
+	/**_# ?? ??? ?????.*/
+	SELECT @binSecondPassphrase = SecondAuthPassphrase, @inySecondAuthFailCount = SecondAuthFailCount
+	FROM dbo.Accounts WITH (NOLOCK)
+	WHERE AccountID = @intAccountID;
+
+	/**_# ??? ???? ??? 101115? ?????.*/
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @intReturnValue = 101115;
+		GOTO ErrorHandler;
+	END
+
+	/**_# ??? ?? ?? ??? ?????.*/
+	SELECT @intBeforeAccountID = BeforeAccountID FROM dbo.PartitionMergeAccounts WHERE AfterAccountID = @intAccountID;
+	
+	/**_# ??? ?? ?? ??? ???? ??? AccountID? Hash? ?? ?????.*/
+	IF @binSecondPassphrase IS NOT NULL AND @intBeforeAccountID = 0
+	BEGIN
+		SET @binHashedSecondPassphrase = dbo.FN_HashPassphrase(@vchSecondAuthPassphrase, @intAccountID);
+	END	
+	
+	/**_# ??? ?? ?? ??? ???? ???? AccountID? Hash? ?? ?????.*/
+	IF @binSecondPassphrase IS NOT NULL AND @intBeforeAccountID <> 0
+	BEGIN
+		SET @binHashedSecondPassphrase = dbo.FN_HashPassphrase(@vchSecondAuthPassphrase, @intBeforeAccountID);
+		/**_## ??? AccountID? ?? ??? Hash ??? Accounts ???? ???? ???.*/
+		UPDATE dbo.Accounts 
+		SET SecondAuthPassphrase = dbo.FN_HashPassphrase(@vchSecondAuthPassphrase, @intAccountID)
+		WHERE AccountID = @intAccountID;
+
+		/**_## ??? ?? ?? ???? ?? ???.*/
+		DELETE dbo.PartitionMergeAccounts WHERE AfterAccountID = @intAccountID;
+	END
+
+	/**_# 2? ?? ?? ??? ???? ???, 2? ?? ?? ???? ????? 101127? ?????.*/
+	IF @binSecondPassphrase IS NOT NULL AND @binSecondPassphrase <> @binHashedSecondPassphrase
+	BEGIN
+		UPDATE dbo.Accounts
+		SET @inySecondAuthFailCount = SecondAuthFailCount += 1
+		WHERE AccountID = @intAccountID;
+
+		/**_## 2? ?? ?? ?? ??? ??? ???? 101125? ?????.*/
+		IF @inySecondAuthFailCount >= @inySecondAuthLimit
+		BEGIN
+			UPDATE dbo.Accounts
+			SET SecondAuthFailCount = 0
+			WHERE AccountID = @intAccountID;
+
+			SET @intReturnValue = 101125;
+			GOTO ErrorHandler;
+		END
+
+		SET @intReturnValue = 101127;
+		GOTO ErrorHandler;
+	END
+
+	/**_# 2? ?? ?? ??? ??????.*/
+	IF @inySecondAuthFailCount > 0
+		UPDATE dbo.Accounts
+		SET SecondAuthFailCount = 0
+		WHERE AccountID = @intAccountID;
+
+END TRY
+BEGIN CATCH
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+
+RETURN @intReturnValue;
+GO

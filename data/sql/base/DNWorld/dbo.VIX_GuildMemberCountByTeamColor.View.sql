@@ -1,0 +1,31 @@
+USE [dnworld]
+GO
+/****** Object:  View [dbo].[VIX_GuildMemberCountByTeamColor]    Script Date: 11/14/2026 8:54:15 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE VIEW [dbo].[VIX_GuildMemberCountByTeamColor]
+WITH SCHEMABINDING
+AS
+SELECT G.GuildWarScheduleID, G.TeamColorCode, COUNT_BIG(*) AS MemberCount
+  FROM dbo.Guilds G
+       INNER JOIN dbo.GuildMembers GM ON G.GuildID = GM.GuildID
+ WHERE G.TeamColorCode IS NOT NULL
+GROUP BY G.GuildWarScheduleID, G.TeamColorCode;
+GO
+SET ARITHABORT ON
+SET CONCAT_NULL_YIELDS_NULL ON
+SET QUOTED_IDENTIFIER ON
+SET ANSI_NULLS ON
+SET ANSI_PADDING ON
+SET ANSI_WARNINGS ON
+SET NUMERIC_ROUNDABORT OFF
+GO
+/****** Object:  Index [IX_UC_VIX_GuildMemberCountByTeamColor]    Script Date: 11/14/2026 8:54:15 AM ******/
+CREATE UNIQUE CLUSTERED INDEX [IX_UC_VIX_GuildMemberCountByTeamColor] ON [dbo].[VIX_GuildMemberCountByTeamColor]
+(
+	[GuildWarScheduleID] ASC,
+	[TeamColorCode] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DataFG1]
+GO

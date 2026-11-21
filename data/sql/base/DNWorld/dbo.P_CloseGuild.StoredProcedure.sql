@@ -1,0 +1,116 @@
+USE [dnworld]
+GO
+/****** Object:  StoredProcedure [dbo].[P_CloseGuild]    Script Date: 11/14/2026 8:54:37 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/**
+version : 8
+author : ???
+e-mail : purumae@eyedentitygames.com
+created date : 2010-09-28
+description : ??? ?????.
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+103247 = ???? ?? ?? ???? ????.
+103248 = ?? ??? ???? ????.
+103249 = ??? ??? ???? ????.
+history :
+2 = ?? ???? ?? ????? ????? ?? at 2010-10-07
+5 = ?? ?? ?? ??? ????? ?? by ??? at 2011-11-22
+7 = ???? ?? ?? ?? ??? ????? ?? by ??? at 2011-12-23
+**/
+
+CREATE PROCEDURE [dbo].[P_CloseGuild]
+	  @intGuildID int --// ?? ID
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int;
+DECLARE @inbGuildMasterCharacterID bigint;
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	/**_# ?? ???? ??? ?? ???? ???? 103247? ?????.*/
+	IF EXISTS (
+		SELECT * FROM dbo.GuildMembers WITH (NOLOCK) WHERE GuildID = @intGuildID AND GuildMemberRoleCode > 0
+	)
+	BEGIN
+		SET @intReturnValue = 103247;
+		GOTO ErrorHandler;
+	END
+
+	/**_# ?? ??? ???? ??? 103248? ?????.*/
+	IF EXISTS (
+		SELECT * FROM dbo.GuildDepots WITH (NOLOCK) WHERE GuildID = @intGuildID
+	)
+	BEGIN
+		SET @intReturnValue = 103248;
+		GOTO ErrorHandler;
+	END
+
+	SELECT @inbGuildMasterCharacterID = CharacterID FROM dbo.GuildMembers WITH (NOLOCK) WHERE GuildID = @intGuildID AND GuildMemberRoleCode = 0
+
+	BEGIN TRANSACTION;
+
+	/**_# [Guilds] ???? UPDATE???.*/
+	UPDATE dbo.Guilds
+	SET CloseFlag = 1, CloseDate = GETDATE()
+	WHERE GuildID = @intGuildID AND CloseFlag = CAST(0 AS bit)
+	OPTION (KEEPFIXED PLAN);
+
+	/**_# ?? ?????? ??? ???? ??? 103249? ?????.*/
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @intReturnValue = 103249;
+		GOTO ErrorHandler;
+	END
+
+	/**_# [GuildMembers] ????? DELETE???.*/
+	DELETE dbo.GuildMembers WHERE GuildID = @intGuildID AND GuildMemberRoleCode = 0 OPTION (KEEPFIXED PLAN);
+
+	/**_# [GuildMemberRoles] ????? DELETE???.*/
+	DELETE dbo.GuildMemberRoles WHERE GuildID = @intGuildID OPTION (KEEPFIXED PLAN);
+
+	COMMIT TRANSACTION;
+
+	/**_# ?? ?? ??? DELETE???.*/
+	EXEC dbo.P_DelGuildRecruitment @intGuildID = @intGuildID;
+	
+	/**_# ?? ?? ???(???)? DELETE???.*/
+	EXEC dbo.P_DelEffectItemForGuild @inbCharacterID = @inbGuildMasterCharacterID, @intGuildID = @intGuildID;
+
+	/**_# ?? ?? ???? DELETE???.*/
+	DELETE dbo.WeeklyGuildContributionPoint WHERE GuildID = @intGuildID;
+
+	/**_# ?? ??? ?????.*/
+	INSERT dbo.GuildHistory (GuildID, GuildHistoryCode, RegisterDate)
+	VALUES (@intGuildID, 9, GETDATE())
+	OPTION (KEEPFIXED PLAN);
+END TRY
+BEGIN CATCH
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+
+RETURN @intReturnValue;
+GO

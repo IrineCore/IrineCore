@@ -1,0 +1,103 @@
+USE [dnworld]
+GO
+/****** Object:  StoredProcedure [dbo].[P_AddGuildJoinCharacters]    Script Date: 11/14/2026 8:54:37 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/**
+version : 9
+author : ???
+e-mail : ohtack@eyedentitygames.com
+created date : 2011-11-21
+description : ?? ?? ??? ???
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+103238 = ??? ???? ????.
+103316 = ???? ?? ?? ?? ??? ???????.
+103318 = ?? ??? ?? ?? ??? ???????.
+103320 = ?? ?? ???? ?? ??? ?????.
+**/
+
+CREATE PROCEDURE [dbo].[P_AddGuildJoinCharacters]
+	  @intGuildID int --// ?? ??? ?? ID
+	, @inbCharacterID bigint --//  ?? ??? CharacterID
+	, @intMaxJoinCountForCharacter int --// ???? ??? ?? ??? ? ?? ?? ??
+	, @intMaxJoinCountForGuild int --// ??? ?? ?? ??? ? ?? ?? ??
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int;
+
+DECLARE @intGuildJoinCount int;
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	/**_# ?? ????? ?? ??? ?????.*/
+	SELECT @intGuildJoinCount = COUNT(*) 
+	FROM dbo.GuildJoinCharacters WITH (NOLOCK, INDEX(IX_NN_GuildJoinCharacters_CharacterID), FORCESEEK)
+	WHERE CharacterID = @inbCharacterID 
+	OPTION (KEEPFIXED PLAN);
+		
+	/**_## ???? ?? ?? ????? @@intMaxJoinCountForCharacter ???? 103316? ?????.*/
+	IF @intGuildJoinCount >= @intMaxJoinCountForCharacter
+	BEGIN
+		SET @intReturnValue = 103316;
+		GOTO ErrorHandler;
+	END
+
+	/**_# ?? ????? ??? ??? ?????.*/
+	SELECT @intGuildJoinCount = COUNT(*) 
+	FROM dbo.GuildJoinCharacters WITH (NOLOCK, INDEX(PK_GuildJoinCharacters), FORCESEEK)
+	WHERE GuildID = @intGuildID 
+	OPTION (KEEPFIXED PLAN);
+
+	/**_## ?? ?? ??? @intMaxJoinCount ???? 103318? ?????.*/
+	IF @intGuildJoinCount >= @intMaxJoinCountForGuild
+	BEGIN
+		SET @intReturnValue = 103318;
+		GOTO ErrorHandler;
+	END
+	
+	/**_# [GuildJoinCharacters] ???? INSERT???.*/
+	INSERT dbo.GuildJoinCharacters (GuildID, CharacterID)
+	SELECT GuildID, @inbCharacterID
+	FROM dbo.Guilds WITH (UPDLOCK, INDEX(PK_Guilds), FORCESEEK)
+	WHERE GuildID = @intGuildID AND CloseFlag = CAST(0 AS bit)
+	OPTION (KEEPFIXED PLAN);
+
+	/**_## ?? ??? ???? ??? 103238? ?????.*/
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @intReturnValue = 103238;
+		GOTO ErrorHandler;
+	END
+
+END TRY
+BEGIN CATCH
+	IF ERROR_NUMBER() = 2627 AND ERROR_MESSAGE() LIKE N'%PK_GuildJoinCharacters%'
+		SET @intReturnValue = 103320;
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+
+RETURN @intReturnValue;
+GO

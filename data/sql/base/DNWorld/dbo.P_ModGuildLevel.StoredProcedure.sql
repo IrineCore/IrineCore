@@ -1,0 +1,108 @@
+USE [dnworld]
+GO
+/****** Object:  StoredProcedure [dbo].[P_ModGuildLevel]    Script Date: 11/14/2026 8:54:39 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/**
+version : 6
+author : ???
+e-mail : purumae@eyedentitygames.com
+created date : 2010-09-20
+description : ?? ??? ?????.
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+103238 = ??? ???? ????.
+103237 = ?? ?? ???? 0?? ??? ??? ???.
+history :
+4 = output param. @intTotalGuildPoint, @intRemainGuildPoint ?? at 2010-12-02
+5 = ???? ??? ???? SP ?? at 2010-12-09
+6 = ?? ?? ???? ?? ?? ?? ?? at 2013-06-25
+**/
+
+CREATE PROCEDURE [dbo].[P_ModGuildLevel]
+	  @intGuildID int --// ?? ID
+	, @inyGuildLevel tinyint --// ?? ? ?? ??
+	, @intGuildPoint int --// ??? ?? ???
+	, @insGuildDepotSize smallint --// ?? ?? ?? ? ?? ?? ???
+	, @inbCharacterID bigint --// ?? ?? ?? ??? ?? ??? ??? ??? ID
+	, @intCoin int --// ?? ?? ? ?? - ?? ??
+	, @intMapID int --// ? ID
+	, @intTotalGuildPoint int OUTPUT --// ?? ? ??? ? ?? ???
+	, @intRemainGuildPoint int OUTPUT --// ?? ? ??? ?? ?? ???
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int, @dt2Now datetime2(0) = GETDATE();
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	/**_# [Guilds] ???? UPDATE???. (?? ?? ??, ?? ??? ??, ?? ?? ?? ??)*/
+	UPDATE dbo.Guilds
+	SET GuildLevel = @inyGuildLevel
+		, @intTotalGuildPoint = TotalGuildPoint
+		, @intRemainGuildPoint = RemainGuildPoint -= @intGuildPoint
+		, GuildDepotSize = @insGuildDepotSize
+	WHERE GuildID = @intGuildID;
+
+	/**_# ??? ???? ??? 103238? ?????.*/
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @intReturnValue = 103238;
+		GOTO ErrorHandler;
+	END
+
+	/**_# ??? ?????.*/
+	IF @intCoin > 0
+	BEGIN
+		SET @intCoin = ABS(@intCoin);
+
+		EXEC dbo.P_ModCoinForSubProc
+			  @inbCharacterID = @inbCharacterID
+			, @inyCoinChangeCode = 30
+			, @inbCoinChangeFKey = @intGuildID
+			, @inbCoin = @intCoin
+			, @intChannelID = 0
+			, @intMapID = @intMapID
+			, @dt2LogDate = @dt2Now;
+	END
+
+	/**_# [GuildHistory] ???? INSERT???.*/
+	INSERT dbo.GuildHistory (GuildID, GuildHistoryCode, RegisterDate, GuildLevel)
+	VALUES (@intGuildID, 2, @dt2Now, @inyGuildLevel);
+
+	/**_# [GuildRecruitments] ???? ?? ??? UPDATE???.*/
+	UPDATE dbo.GuildRecruitments
+	SET GuildLevel = @inyGuildLevel
+	WHERE GuildID = @intGuildID;
+
+END TRY
+BEGIN CATCH
+	IF ERROR_NUMBER() = 547 AND ERROR_MESSAGE() LIKE N'%CK_Guilds_RemainGuildPoint%'
+		SET @intReturnValue = 103237;
+
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+
+RETURN @intReturnValue;
+GO
