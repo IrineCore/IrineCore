@@ -2,7 +2,7 @@
 # IrineCore — OpenSource Dragon Nest Server Emulator
 # Multi-stage Dockerfile (Ubuntu 24.04 LTS Builder -> Runtime Dist in /irinecore/env/dist)
 # =============================================================================
-FROM ubuntu:24.04 AS builder
+FROM ubuntu:26.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -28,7 +28,7 @@ RUN cmake -S /src -B /src/build -G Ninja \
 # =============================================================================
 # Runtime Stage
 # =============================================================================
-FROM ubuntu:24.04 AS runtime
+FROM ubuntu:26.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
 
