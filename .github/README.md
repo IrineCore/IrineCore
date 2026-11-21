@@ -12,7 +12,12 @@
 
 ## Introduction
 
-**IrineCore** is a modular, cross-platform (**Windows + Linux**) C++ open-source **Dragon Nest MMORPG Server Emulator** (Cap 60).
+**IrineCore** is a modular, cross-platform (**Windows + Linux**) C++ open-source **Dragon Nest MMORPG Server Emulator**.
+
+### Branch Strategy
+
+- **`master`**: Progressive development branch advancing across level caps (Cap 60 -> Cap 70 and beyond).
+- **`Cap-60`**: Isolated Cap 60 branch preserving the complete Cap 60 emulator, client, launcher, and tooling baseline.
 
 ## Philosophy
 
