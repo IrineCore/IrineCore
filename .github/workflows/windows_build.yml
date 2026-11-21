@@ -16,7 +16,7 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configure CMake (x64 Servers)
         run: cmake -S . -B build -A x64 -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/env/dist"
