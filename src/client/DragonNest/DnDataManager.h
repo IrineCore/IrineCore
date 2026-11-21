@@ -309,6 +309,7 @@ struct TNpcData
 	int QuestIndexArr[QUEST_MAX_CNT];		// Quest index
 	int ReputeQuestIndexArr[QUEST_MAX_CNT];	// Affinity quest index
 	TActorData ActorData;
+	bool bShopIcon;
 };
 
 typedef map<int, TActorData*> TMapActorData;

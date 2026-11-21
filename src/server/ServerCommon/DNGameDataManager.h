@@ -462,6 +462,88 @@ private:
 #endif // #if defined( PRE_ADD_STAGE_WEIGHT )
 
 public:
+	struct TDisjointorInfoData
+	{
+		int nEnchantLevel;
+		int nDisjointDrop;
+		std::vector<int> vecItemIndex;
+	};
+	struct TDropControlData
+	{
+		int nID;
+		int nGroupID;
+		int nDropType;
+		int nDropIndex;
+		float fExpectation;
+	};
+	struct TPvPTeamBalanceRange
+	{
+		std::vector<int> vecValues;
+		int nWeight;
+	};
+	struct TPvPTeamBalanceData
+	{
+		int nType;
+		int nRatio;
+		std::vector<TPvPTeamBalanceRange> vecRanges;
+	};
+	struct TPvPRankRewardData
+	{
+		int nPvPRankID;
+		int nRewardItemID[2];
+		int nRewardCount[2];
+	};
+	struct TEventMonsterData
+	{
+		int nMonsterID;
+		int nNameID;
+		int nLevel;
+		int nHP;
+		int nStrPMin;
+		int nStrPMax;
+		int nStrMMin;
+		int nStrMMax;
+		int nDefP;
+		int nDefM;
+	};
+	struct THiddenCashShopData
+	{
+		int nHiddenShopID;
+		int nButtonImgID;
+		int nFirstTalkID;
+		int nSecondTalkID;
+		int nPurchaseCount;
+		std::vector<int> vecSN;
+	};
+	struct THiddenCashShopCondData
+	{
+		int nID;
+		int nHiddenShopID;
+		int nConditionType;
+		int nConditionParam;
+	};
+	struct TMonsterGoldDropData
+	{
+		int nMonsterID;
+		int nGold;
+		int nDropCount;
+	};
+
+private:
+	typedef std::map<std::pair<int, int>, TDisjointorInfoData> TMapDisjointorInfo;
+	TMapDisjointorInfo m_MapDisjointorInfo;
+	typedef std::map<int, std::vector<TDropControlData>> TMapDropControl;
+	TMapDropControl m_MapDropControl;
+	std::map<int, int> m_MapSummonSkill;
+	std::set<int> m_SetSummonSkillIDs;
+	std::map<int, TPvPTeamBalanceData> m_MapPvPTeamBalance;
+	std::map<int, TPvPRankRewardData> m_MapPvPRankReward;
+	std::map<int, TEventMonsterData> m_MapEventMonster;
+	std::map<int, THiddenCashShopData> m_MapHiddenCashShop;
+	std::vector<THiddenCashShopCondData> m_VecHiddenCashShopCond;
+	std::map<int, TMonsterGoldDropData> m_MapMonsterGoldDrop;
+
+public:
 	CDNGameDataManager(void);
 	virtual ~CDNGameDataManager(void);
 
@@ -1167,6 +1249,33 @@ public:
 	bool LoadTalismanData();
 	TTalismanData* GetTalismanData(int nItemID);
 #endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
+
+	bool LoadDisjointorInfoData();
+	const TDisjointorInfoData* GetDisjointorInfoData(int nDisjointDrop, int nEnchantLevel) const;
+
+	bool LoadDropControlData();
+	const std::vector<TDropControlData>* GetDropControlGroup(int nGroupID) const;
+
+	bool LoadSummonSkillData();
+	int GetSummonMonsterSkillID(int nMonsterID) const;
+	bool IsSummonSkill(int nSkillID) const;
+
+	bool LoadPvPTeamBalanceData();
+	const TPvPTeamBalanceData* GetPvPTeamBalanceData(int nType) const;
+	int CalcPvPTeamBalanceScore(int nLevel, int nPvPRank, int nJobID) const;
+
+	bool LoadPvPRankRewardData();
+	const TPvPRankRewardData* GetPvPRankRewardData(int nPvPRankID) const;
+
+	bool LoadEventMonsterData();
+	const TEventMonsterData* GetEventMonsterData(int nMonsterID) const;
+
+	bool LoadHiddenCashShopData();
+	const THiddenCashShopData* GetHiddenCashShopData(int nHiddenShopID) const;
+	const std::vector<THiddenCashShopCondData>& GetHiddenCashShopCondList() const { return m_VecHiddenCashShopCond; }
+
+	bool LoadMonsterGoldDropData();
+	const TMonsterGoldDropData* GetMonsterGoldDropData(int nMonsterID) const;
 };
 
 extern CDNGameDataManager* g_pDataManager;

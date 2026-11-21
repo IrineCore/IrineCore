@@ -287,7 +287,7 @@ struct STATE_BLOW
 		// Assassin-related state effect
 		BLOW_281 = 281, // 281) #84056 Trigger specified skill the moment HP drops below a certain value
 
-		// Post-Cap 60 / Steam NA v353 combat state effects
+		// Extended combat state effects
 		BLOW_282 = 282, // 282) Suffer Force Critical Damage (CDnSufferForceCirticalDamage)
 		BLOW_283 = 283, // 283) Sub-Skill On Target Hit (CDnSubSkillOnTargetHitBlow)
 		BLOW_284 = 284, // 284) Time Goes Growing (CDnTimeGoesGrowingBlow)
@@ -313,8 +313,11 @@ struct STATE_BLOW
 		BLOW_305 = 305, // 305) Fear (CDnFearBlow)
 		BLOW_306 = 306, // 306) All Element Defense (BasicBlow)
 		BLOW_307 = 307, // 307) All Element Attack (BasicBlow)
+		BLOW_308 = 308, // 308) Monster Activate / Marker State (BasicBlow)
 		BLOW_309 = 309, // 309) Physical + Magical Attack Absolute (BasicBlow)
 		BLOW_310 = 310, // 310) Physical + Magical Attack Ratio (BasicBlow)
+		BLOW_311 = 311, // 311) Skill Passive State Marker (BasicBlow)
+		BLOW_312 = 312, // 312) Monster State Marker (BasicBlow)
 		BLOW_313 = 313, // 313) Final Damage Absolute (BasicBlow)
 		BLOW_314 = 314, // 314) Decrease Super Armor (CDnDecreaseSuperArmorBlow)
 

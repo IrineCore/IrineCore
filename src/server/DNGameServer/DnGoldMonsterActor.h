@@ -6,6 +6,8 @@ class CDnGoldMonsterActor : public CDnNormalMonsterActor
 public:
 	CDnGoldMonsterActor( CMultiRoom *pRoom, int nClassID );
 	virtual ~CDnGoldMonsterActor();
+
+	virtual void OnDie( DnActorHandle hHitter );
 };
 
 class IBoostPoolDnGoldMonsterActor : public CDnGoldMonsterActor, public TBoostMemoryPool< IBoostPoolDnGoldMonsterActor >

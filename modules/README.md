@@ -12,15 +12,21 @@ You can exclude any or all modules using any of the four supported mechanisms:
    ```
 2. **Disable specific modules via semicolon-separated list** (`DISABLED_IRINE_MODULES`):
    ```powershell
-   cmake -S . -B build -A x64 -DDISABLED_IRINE_MODULES="Player-Bots;Hero-Ally"
+   cmake -S . -B build -A x64 -DDISABLED_IRINE_MODULES="Player-Bots;examples"
    ```
 3. **Disable a single module via its auto-generated CMake option** (`IRINE_MODULE_<UPPER_SANITIZED_NAME>`):
    ```powershell
-   cmake -S . -B build -A x64 -DIRINE_MODULE_PLAYER_BOTS=OFF -DIRINE_MODULE_HERO_ALLY=OFF
+   cmake -S . -B build -A x64 -DIRINE_MODULE_PLAYER_BOTS=OFF
    ```
 4. **Drop a `.disabled` marker file** inside `modules/<ModuleName>/.disabled`, or move the folder into `modules/disabled/<ModuleName>/`.
 
-Disabled modules are **never compiled, never linked, never registered in the generated `ModuleLoader.cpp`, and their `.ini` configs are not installed**.
+Disabled modules are **never compiled, never linked, never registered in the generated `ModuleLoader.cpp`, and their configs are not installed or listed in `module/modules.manifest`**.
+
+### Automatic Module Config Discovery
+Module configuration files (`modules/*.ini`, `modules/*.conf`, `modules/*.conf.dist`, `conf/*.ini`, `conf/*.conf`, `conf/*.conf.dist`) are discovered automatically at CMake configure time:
+- `cmake --install` installs all enabled module configs into `env/dist/module/` and generates `env/dist/module/modules.manifest`.
+- Deployment and CI validation scripts (`deploy/windows/configure.ps1`, `deploy/linux/configure.sh`, `.github/workflows/windows_build.yml`) read `modules.manifest` automatically with no hardcoded filenames.
+- At runtime, modules call `ResolveModuleConfigPath(moduleConfigDirPath, this)` without overriding `GetConfigFileName()`, automatically probing `<ModName>.ini`, `<ModName>.conf`, and `<ModName>.conf.dist` across flat and source-tree layouts.
 
 ## Standardized Module Directory Layout
 
@@ -61,9 +67,5 @@ Drop `modules/mod-my-feature/` into `modules/` and re-run CMake — no core file
 ## Built-in Modules
 - **`modules/Player-Bots`** (`IRINE_MODULE_PLAYER_BOTS`, `IRINE_MOD_PLAYER_BOTS`):
   Autonomous AI party companion bots (`DnAIBotBuildData.{h,cpp}`, `DnAIBotController.{h,cpp}`, `PlayerBotsModule.{h,cpp}`). Summons and controls AI party members on Hard, Master, and Abyss dungeons and Nests while excluding Easy and Normal stages.
-- **`modules/Hero-Ally`** (`IRINE_MODULE_HERO_ALLY`, `IRINE_MOD_HERO_ALLY`):
-  Story hero accompaniment (`DnHeroAllyController.{h,cpp}`, `HeroAllyModule.{h,cpp}`). Spawns Geraint, Argenta, or Velskud on Easy and Normal stages, accompanies players across multi-area progression, and despawns on clear.
-- **`modules/FPS-PING`** (`IRINE_MODULE_FPS_PING`, `IRINE_MOD_FPS_PING`):
-  Real-time FPS and network latency telemetry module (`FpsPingModule.{h,cpp}`, `resource/ui/common/perfhuddlg.ui`).
 - **`modules/examples`** (`IRINE_MODULE_EXAMPLES`, `IRINE_MOD_EXAMPLES`):
   Reference template demonstrating `Addmod_<Name>Scripts()` registration and standardized module layout.

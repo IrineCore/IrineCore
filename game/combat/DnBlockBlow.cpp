@@ -2,6 +2,7 @@
 #include "DnBlockBlow.h"
 #if defined( _GAMESERVER )
 #include "DnPlayerActor.h"
+#include "DnExtendedCombatBlows.h"
 #endif // #if defined( _GAMESERVER )
 
 #ifdef _DEBUG
@@ -103,6 +104,18 @@ bool CDnBlockBlow::OnDefenseAttack( DnActorHandle hHitter, CDnState* pAttackerSt
 		pEvent->SetSkillID( m_ParentSkillInfo.iSkillID );
 		Notify( pEvent );
 		//////////////////////////////////////////////////////////////////////////
+
+		// BLOW_300: AddStateOnBlockBlow (e.g., Guardian Lv 65 passive)
+		if( m_hActor && m_hActor->IsAppliedThisStateBlow( STATE_BLOW::BLOW_300 ) )
+		{
+			DNVector(DnBlowHandle) vlBlockBlows;
+			m_hActor->GatherAppliedStateBlowByBlowIndex( STATE_BLOW::BLOW_300, vlBlockBlows );
+			for( DWORD bi = 0; bi < vlBlockBlows.size(); ++bi )
+			{
+				if( vlBlockBlows[bi] )
+					static_cast<CDnAddStateOnBlockBlow*>( vlBlockBlows[bi].GetPointer() )->OnBlockSuccess();
+			}
+		}
 
 		bResult = true;
 	}

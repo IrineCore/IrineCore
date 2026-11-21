@@ -1349,6 +1349,22 @@ void CDnInvenSlotDlg::ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEtU
 											CDnInterface::GetInstance().ShowCaptionDialog( CDnInterface::typeCaption3, GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 9235 ), textcolor::YELLOW, 4.0f );
 											return;
 										}
+										{
+											DNTableFileFormat *pItemSox = GetDNTable( CDnTableDB::TITEM );
+											if( pItemSox && pItemSox->IsExistItem( pItem->GetClassID() ) )
+											{
+												DNTableCell *pOverlapCell = pItemSox->GetFieldFromLablePtr( pItem->GetClassID(), "_UnableOverlap" );
+												if( pOverlapCell && pOverlapCell->GetInteger() != 0 )
+												{
+													int nPetItemID = pPlayerActor->GetPetInfo().Vehicle[Pet::Slot::Body].nItemID;
+													if( nPetItemID > 0 && GetItemTask().GetCashInventory().FindItem( nPetItemID ) != NULL )
+													{
+														GetInterface().MessageBox( GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8581 ) );
+														return;
+													}
+												}
+											}
+										}
 										if (pItem->GetItemType() == ITEMTYPE_PETCOLOR_BODY)
 										{
 											if (pPlayerActor->GetPetInfo().dwPartsColor1 == pItem->GetTypeParam(0))

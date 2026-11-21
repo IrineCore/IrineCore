@@ -10,7 +10,7 @@ namespace Modules {
 
 bool PlayerBotsModule::OnLoadConfig(const WCHAR* moduleConfigDirPath)
 {
-    const std::wstring path = ResolveModuleConfigPath(moduleConfigDirPath, L"Player-Bots", L"Player-Bots.ini");
+    const std::wstring path = ResolveModuleConfigPath(moduleConfigDirPath, this);
 
     m_config.enabled              = (::GetPrivateProfileIntW(L"PlayerBots", L"Enabled", 1, path.c_str()) != 0);
     m_config.excludeEasyAndNormal = (::GetPrivateProfileIntW(L"PlayerBots", L"ExcludeEasyAndNormal", 1, path.c_str()) != 0);

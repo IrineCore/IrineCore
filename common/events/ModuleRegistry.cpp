@@ -4,6 +4,10 @@
 // =============================================================================
 #include "ModuleRegistry.h"
 #include <cstring>
+#include <algorithm>
+#if !defined(_WIN32)
+#include <dirent.h>
+#endif
 
 namespace Irine {
 namespace Modules {
@@ -16,6 +20,35 @@ bool FileExistsRegularW(const std::wstring& path)
     return (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY));
 }
 
+std::wstring AsciiToWide(const char* s)
+{
+    std::wstring out;
+    if (!s) return out;
+    while (*s)
+    {
+        out.push_back(static_cast<wchar_t>(static_cast<unsigned char>(*s)));
+        ++s;
+    }
+    return out;
+}
+
+bool HasModuleConfigExt(const std::wstring& name)
+{
+    auto endsWith = [&](const wchar_t* suffix) {
+        const size_t slen = std::wcslen(suffix);
+        if (name.size() < slen) return false;
+        for (size_t i = 0; i < slen; ++i)
+        {
+            wchar_t a = name[name.size() - slen + i];
+            wchar_t b = suffix[i];
+            if (a >= L'A' && a <= L'Z') a = static_cast<wchar_t>(a - L'A' + L'a');
+            if (a != b) return false;
+        }
+        return true;
+    };
+    return endsWith(L".ini") || endsWith(L".conf") || endsWith(L".conf.dist");
+}
+
 } // namespace
 
 std::wstring ResolveModuleConfigPath(const WCHAR* configDirPath,
@@ -26,19 +59,93 @@ std::wstring ResolveModuleConfigPath(const WCHAR* configDirPath,
     if (!base.empty() && base.back() != L'/' && base.back() != L'\\')
         base.push_back(L'/');
 
-    const std::wstring file = configFileName ? configFileName : L"";
-    const std::wstring flatPath = base + file;
-    if (FileExistsRegularW(flatPath))
-        return flatPath;
+    const std::wstring folder = (moduleFolderName && moduleFolderName[0]) ? moduleFolderName : L"";
 
-    if (moduleFolderName && moduleFolderName[0])
+    std::vector<std::wstring> candidateFiles;
+    if (configFileName && configFileName[0])
     {
-        std::wstring nestedPath = base + moduleFolderName + L"/modules/" + file;
-        if (FileExistsRegularW(nestedPath))
-            return nestedPath;
+        candidateFiles.push_back(configFileName);
+    }
+    if (!folder.empty())
+    {
+        candidateFiles.push_back(folder + L".ini");
+        candidateFiles.push_back(folder + L".conf");
+        candidateFiles.push_back(folder + L".conf.dist");
     }
 
-    return flatPath;
+    for (const auto& file : candidateFiles)
+    {
+        const std::wstring flatPath = base + file;
+        if (FileExistsRegularW(flatPath))
+            return flatPath;
+    }
+
+    if (!folder.empty())
+    {
+        for (const auto& file : candidateFiles)
+        {
+            const std::wstring nestedModPath = base + folder + L"/modules/" + file;
+            if (FileExistsRegularW(nestedModPath))
+                return nestedModPath;
+            const std::wstring nestedConfPath = base + folder + L"/conf/" + file;
+            if (FileExistsRegularW(nestedConfPath))
+                return nestedConfPath;
+        }
+    }
+
+    return candidateFiles.empty() ? base : (base + candidateFiles.front());
+}
+
+std::wstring ResolveModuleConfigPath(const WCHAR* configDirPath,
+                                     const IModule* module)
+{
+    if (!module)
+        return ResolveModuleConfigPath(configDirPath, nullptr, nullptr);
+
+    const std::wstring modName = AsciiToWide(module->GetName());
+    const char* explicitFile = module->GetConfigFileName();
+    const std::wstring cfgFile = (explicitFile && explicitFile[0]) ? AsciiToWide(explicitFile) : L"";
+    return ResolveModuleConfigPath(configDirPath, modName.c_str(), cfgFile.empty() ? nullptr : cfgFile.c_str());
+}
+
+std::vector<std::wstring> DiscoverModuleConfigFiles(const WCHAR* configDirPath)
+{
+    std::vector<std::wstring> results;
+    std::wstring base = (configDirPath && configDirPath[0]) ? configDirPath : L"./module";
+    if (!base.empty() && base.back() != L'/' && base.back() != L'\\')
+        base.push_back(L'/');
+
+#if defined(_WIN32)
+    WIN32_FIND_DATAW fd;
+    HANDLE hFind = ::FindFirstFileW((base + L"*").c_str(), &fd);
+    if (hFind != INVALID_HANDLE_VALUE)
+    {
+        do
+        {
+            if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                continue;
+            std::wstring name = fd.cFileName;
+            if (HasModuleConfigExt(name))
+                results.push_back(base + name);
+        } while (::FindNextFileW(hFind, &fd));
+        ::FindClose(hFind);
+    }
+#else
+    std::string narrowBase(base.begin(), base.end());
+    DIR* dir = ::opendir(narrowBase.c_str());
+    if (dir)
+    {
+        while (struct dirent* ent = ::readdir(dir))
+        {
+            std::wstring name = AsciiToWide(ent->d_name);
+            if (HasModuleConfigExt(name))
+                results.push_back(base + name);
+        }
+        ::closedir(dir);
+    }
+#endif
+    std::sort(results.begin(), results.end());
+    return results;
 }
 
 ModuleRegistry& ModuleRegistry::Instance() noexcept

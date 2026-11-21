@@ -216,6 +216,42 @@ void CDnDropItem::CalcDropItemList( CMultiRoom *pRoom, TDUNGEONDIFFICULTY Diffic
 	}
 }
 
+void CDnDropItem::CalcDropControlList( CMultiRoom *pRoom, int nDropControlGroupID, DNVector(CDnItem::DropItemStruct) &VecList, bool bIncreaseUniqueID )
+{
+	if( !g_pDataManager || nDropControlGroupID <= 0 )
+		return;
+	const std::vector<CDNGameDataManager::TDropControlData>* pGroup = g_pDataManager->GetDropControlGroup( nDropControlGroupID );
+	if( !pGroup || pGroup->empty() )
+		return;
+
+	for( size_t i = 0; i < pGroup->size(); ++i )
+	{
+		const CDNGameDataManager::TDropControlData& entry = (*pGroup)[i];
+		INT64 nProb = static_cast<INT64>( entry.fExpectation * 1000000000.0 );
+		while( nProb > 0 )
+		{
+			if( GetRoomRand( pRoom ) % 1000000000 < nProb )
+			{
+				if( entry.nDropType == 0 )
+				{
+					CDnDropItem::CalcDropItemList( pRoom, entry.nDropIndex, VecList, bIncreaseUniqueID );
+				}
+				else
+				{
+					CDnItem::DropItemStruct Struct;
+					memset( &Struct, 0, sizeof(Struct) );
+					Struct.nItemID = entry.nDropIndex;
+					Struct.nSeed = abs( GetRoomRand( pRoom ) );
+					Struct.nCount = 1;
+					Struct.dwUniqueID = bIncreaseUniqueID ? STATIC_INSTANCE_( CDnDropItem::s_dwUniqueCount )++ : 0;
+					VecList.push_back( Struct );
+				}
+			}
+			nProb -= 1000000000;
+		}
+	}
+}
+
 void CDnDropItem::CalcDropItemList( CMultiRoom *pRoom, int nItemDropTableID, DNVector(CDnItem::DropItemStruct) &VecList, bool bIncreaseUniqueID )
 {
 	DNTableFileFormat* pSox = pSox = GetDNTable( CDnTableDB::TITEMDROP );

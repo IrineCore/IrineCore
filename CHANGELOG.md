@@ -13,7 +13,7 @@ All notable changes to **IrineCore — OpenSource Dragon Nest Server Emulator** 
 
 ### Modular Extensions (`modules/`)
 - Standardized module layout: `modules/<ModuleName>/{src,modules,resource,data,CMakeLists.txt}`.
-- Built `Player-Bots` (`mod_player_bots`), `Hero-Ally` (`mod_hero_ally`), and `FPS-PING` (`mod_fps_ping`) as standalone static libraries with per-module configuration templates installed to `env/dist/module/`.
+- Built `Player-Bots` (`mod_player_bots`) as a standalone static library with per-module configuration templates installed to `env/dist/module/`.
 
 ### Compatibility & Testing
 - Preserved 100% wire compatibility with the unmodified Windows `DragonNest.exe` Cap 60 client and external SQL Server databases (`DNMembership`, `DNWorld`, `DNServerLog`).

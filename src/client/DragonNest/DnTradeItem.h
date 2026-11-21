@@ -63,6 +63,7 @@ protected:
 	// Sell sound
 	int m_nSellSoundIndex;
 	CDnStoreRepurchaseSystem m_StoreRepurchaseSystem;
+	std::map<int, int> m_mapSampleItemCount;
 
 	CDnItem *CreateItem( int nItemID, short wCount, BYTE cSlotIndex );	// Why doesn't it just share ItemTask's CreateItem...
 	friend class CDnSkillStoreDlg;		// Why does the skill shop use this CreateItem? It's been like this for a long time...
@@ -71,6 +72,8 @@ protected:
 	void OpenShopSuccess();
 
 	void CombinedShopOpen( int nShopID );
+	void BuildSampleShopItemCounts();
+	int GetSampleShopItemCount( int nClassID ) const;
 
 public:
 	bool Initialize();

@@ -22,6 +22,7 @@ CDnSecretCashShopAlarmButtonDlg::CDnSecretCashShopAlarmButtonDlg( UI_DIALOG_TYPE
 	, m_pStaticHidden( NULL )
 	, m_pTextureFace( NULL )
 	, m_pStaticTextHidden( NULL )
+	, m_nHiddenShopID( 0 )
 {
 }
 
@@ -57,13 +58,46 @@ void CDnSecretCashShopAlarmButtonDlg::SetAlarmInfo( const WCHAR *wszText, const 
 	}
 }
 
+void CDnSecretCashShopAlarmButtonDlg::SetHiddenShop( int nHiddenShopID )
+{
+	m_nHiddenShopID = nHiddenShopID;
+	DNTableFileFormat *pSox = GetDNTable( CDnTableDB::THIDDENCASHSHOPREAL );
+	if( !pSox || !pSox->IsExistItem( nHiddenShopID ) )
+		return;
+
+	DNTableCell *pImgCell = pSox->GetFieldFromLablePtr( nHiddenShopID, "_ButtonImgID" );
+	int nButtonImgID = pImgCell ? pImgCell->GetInteger() : 0;
+	if( m_pTextureFace && nButtonImgID > 0 )
+	{
+		if( !m_hFaceTexture )
+			m_hFaceTexture = LoadResource( CEtResourceMng::GetInstance().GetFullName( "CS_SecretButton.dds" ).c_str(), RT_TEXTURE );
+		if( m_hFaceTexture )
+		{
+			int nOffset = ( ( nButtonImgID - 1 ) / 6 ) * 32 + ( nButtonImgID - 1 ) * 80;
+			int nX = nOffset % 512;
+			int nY = ( nOffset / 512 ) * 80;
+			m_pTextureFace->SetTexture( m_hFaceTexture, nX, nY, 80, 80 );
+			m_pTextureFace->Show( true );
+		}
+	}
+	if( m_pStaticHidden ) m_pStaticHidden->Show( true );
+	if( m_pStaticTextHidden ) m_pStaticTextHidden->Show( true );
+}
+
 void CDnSecretCashShopAlarmButtonDlg::ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEtUIControl *pControl, UINT uMsg )
 {
 	SetCmdControlName( pControl->GetControlName() );
 	if( nCommand == EVENT_BUTTON_CLICKED && IsCmdControl( "ID_BT_SECRET" ) )
 	{
-		if( GetInterface().GetSecretCashShopBuyDlg() )
+		if( m_nHiddenShopID > 0 && GetInterface().GetSecretCashShopMsgDlg() )
+		{
+			GetInterface().GetSecretCashShopMsgDlg()->SetHiddenShop( m_nHiddenShopID );
+			GetInterface().GetSecretCashShopMsgDlg()->Show( true );
+		}
+		else if( GetInterface().GetSecretCashShopBuyDlg() )
+		{
 			GetInterface().GetSecretCashShopBuyDlg()->Show( true );
+		}
 		return;
 	}
 	CEtUIDialog::ProcessCommand( nCommand, bTriggeredByUser, pControl, uMsg );
@@ -76,6 +110,7 @@ CDnSecretCashShopMessageDlg::CDnSecretCashShopMessageDlg( UI_DIALOG_TYPE dialogT
 	: CDnCustomDlg( dialogType, pParentDialog, nID, pCallback, true )
 	, m_pTextBoxAsk( NULL )
 	, m_pTextureNpc( NULL )
+	, m_nHiddenShopID( 0 )
 {
 }
 
@@ -108,17 +143,42 @@ void CDnSecretCashShopMessageDlg::SetMessage( const WCHAR *wszMessage, const cha
 		SAFE_RELEASE_SPTR( m_hNpcTexture );
 		m_hNpcTexture = LoadResource( CEtResourceMng::GetInstance().GetFullName( szNpcTexture ).c_str(), RT_TEXTURE );
 		if( m_hNpcTexture )
-			m_pTextureNpc->SetTexture( m_hNpcTexture, 0, 0, m_hNpcTexture->Width(), m_hNpcTexture->Height() );
+			m_pTextureNpc->SetTexture( m_hNpcTexture, 0, 0, 180, 180 );
 	}
+}
+
+void CDnSecretCashShopMessageDlg::SetHiddenShop( int nHiddenShopID )
+{
+	m_nHiddenShopID = nHiddenShopID;
+	DNTableFileFormat *pSox = GetDNTable( CDnTableDB::THIDDENCASHSHOPREAL );
+	if( !pSox || !pSox->IsExistItem( nHiddenShopID ) )
+		return;
+
+	DNTableCell *pImgCell = pSox->GetFieldFromLablePtr( nHiddenShopID, "_FirstNPCImg" );
+	const char *szNpcImg = pImgCell ? pImgCell->GetString() : NULL;
+	DNTableCell *pTalkCell = pSox->GetFieldFromLablePtr( nHiddenShopID, "_FirstTalkID" );
+	int nTalkID = pTalkCell ? pTalkCell->GetInteger() : 0;
+	const WCHAR *wszTalk = ( nTalkID > 0 ) ? GetEtUIXML().GetUIString( CEtUIXML::idCategory1, nTalkID ) : L"";
+	SetMessage( wszTalk, szNpcImg );
 }
 
 void CDnSecretCashShopMessageDlg::ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEtUIControl *pControl, UINT uMsg )
 {
 	SetCmdControlName( pControl->GetControlName() );
-	if( nCommand == EVENT_BUTTON_CLICKED && ( IsCmdControl( "ID_BT_OK" ) || IsCmdControl( "ID_BT_CANCEL" ) || IsCmdControl( "ID_BT_CLOSE" ) ) )
+	if( nCommand == EVENT_BUTTON_CLICKED )
 	{
-		Show( false );
-		return;
+		if( IsCmdControl( "ID_BT_OK" ) )
+		{
+			if( m_nHiddenShopID > 0 )
+				SendSecretCashShopOpen( m_nHiddenShopID );
+			Show( false );
+			return;
+		}
+		if( IsCmdControl( "ID_BT_CANCEL" ) || IsCmdControl( "ID_BT_CLOSE" ) )
+		{
+			Show( false );
+			return;
+		}
 	}
 	CEtUIDialog::ProcessCommand( nCommand, bTriggeredByUser, pControl, uMsg );
 }
@@ -142,6 +202,8 @@ CDnSecretCashShopBuyDlg::CDnSecretCashShopBuyDlg( UI_DIALOG_TYPE dialogType, CEt
 	, m_pStaticSelectedName( NULL )
 	, m_pStaticSelectedCount( NULL )
 	, m_pStaticSelectedPeriod( NULL )
+	, m_nHiddenShopID( 0 )
+	, m_nPurchaseCount( -1 )
 	, m_nCurPage( 0 )
 	, m_nMaxPage( 0 )
 	, m_nSelectedIdx( -1 )
@@ -162,6 +224,7 @@ CDnSecretCashShopBuyDlg::CDnSecretCashShopBuyDlg( UI_DIALOG_TYPE dialogType, CEt
 CDnSecretCashShopBuyDlg::~CDnSecretCashShopBuyDlg()
 {
 	ClearPreviewItems();
+	SAFE_RELEASE_SPTR( m_hNpcTexture );
 }
 
 void CDnSecretCashShopBuyDlg::Initialize( bool bShow )
@@ -228,6 +291,74 @@ void CDnSecretCashShopBuyDlg::SetSecretItems( const std::vector<SSecretShopItem>
 
 	if( CDnInterface::IsActive() && GetInterface().GetSecretCashShopAlarmBtnDlg() )
 		GetInterface().GetSecretCashShopAlarmBtnDlg()->Show( !m_vecItems.empty() );
+}
+
+void CDnSecretCashShopBuyDlg::SetHiddenShop( int nHiddenShopID )
+{
+	m_nHiddenShopID = nHiddenShopID;
+	m_vecItems.clear();
+	m_nPurchaseCount = -1;
+
+	DNTableFileFormat *pSox = GetDNTable( CDnTableDB::THIDDENCASHSHOPREAL );
+	if( !pSox || !pSox->IsExistItem( nHiddenShopID ) )
+		return;
+
+	if( m_pTextureNpc )
+	{
+		SAFE_RELEASE_SPTR( m_hNpcTexture );
+		DNTableCell *pImgCell = pSox->GetFieldFromLablePtr( nHiddenShopID, "_SecondNPCImg" );
+		const char *szNpcImg = pImgCell ? pImgCell->GetString() : NULL;
+		if( szNpcImg && szNpcImg[0] != '\0' )
+		{
+			m_hNpcTexture = LoadResource( CEtResourceMng::GetInstance().GetFullName( szNpcImg ).c_str(), RT_TEXTURE );
+			if( m_hNpcTexture )
+			{
+				m_pTextureNpc->SetTexture( m_hNpcTexture, 0, 0, 180, 300 );
+				m_pTextureNpc->Show( true );
+			}
+		}
+	}
+
+	if( m_pTextBoxAsk )
+	{
+		m_pTextBoxAsk->ClearText();
+		DNTableCell *pTalkCell = pSox->GetFieldFromLablePtr( nHiddenShopID, "_SecondTalkID" );
+		int nTalkID = pTalkCell ? pTalkCell->GetInteger() : 0;
+		if( nTalkID > 0 )
+			m_pTextBoxAsk->AddText( GetEtUIXML().GetUIString( CEtUIXML::idCategory1, nTalkID ) );
+	}
+
+	DNTableCell *pPurchaseCell = pSox->GetFieldFromLablePtr( nHiddenShopID, "_PurchaseCount" );
+	if( pPurchaseCell )
+		m_nPurchaseCount = pPurchaseCell->GetInteger();
+
+	char szLabel[32] = { 0 };
+	for( int i = 1; i <= 10; ++i )
+	{
+		sprintf_s( szLabel, sizeof( szLabel ), "_SN_%02d", i );
+		DNTableCell *pSnCell = pSox->GetFieldFromLablePtr( nHiddenShopID, szLabel );
+		if( !pSnCell ) continue;
+		int nSN = pSnCell->GetInteger();
+		if( nSN <= 0 || !CDnCashShopTask::IsActive() ) continue;
+
+		const SCashShopItemInfo *pInfo = GetCashShopTask().GetItemInfo( nSN );
+		if( !pInfo ) continue;
+
+		SSecretShopItem item;
+		item.nSN = nSN;
+		item.nItemID = !pInfo->linkIdList.empty() ? pInfo->linkIdList[0] : pInfo->presentItemId;
+		item.nCount = ( pInfo->count > 0 ) ? pInfo->count : 1;
+		item.nPeriod = pInfo->period;
+		item.nPrice = pInfo->price;
+		item.nDiscountRate = ( pInfo->priceFix > pInfo->price && pInfo->priceFix > 0 )
+			? ( ( pInfo->priceFix - pInfo->price ) * 100 / pInfo->priceFix ) : 0;
+		m_vecItems.push_back( item );
+	}
+
+	m_nCurPage = 0;
+	m_nMaxPage = m_vecItems.empty() ? 0 : ( (int)m_vecItems.size() - 1 ) / SLOT_PER_PAGE;
+	m_nSelectedIdx = m_vecItems.empty() ? -1 : 0;
+	RefreshPage();
 }
 
 void CDnSecretCashShopBuyDlg::SelectSlot( int nSlotIdx )
@@ -497,6 +628,7 @@ void CDnSecretCashShopBuyDlg::ProcessCommand( UINT nCommand, bool bTriggeredByUs
 		}
 		else if( IsCmdControl( "ID_BT_CLOSE" ) || IsCmdControl( "ID_BT_CANCEL" ) )
 		{
+			SendSecretCashShopClose();
 			Show( false );
 			return;
 		}

@@ -270,6 +270,7 @@ struct SCashShopItemInfo
 #endif // PRE_ADD_CASHSHOP_RENEWAL
 
 	bool			bLimit;
+	bool			bUseCoupon;
 
 	bool			bReserveOffer;
 	int				ReserveAmount;
@@ -312,6 +313,7 @@ struct SCashShopItemInfo
 		count			= 0;
 		priority		= 0;
 		bOnSale			= false;
+		bUseCoupon		= true;
 		
 #ifdef PRE_ADD_CASHSHOP_RENEWAL
 		// ...

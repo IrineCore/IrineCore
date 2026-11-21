@@ -15,7 +15,9 @@ protected:
 public:
 	virtual void Initialize( bool bShow );
 	virtual void InitialUpdate();
+	virtual void Show( bool bShow );
 	virtual void ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEtUIControl *pControl, UINT uMsg = 0 );
 
+	void RefreshClassInfo();
 	void SetClassInfoText( const WCHAR *wszText );
 };

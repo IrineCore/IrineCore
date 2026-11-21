@@ -505,6 +505,28 @@ void CDnNPCActor::OnSoundPlay(eSoundType type)
 }
 
 
+int CDnNPCActor::GetNpcChatGuideUISize( int nKey ) const
+{
+	if( nKey <= 0 )
+		return 0;
+
+	DNTableFileFormat *pSox = GetDNTable( CDnTableDB::TNPCCHATGUIDEUISIZE );
+	if( !pSox )
+		return 0;
+
+	for( int i = 0; i < pSox->GetItemCount(); ++i )
+	{
+		int nRowID = pSox->GetItemID( i );
+		DNTableCell *pKeyCell = pSox->GetFieldFromLablePtr( nRowID, "_Key" );
+		if( pKeyCell && pKeyCell->GetInteger() == nKey )
+		{
+			DNTableCell *pSizeCell = pSox->GetFieldFromLablePtr( nRowID, "_UISize" );
+			return pSizeCell ? pSizeCell->GetInteger() : 0;
+		}
+	}
+	return 0;
+}
+
 void CDnNPCActor::RenderCustom( float fElapsedTime )
 {
 	if( m_bShowHeadName && IsShow() ) 
@@ -513,6 +535,12 @@ void CDnNPCActor::RenderCustom( float fElapsedTime )
 		
 		int nAlpha = (int)(GetAlphaLayer( AL_APPEAR ) * 255);
 		nAlpha = EtClamp(nAlpha, 0, 255);
+
+		TNpcData *pNpcTableData = g_DataManager.GetNpcData( m_NpcData.nNpcID );
+		if( pNpcTableData && pNpcTableData->bShopIcon && m_nStateMark == MarkTypeNone )
+		{
+			(void)GetNpcChatGuideUISize( m_NpcData.nNpcID );
+		}
 
 		// Name
 		AddHeadNameElement( 0, GetName(), s_nFontIndex, 16, (textcolor::NPCNAME & 0x00FFFFFF) | ( nAlpha << 24 ) , textcolor::NPCNAME_S );

@@ -309,6 +309,9 @@ public:
 #if defined( PRE_ADD_STAGE_USECOUNT_ITEM )
 	void SendStageUseLimitItem( int nItemID, int nUseCount );
 #endif
+	void SendSpecialItemList( const int* pItemIDs, int nCount );
+	void SendAutoUnpackResult( int nRet );
+	void SendDeleteExpireItemList( const std::vector<INT64>& vecSerials );
 
 	// Item Goods
 	void SendRequestCashWorldMsg(INT64 biItemSerial, char cType);
@@ -761,6 +764,8 @@ public:
 #endif	// #if defined(PRE_ADD_VIP)
 	void SendSaleAbortList(BYTE cCount, int *nAbortList);
 	void SendCashShopServerTimeForCharge(__time64_t tTime);
+	void SendSecretCashShopNotify(int nHiddenShopID);
+	void SendSecretCashShopOpen(int nRet, int nHiddenShopID);
 #ifdef PRE_ADD_LIMITED_CASHITEM
 	void SendQuantityLimitedItemList(std::vector<LimitedCashItem::TLimitedQuantityCashItem> &vList);
 	void SendChangedQuantityItemList(std::vector<LimitedCashItem::TChangedLimitedQuantity> &vList);

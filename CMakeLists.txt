@@ -10,6 +10,7 @@ cmake_policy(SET CMP0091 NEW)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 option(IRINE_BUILD_SERVERS "Build IrineCore Dragon Nest server executables (x64, Windows & Linux)" ON)
+option(IRINE_BUILD_TOOLS   "Build IrineCore packaging, patching, and client creator tools (x64, Windows & Linux)" ON)
 option(IRINE_BUILD_CLIENT  "Build IrineCore DragonNest client & DnLauncher (x64 / Win32, Windows only)" OFF)
 option(IRINE_CLIENT_LTO    "Enable Whole-Program Optimization (/GL + /LTCG) for Release Client & Launcher" OFF)
 
@@ -63,6 +64,10 @@ if(IRINE_BUILD_SERVERS)
 endif()
 
 add_subdirectory(src)
+
+if(IRINE_BUILD_TOOLS AND NOT (IRINE_BUILD_CLIENT AND NOT IRINE_BUILD_SERVERS))
+    add_subdirectory(tools)
+endif()
 
 if(IRINE_BUILD_SERVERS)
     enable_testing()

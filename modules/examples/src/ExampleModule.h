@@ -13,7 +13,6 @@ class ExampleModule final : public IModule
 {
 public:
     const char* GetName() const noexcept override { return "Example-Module"; }
-    const char* GetConfigFileName() const noexcept override { return "Example-Module.ini"; }
     bool        IsEnabled() const noexcept override { return m_enabled; }
 
     bool OnLoadConfig(const WCHAR* /*moduleConfigDirPath*/) override { return true; }

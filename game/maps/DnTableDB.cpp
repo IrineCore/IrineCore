@@ -359,16 +359,12 @@ void CDnTableDB::SetTableFileInfo()
 #ifdef PRE_ADD_LEVELUP_REWARD_NOTIFIER
 	AddTableFileInfo(TLEVELUPCHECKBOX, "LevelupBoxCheckTable");
 #endif
-#ifdef PRE_ADD_PVPRANK_INFORM
 	AddTableFileInfo(TPVPRANKREWARD, "PvPRankRewardTable");
-#endif
 #if defined(PRE_ADD_CHAT_MISSION)
 	AddTableFileInfo(TMISSIONTYPING, "TypingTable");
 #endif
 
-#ifdef PRE_ADD_CRAZYDUC_UI
 	AddTableFileInfo(TEVENTMONSTER, "monstertable_event");
-#endif 
 
 #ifdef PRE_ADD_CASHINVENTAB
 	AddTableFileInfo( TCASHINVENTAB, "cashinventab" );
@@ -377,7 +373,7 @@ void CDnTableDB::SetTableFileInfo()
 	AddTableFileInfo(TTALISMAN, "talismanTable");
 	AddTableFileInfo(TTALISMANSLOT, "TalismanSlotTable");
 #endif
-	// Post-Cap 60 / Steam NA v353 tables
+	// Extended gameplay tables
 	AddTableFileInfo(TDROPCONTROL, "DropControlTable");
 	AddTableFileInfo(TDWCCREATE, "dwccreatetable");
 	AddTableFileInfo(TMONSTERGOLDDROP, "monstergolddroptable");
@@ -861,12 +857,8 @@ bool CDnTableDB::Initialize( )
 #if defined( PRE_ADD_OVERLAP_SETEFFECT )
 		AddTable(TOVERLAPSETEFFECT, LoadTable("SetOverlapTable"));
 #endif
-#ifdef PRE_ADD_PVPRANK_INFORM
 		AddTable(TPVPRANKREWARD, LoadTable("PvPRankRewardTable"));
-#endif
-#ifdef PRE_ADD_CRAZYDUC_UI
 		AddTable(TEVENTMONSTER, LoadTable("monstertable_event"));
-#endif
 #ifdef PRE_ADD_CASHINVENTAB
 		AddTable(TCASHINVENTAB, LoadTable("cashinventab"));
 #endif

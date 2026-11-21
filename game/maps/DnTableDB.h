@@ -334,16 +334,12 @@ public:
 #ifdef PRE_ADD_LEVELUP_REWARD_NOTIFIER
 		TLEVELUPCHECKBOX,
 #endif
-#ifdef PRE_ADD_PVPRANK_INFORM
 		TPVPRANKREWARD,
-#endif
 #if defined(PRE_ADD_CHAT_MISSION)
 		TMISSIONTYPING,
 #endif
 
-#ifdef PRE_ADD_CRAZYDUC_UI
 		TEVENTMONSTER,
-#endif 
 
 #ifdef PRE_ADD_CASHINVENTAB
 		TCASHINVENTAB,
@@ -352,7 +348,7 @@ public:
 		TTALISMAN,
 		TTALISMANSLOT,
 #endif
-		// Post-Cap 60 / Steam NA v353 tables
+		// Extended gameplay tables
 		TDROPCONTROL,
 		TDWCCREATE,
 		TMONSTERGOLDDROP,

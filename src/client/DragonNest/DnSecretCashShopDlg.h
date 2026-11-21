@@ -16,6 +16,7 @@ protected:
 	CEtUITextureControl *m_pTextureFace;
 	CEtUIStatic *m_pStaticTextHidden;
 	EtTextureHandle m_hFaceTexture;
+	int m_nHiddenShopID;
 
 public:
 	virtual void Initialize( bool bShow );
@@ -23,6 +24,8 @@ public:
 	virtual void ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEtUIControl *pControl, UINT uMsg = 0 );
 
 	void SetAlarmInfo( const WCHAR *wszText, const char *szFaceTexture );
+	void SetHiddenShop( int nHiddenShopID );
+	int GetHiddenShopID() const { return m_nHiddenShopID; }
 };
 
 class CDnSecretCashShopMessageDlg : public CDnCustomDlg
@@ -35,6 +38,7 @@ protected:
 	CEtUITextBox *m_pTextBoxAsk;
 	CEtUITextureControl *m_pTextureNpc;
 	EtTextureHandle m_hNpcTexture;
+	int m_nHiddenShopID;
 
 public:
 	virtual void Initialize( bool bShow );
@@ -42,6 +46,7 @@ public:
 	virtual void ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEtUIControl *pControl, UINT uMsg = 0 );
 
 	void SetMessage( const WCHAR *wszMessage, const char *szNpcTexture = NULL );
+	void SetHiddenShop( int nHiddenShopID );
 };
 
 class CDnSecretCashShopBuyDlg : public CDnCustomDlg
@@ -92,6 +97,9 @@ protected:
 
 	CDnItem *m_pPreviewItems[SLOT_PER_PAGE];
 	std::vector<SSecretShopItem> m_vecItems;
+	EtTextureHandle m_hNpcTexture;
+	int m_nHiddenShopID;
+	int m_nPurchaseCount;
 	int m_nCurPage;
 	int m_nMaxPage;
 	int m_nSelectedIdx;
@@ -109,5 +117,6 @@ public:
 	virtual void ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEtUIControl *pControl, UINT uMsg = 0 );
 
 	void SetSecretItems( const std::vector<SSecretShopItem> &vecItems );
+	void SetHiddenShop( int nHiddenShopID );
 	size_t GetSecretItemCount() const { return m_vecItems.size(); }
 };

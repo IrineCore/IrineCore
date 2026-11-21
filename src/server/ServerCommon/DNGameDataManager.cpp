@@ -614,6 +614,15 @@ bool CDNGameDataManager::AllLoad()
 		++ iLoadFailCount;
 #endif // #if defined( PRE_ADD_STAGE_WEIGHT )
 
+	LoadDisjointorInfoData();
+	LoadDropControlData();
+	LoadSummonSkillData();
+	LoadPvPTeamBalanceData();
+	LoadPvPRankRewardData();
+	LoadEventMonsterData();
+	LoadHiddenCashShopData();
+	LoadMonsterGoldDropData();
+
 	if( iLoadFailCount != 0 )
 		return false;
 
@@ -15768,3 +15777,371 @@ TTalismanData* CDNGameDataManager::GetTalismanData(int nItemID)
 	return &(it->second);
 }
 #endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
+
+bool CDNGameDataManager::LoadDisjointorInfoData()
+{
+	m_MapDisjointorInfo.clear();
+	DNTableFileFormat* pSox = GetDNTable( CDnTableDB::TDISJOINTORINFO );
+	if (!pSox || pSox->GetItemCount() <= 0)
+		return true;
+
+	char szLabel[32] = { 0 };
+	for (int i = 0; i < pSox->GetItemCount(); ++i)
+	{
+		int nItemID = pSox->GetItemID(i);
+		DNTableCell* pEnchantCell = pSox->GetFieldFromLablePtr(nItemID, "_EnchantLevel");
+		DNTableCell* pDropCell = pSox->GetFieldFromLablePtr(nItemID, "_DisjointDrop");
+		if (!pDropCell)
+			continue;
+
+		TDisjointorInfoData Data;
+		Data.nEnchantLevel = pEnchantCell ? pEnchantCell->GetInteger() : 0;
+		Data.nDisjointDrop = pDropCell->GetInteger();
+		for (int k = 1; k <= 20; ++k)
+		{
+			sprintf_s(szLabel, sizeof(szLabel), "_Item%dIndex", k);
+			DNTableCell* pIdxCell = pSox->GetFieldFromLablePtr(nItemID, szLabel);
+			if (pIdxCell && pIdxCell->GetInteger() > 0)
+				Data.vecItemIndex.push_back(pIdxCell->GetInteger());
+		}
+
+		if (!Data.vecItemIndex.empty())
+			m_MapDisjointorInfo[std::make_pair(Data.nDisjointDrop, Data.nEnchantLevel)] = Data;
+	}
+	return true;
+}
+
+const CDNGameDataManager::TDisjointorInfoData* CDNGameDataManager::GetDisjointorInfoData(int nDisjointDrop, int nEnchantLevel) const
+{
+	TMapDisjointorInfo::const_iterator it = m_MapDisjointorInfo.find(std::make_pair(nDisjointDrop, nEnchantLevel));
+	if (it != m_MapDisjointorInfo.end())
+		return &(it->second);
+	if (nEnchantLevel != 0)
+	{
+		it = m_MapDisjointorInfo.find(std::make_pair(nDisjointDrop, 0));
+		if (it != m_MapDisjointorInfo.end())
+			return &(it->second);
+	}
+	return NULL;
+}
+
+bool CDNGameDataManager::LoadDropControlData()
+{
+	m_MapDropControl.clear();
+	DNTableFileFormat* pSox = GetDNTable( CDnTableDB::TDROPCONTROL );
+	if (!pSox || pSox->GetItemCount() <= 0)
+		return true;
+
+	for (int i = 0; i < pSox->GetItemCount(); ++i)
+	{
+		int nID = pSox->GetItemID(i);
+		DNTableCell* pGroupCell = pSox->GetFieldFromLablePtr(nID, "_GroupID");
+		if (!pGroupCell)
+			continue;
+
+		TDropControlData Data;
+		Data.nID = nID;
+		Data.nGroupID = pGroupCell->GetInteger();
+		DNTableCell* pTypeCell = pSox->GetFieldFromLablePtr(nID, "_DropType");
+		DNTableCell* pIndexCell = pSox->GetFieldFromLablePtr(nID, "_DropIndex");
+		DNTableCell* pExpCell = pSox->GetFieldFromLablePtr(nID, "_Expectation");
+		Data.nDropType = pTypeCell ? pTypeCell->GetInteger() : 0;
+		Data.nDropIndex = pIndexCell ? pIndexCell->GetInteger() : 0;
+		Data.fExpectation = pExpCell ? pExpCell->GetFloat() : 0.0f;
+
+		if (Data.nGroupID > 0 && Data.nDropIndex > 0)
+			m_MapDropControl[Data.nGroupID].push_back(Data);
+	}
+	return true;
+}
+
+const std::vector<CDNGameDataManager::TDropControlData>* CDNGameDataManager::GetDropControlGroup(int nGroupID) const
+{
+	TMapDropControl::const_iterator it = m_MapDropControl.find(nGroupID);
+	if (it == m_MapDropControl.end())
+		return NULL;
+	return &(it->second);
+}
+
+bool CDNGameDataManager::LoadSummonSkillData()
+{
+	m_MapSummonSkill.clear();
+	m_SetSummonSkillIDs.clear();
+	DNTableFileFormat* pSox = GetDNTable( CDnTableDB::TSUMMONSKILL );
+	if (!pSox || pSox->GetItemCount() <= 0)
+		return true;
+
+	for (int i = 0; i < pSox->GetItemCount(); ++i)
+	{
+		int nMonsterID = pSox->GetItemID(i);
+		DNTableCell* pSkillCell = pSox->GetFieldFromLablePtr(nMonsterID, "_SkillIndex");
+		if (pSkillCell && pSkillCell->GetInteger() > 0)
+		{
+			int nSkillID = pSkillCell->GetInteger();
+			m_MapSummonSkill[nMonsterID] = nSkillID;
+			m_SetSummonSkillIDs.insert(nSkillID);
+		}
+	}
+	return true;
+}
+
+int CDNGameDataManager::GetSummonMonsterSkillID(int nMonsterID) const
+{
+	std::map<int, int>::const_iterator it = m_MapSummonSkill.find(nMonsterID);
+	return (it != m_MapSummonSkill.end()) ? it->second : 0;
+}
+
+bool CDNGameDataManager::IsSummonSkill(int nSkillID) const
+{
+	return (m_SetSummonSkillIDs.find(nSkillID) != m_SetSummonSkillIDs.end());
+}
+
+bool CDNGameDataManager::LoadPvPTeamBalanceData()
+{
+	m_MapPvPTeamBalance.clear();
+	DNTableFileFormat* pSox = GetDNTable( CDnTableDB::TPVPTEAMBALANCE );
+	if (!pSox || pSox->GetItemCount() <= 0)
+		return true;
+
+	char szValLabel[32] = { 0 };
+	char szCntLabel[32] = { 0 };
+	for (int i = 0; i < pSox->GetItemCount(); ++i)
+	{
+		int nID = pSox->GetItemID(i);
+		DNTableCell* pTypeCell = pSox->GetFieldFromLablePtr(nID, "_Type");
+		DNTableCell* pRatioCell = pSox->GetFieldFromLablePtr(nID, "_Ratio");
+		if (!pTypeCell)
+			continue;
+
+		TPvPTeamBalanceData Data;
+		Data.nType = pTypeCell->GetInteger();
+		Data.nRatio = pRatioCell ? pRatioCell->GetInteger() : 0;
+
+		for (int k = 1; k <= 5; ++k)
+		{
+			sprintf_s(szValLabel, sizeof(szValLabel), "_Value%d", k);
+			sprintf_s(szCntLabel, sizeof(szCntLabel), "_ValueCount%d", k);
+			DNTableCell* pValCell = pSox->GetFieldFromLablePtr(nID, szValLabel);
+			DNTableCell* pCntCell = pSox->GetFieldFromLablePtr(nID, szCntLabel);
+			if (!pValCell || !pCntCell)
+				continue;
+
+			const char* szVal = pValCell->GetString();
+			if (!szVal || szVal[0] == '\0')
+				continue;
+
+			TPvPTeamBalanceRange range;
+			range.nWeight = pCntCell->GetInteger();
+			std::vector<std::string> tokens;
+			TokenizeA(std::string(szVal), tokens, ";");
+			for (size_t t = 0; t < tokens.size(); ++t)
+			{
+				if (!tokens[t].empty())
+					range.vecValues.push_back(atoi(tokens[t].c_str()));
+			}
+			if (!range.vecValues.empty())
+				Data.vecRanges.push_back(range);
+		}
+		m_MapPvPTeamBalance[Data.nType] = Data;
+	}
+	return true;
+}
+
+const CDNGameDataManager::TPvPTeamBalanceData* CDNGameDataManager::GetPvPTeamBalanceData(int nType) const
+{
+	std::map<int, TPvPTeamBalanceData>::const_iterator it = m_MapPvPTeamBalance.find(nType);
+	return (it != m_MapPvPTeamBalance.end()) ? &(it->second) : NULL;
+}
+
+int CDNGameDataManager::CalcPvPTeamBalanceScore(int nLevel, int nPvPRank, int nJobID) const
+{
+	int nScore = 0;
+	for (std::map<int, TPvPTeamBalanceData>::const_iterator it = m_MapPvPTeamBalance.begin(); it != m_MapPvPTeamBalance.end(); ++it)
+	{
+		const TPvPTeamBalanceData& data = it->second;
+		int nMatchedWeight = 0;
+		for (size_t r = 0; r < data.vecRanges.size(); ++r)
+		{
+			const TPvPTeamBalanceRange& range = data.vecRanges[r];
+			if (data.nType == 0 || data.nType == 1)
+			{
+				int nQuery = (data.nType == 0) ? nLevel : nPvPRank;
+				if (range.vecValues.size() >= 2 && nQuery >= range.vecValues[0] && nQuery <= range.vecValues[1])
+				{
+					nMatchedWeight = range.nWeight;
+					break;
+				}
+			}
+			else if (data.nType == 2)
+			{
+				for (size_t v = 0; v < range.vecValues.size(); ++v)
+				{
+					if (range.vecValues[v] == nJobID)
+					{
+						nMatchedWeight = range.nWeight;
+						break;
+					}
+				}
+				if (nMatchedWeight > 0)
+					break;
+			}
+		}
+		nScore += (nMatchedWeight * data.nRatio);
+	}
+	return nScore;
+}
+
+bool CDNGameDataManager::LoadPvPRankRewardData()
+{
+	m_MapPvPRankReward.clear();
+	DNTableFileFormat* pSox = GetDNTable( CDnTableDB::TPVPRANKREWARD );
+	if (!pSox || pSox->GetItemCount() <= 0)
+		return true;
+
+	for (int i = 0; i < pSox->GetItemCount(); ++i)
+	{
+		int nID = pSox->GetItemID(i);
+		DNTableCell* pRankCell = pSox->GetFieldFromLablePtr(nID, "_PVPRankID");
+		if (!pRankCell)
+			continue;
+
+		TPvPRankRewardData Data;
+		memset(&Data, 0, sizeof(Data));
+		Data.nPvPRankID = pRankCell->GetInteger();
+		DNTableCell* pItem1 = pSox->GetFieldFromLablePtr(nID, "_RewardItemID1");
+		DNTableCell* pCnt1 = pSox->GetFieldFromLablePtr(nID, "_Count1");
+		DNTableCell* pItem2 = pSox->GetFieldFromLablePtr(nID, "_RewardItemID2");
+		DNTableCell* pCnt2 = pSox->GetFieldFromLablePtr(nID, "_Count2");
+		Data.nRewardItemID[0] = pItem1 ? pItem1->GetInteger() : 0;
+		Data.nRewardCount[0] = pCnt1 ? pCnt1->GetInteger() : 0;
+		Data.nRewardItemID[1] = pItem2 ? pItem2->GetInteger() : 0;
+		Data.nRewardCount[1] = pCnt2 ? pCnt2->GetInteger() : 0;
+
+		m_MapPvPRankReward[Data.nPvPRankID] = Data;
+	}
+	return true;
+}
+
+const CDNGameDataManager::TPvPRankRewardData* CDNGameDataManager::GetPvPRankRewardData(int nPvPRankID) const
+{
+	std::map<int, TPvPRankRewardData>::const_iterator it = m_MapPvPRankReward.find(nPvPRankID);
+	return (it != m_MapPvPRankReward.end()) ? &(it->second) : NULL;
+}
+
+bool CDNGameDataManager::LoadEventMonsterData()
+{
+	m_MapEventMonster.clear();
+	DNTableFileFormat* pSox = GetDNTable( CDnTableDB::TEVENTMONSTER );
+	if (!pSox || pSox->GetItemCount() <= 0)
+		return true;
+
+	for (int i = 0; i < pSox->GetItemCount(); ++i)
+	{
+		int nMonsterID = pSox->GetItemID(i);
+		TEventMonsterData Data;
+		memset(&Data, 0, sizeof(Data));
+		Data.nMonsterID = nMonsterID;
+		DNTableCell* pCell = NULL;
+		if ((pCell = pSox->GetFieldFromLablePtr(nMonsterID, "_NameID")) != NULL) Data.nNameID = pCell->GetInteger();
+		if ((pCell = pSox->GetFieldFromLablePtr(nMonsterID, "_Level")) != NULL) Data.nLevel = pCell->GetInteger();
+		if ((pCell = pSox->GetFieldFromLablePtr(nMonsterID, "_HP")) != NULL) Data.nHP = pCell->GetInteger();
+		if ((pCell = pSox->GetFieldFromLablePtr(nMonsterID, "_StrPMin")) != NULL) Data.nStrPMin = pCell->GetInteger();
+		if ((pCell = pSox->GetFieldFromLablePtr(nMonsterID, "_StrPMax")) != NULL) Data.nStrPMax = pCell->GetInteger();
+		if ((pCell = pSox->GetFieldFromLablePtr(nMonsterID, "_StrMMin")) != NULL) Data.nStrMMin = pCell->GetInteger();
+		if ((pCell = pSox->GetFieldFromLablePtr(nMonsterID, "_StrMMax")) != NULL) Data.nStrMMax = pCell->GetInteger();
+		if ((pCell = pSox->GetFieldFromLablePtr(nMonsterID, "_DefP")) != NULL) Data.nDefP = pCell->GetInteger();
+		if ((pCell = pSox->GetFieldFromLablePtr(nMonsterID, "_DefM")) != NULL) Data.nDefM = pCell->GetInteger();
+		m_MapEventMonster[nMonsterID] = Data;
+	}
+	return true;
+}
+
+const CDNGameDataManager::TEventMonsterData* CDNGameDataManager::GetEventMonsterData(int nMonsterID) const
+{
+	std::map<int, TEventMonsterData>::const_iterator it = m_MapEventMonster.find(nMonsterID);
+	return (it != m_MapEventMonster.end()) ? &(it->second) : NULL;
+}
+
+bool CDNGameDataManager::LoadHiddenCashShopData()
+{
+	m_MapHiddenCashShop.clear();
+	m_VecHiddenCashShopCond.clear();
+
+	DNTableFileFormat* pRealSox = GetDNTable( CDnTableDB::THIDDENCASHSHOPREAL );
+	if (pRealSox && pRealSox->GetItemCount() > 0)
+	{
+		char szLabel[32] = { 0 };
+		for (int i = 0; i < pRealSox->GetItemCount(); ++i)
+		{
+			int nID = pRealSox->GetItemID(i);
+			THiddenCashShopData Data;
+			Data.nHiddenShopID = nID;
+			DNTableCell* pCell = NULL;
+			Data.nButtonImgID = ((pCell = pRealSox->GetFieldFromLablePtr(nID, "_ButtonImgID")) != NULL) ? pCell->GetInteger() : 0;
+			Data.nFirstTalkID = ((pCell = pRealSox->GetFieldFromLablePtr(nID, "_FirstTalkID")) != NULL) ? pCell->GetInteger() : 0;
+			Data.nSecondTalkID = ((pCell = pRealSox->GetFieldFromLablePtr(nID, "_SecondTalkID")) != NULL) ? pCell->GetInteger() : 0;
+			Data.nPurchaseCount = ((pCell = pRealSox->GetFieldFromLablePtr(nID, "_PurchaseCount")) != NULL) ? pCell->GetInteger() : -1;
+			for (int k = 1; k <= 10; ++k)
+			{
+				sprintf_s(szLabel, sizeof(szLabel), "_SN_%02d", k);
+				pCell = pRealSox->GetFieldFromLablePtr(nID, szLabel);
+				if (pCell && pCell->GetInteger() > 0)
+					Data.vecSN.push_back(pCell->GetInteger());
+			}
+			m_MapHiddenCashShop[nID] = Data;
+		}
+	}
+
+	DNTableFileFormat* pCondSox = GetDNTable( CDnTableDB::THIDDENCASHSHOPCONCHECK );
+	if (pCondSox && pCondSox->GetItemCount() > 0)
+	{
+		for (int i = 0; i < pCondSox->GetItemCount(); ++i)
+		{
+			int nID = pCondSox->GetItemID(i);
+			THiddenCashShopCondData Cond;
+			Cond.nID = nID;
+			DNTableCell* pCell = NULL;
+			Cond.nHiddenShopID = ((pCell = pCondSox->GetFieldFromLablePtr(nID, "_HiddenShopID")) != NULL) ? pCell->GetInteger() : nID;
+			Cond.nConditionType = ((pCell = pCondSox->GetFieldFromLablePtr(nID, "_Type")) != NULL) ? pCell->GetInteger() : 0;
+			Cond.nConditionParam = ((pCell = pCondSox->GetFieldFromLablePtr(nID, "_Param")) != NULL) ? pCell->GetInteger() : 0;
+			m_VecHiddenCashShopCond.push_back(Cond);
+		}
+	}
+	return true;
+}
+
+const CDNGameDataManager::THiddenCashShopData* CDNGameDataManager::GetHiddenCashShopData(int nHiddenShopID) const
+{
+	std::map<int, THiddenCashShopData>::const_iterator it = m_MapHiddenCashShop.find(nHiddenShopID);
+	return (it != m_MapHiddenCashShop.end()) ? &(it->second) : NULL;
+}
+
+bool CDNGameDataManager::LoadMonsterGoldDropData()
+{
+	m_MapMonsterGoldDrop.clear();
+	DNTableFileFormat* pSox = GetDNTable( CDnTableDB::TMONSTERGOLDDROP );
+	if (!pSox || pSox->GetItemCount() <= 0)
+		return true;
+
+	for (int i = 0; i < pSox->GetItemCount(); ++i)
+	{
+		int nMonsterID = pSox->GetItemID(i);
+		TMonsterGoldDropData Data;
+		Data.nMonsterID = nMonsterID;
+		DNTableCell* pGoldCell = pSox->GetFieldFromLablePtr(nMonsterID, "_Gold");
+		if (!pGoldCell)
+			pGoldCell = pSox->GetFieldFromLablePtr(nMonsterID, "_DropGold");
+		Data.nGold = pGoldCell ? pGoldCell->GetInteger() : 0;
+		DNTableCell* pCntCell = pSox->GetFieldFromLablePtr(nMonsterID, "_DropCount");
+		Data.nDropCount = (pCntCell && pCntCell->GetInteger() > 0) ? pCntCell->GetInteger() : 1;
+		if (Data.nGold > 0)
+			m_MapMonsterGoldDrop[nMonsterID] = Data;
+	}
+	return true;
+}
+
+const CDNGameDataManager::TMonsterGoldDropData* CDNGameDataManager::GetMonsterGoldDropData(int nMonsterID) const
+{
+	std::map<int, TMonsterGoldDropData>::const_iterator it = m_MapMonsterGoldDrop.find(nMonsterID);
+	return (it != m_MapMonsterGoldDrop.end()) ? &(it->second) : NULL;
+}

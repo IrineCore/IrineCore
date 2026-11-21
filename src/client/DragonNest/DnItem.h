@@ -248,6 +248,7 @@ public:
 	static tstring GetItemName(int nItemTableID);
 	static tstring GetItemFullName(int nItemTableID, char cOptionIndex = 0);
 	static bool IsCashItem(int nTableID);
+	static bool IsEnabledInMap(int nMapIndex);
 	int  GetAllowedGameType() { return m_nAllowedGameType; }
 
 	void SetElapsedDelayTime(float fDelayTime) { m_fElapsedDelayTime = fDelayTime; };

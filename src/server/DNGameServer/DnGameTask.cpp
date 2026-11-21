@@ -29,6 +29,7 @@
 #include "DNLogConnection.h"
 #include "DnDungeonHistory.h"
 #include "DnStateBlow.h"
+#include "DnExtendedCombatBlows.h"
 #include "DNDBConnectionManager.h"
 
 #include "DnWorldBrokenProp.h"
@@ -5704,6 +5705,18 @@ void CDnGameTask::RequestSummonMonster( DnActorHandle hOwner, SummonMonsterStruc
 	//Set the creation timestamp.
 	hSummonedMonster->SetRequestSummonTime(hOwner->GetLocalTime());
 
+	// BLOW_290: AddStateOnSummonMonsterBlow (e.g. Gear Master Lv 65 passive)
+	if( hOwner && hOwner->IsAppliedThisStateBlow( STATE_BLOW::BLOW_290 ) )
+	{
+		DNVector(DnBlowHandle) vlBlows290;
+		hOwner->GatherAppliedStateBlowByBlowIndex( STATE_BLOW::BLOW_290, vlBlows290 );
+		for( DWORD bi = 0; bi < vlBlows290.size(); ++bi )
+		{
+			if( vlBlows290[bi] )
+				static_cast<CDnAddStateOnSummonMonsterBlow*>( vlBlows290[bi].GetPointer() )->OnSummonMonster( hSummonedMonster, pStruct->MonsterID );
+		}
+	}
+
 #ifdef PRE_ADD_39644 // Grant invincibility to the summoned monster.
 	if( pStruct->AddImmuneBlow )
 		hSummonedMonster->CmdAddStateEffect( NULL, STATE_BLOW::BLOW_099, -1 , "-1" );
@@ -6290,6 +6303,18 @@ DnActorHandle CDnGameTask::RequestSummonMonsterBySkill( DnActorHandle hOwner, Dn
 
 	//Set the creation timestamp.
 	hSummonedMonster->SetRequestSummonTime(hOwner->GetLocalTime());
+
+	// BLOW_290: AddStateOnSummonMonsterBlow (e.g. Gear Master Lv 65 passive)
+	if( hOwner && hOwner->IsAppliedThisStateBlow( STATE_BLOW::BLOW_290 ) )
+	{
+		DNVector(DnBlowHandle) vlBlows290;
+		hOwner->GatherAppliedStateBlowByBlowIndex( STATE_BLOW::BLOW_290, vlBlows290 );
+		for( DWORD bi = 0; bi < vlBlows290.size(); ++bi )
+		{
+			if( vlBlows290[bi] )
+				static_cast<CDnAddStateOnSummonMonsterBlow*>( vlBlows290[bi].GetPointer() )->OnSummonMonster( hSummonedMonster, pStruct->MonsterID );
+		}
+	}
 
 #ifdef PRE_ADD_39644 // Grant invincibility to the summoned monster.
 	if( pStruct->AddImmuneBlow )

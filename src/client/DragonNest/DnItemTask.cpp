@@ -498,6 +498,9 @@ void CDnItemTask::OnRecvItemMessage( int nSubCmd, char *pData, int nSize )
 #if defined(PRE_ADD_STAGE_USECOUNT_ITEM)
 		case eItem::SC_STAGE_USELIMITITEM:	OnRecvStageUseLimitItem( (SCStageUseLimitItem*)pData ); break;
 #endif // #if defined(PRE_ADD_STAGE_USECOUNT_ITEM)
+		case eItem::SC_SPECIAL_ITEM_LIST:	OnRecvSpecialItemList( (SCSpecialItemList*)pData ); break;
+		case eItem::SC_AUTO_UNPACK_RESULT:	OnRecvAutoUnpackResult( (SCAutoUnpackResult*)pData ); break;
+		case eItem::SC_DELETE_EXPIRE_ITEM_LIST:	OnRecvDeleteExpireItemList( (SCDeleteExpireItemList*)pData ); break;
 	}
 
 	// This must also be called, so do not return in an upper layer.
@@ -9951,3 +9954,93 @@ CDnItem* CDnItemTask::GetExistLevelUpBox( const int& nLevel )
 	return NULL;
 }
 #endif 
+
+void CDnItemTask::OnRecvSpecialItemList( SCSpecialItemList* pPacket )
+{
+	if( !pPacket ) return;
+	m_vecSpecialItemIDs.clear();
+	for( int i = 0; i < 10; ++i )
+	{
+		if( pPacket->nItemIDs[i] != 0 )
+			m_vecSpecialItemIDs.push_back( pPacket->nItemIDs[i] );
+	}
+}
+
+bool CDnItemTask::HasSpecialItemID( int nItemID ) const
+{
+	if( nItemID == 0 || m_vecSpecialItemIDs.empty() )
+		return false;
+	for( size_t i = 0; i < m_vecSpecialItemIDs.size(); ++i )
+	{
+		if( m_vecSpecialItemIDs[i] == nItemID )
+			return true;
+	}
+	return false;
+}
+
+void CDnItemTask::OnRecvAutoUnpackResult( SCAutoUnpackResult* pPacket )
+{
+	if( !pPacket ) return;
+	if( CDnInterface::IsActive() )
+	{
+		if( GetInterface().GetPotenCharmItemProgressDlg() && GetInterface().GetPotenCharmItemProgressDlg()->IsShow() )
+			GetInterface().GetPotenCharmItemProgressDlg()->Show( false );
+		if( GetInterface().GetPackageBoxResultAutoDlg() && GetInterface().GetPackageBoxResultAutoDlg()->IsShow() )
+			GetInterface().GetPackageBoxResultAutoDlg()->Show( false );
+		if( pPacket->nRet != ERROR_NONE )
+			GetInterface().ServerMessageBox( pPacket->nRet );
+	}
+}
+
+void CDnItemTask::OnRecvDeleteExpireItemList( SCDeleteExpireItemList* pPacket )
+{
+	if( !pPacket || pPacket->wCount == 0 ) return;
+	WORD wCount = pPacket->wCount;
+	if( wCount > CASHINVENTORYMAX ) wCount = CASHINVENTORYMAX;
+
+	for( WORD i = 0; i < wCount; ++i )
+	{
+		INT64 biSerial = pPacket->biSerial[i];
+		if( biSerial <= 0 ) continue;
+
+		CDnItem* pItem = m_CashInventory.FindItemFromSerialID( biSerial );
+		if( pItem )
+		{
+			m_CashInventory.RemoveItem( pItem->GetSlotIndex() );
+			continue;
+		}
+		pItem = m_StorageInventory.FindItemFromSerialID( biSerial );
+		if( pItem )
+		{
+			m_StorageInventory.RemoveItem( pItem->GetSlotIndex() );
+			continue;
+		}
+		pItem = m_CharInventory.FindItemFromSerialID( biSerial );
+		if( pItem )
+		{
+			m_CharInventory.RemoveItem( pItem->GetSlotIndex() );
+			continue;
+		}
+
+		bool bFound = false;
+		for( int j = 0; j < CASHEQUIPMAX; ++j )
+		{
+			if( m_pCashEquip[j] && m_pCashEquip[j]->GetSerialID() == biSerial )
+			{
+				RemoveCashEquipItem( j );
+				bFound = true;
+				break;
+			}
+		}
+		if( bFound ) continue;
+
+		for( int j = 0; j < EQUIPMAX; ++j )
+		{
+			if( m_pEquip[j] && m_pEquip[j]->GetSerialID() == biSerial )
+			{
+				RemoveEquipItem( j );
+				break;
+			}
+		}
+	}
+}

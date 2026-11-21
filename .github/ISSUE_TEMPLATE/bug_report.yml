@@ -33,7 +33,7 @@ body:
         - DNDBServer64
         - DNCashServer64
         - DNLogServer64
-        - Module (Player-Bots / Hero-Ally / FPS-PING)
+        - Module (Player-Bots / Community Module)
         - Build System (CMake / Docker)
     validations:
       required: true

@@ -45,7 +45,7 @@ class CDnJobInformationMainDlg : public CDnCustomDlg
 {
 public:
 	enum {
-		MAX_JOB_RADIO = 6,
+		MAX_JOB_RADIO = 14,
 	};
 
 public:
@@ -62,11 +62,19 @@ protected:
 	CEtUIStatic *m_pStaticInfo;
 	CEtUIStatic *m_pStaticSkillInfo;
 	CEtUIRadioButton *m_pRadioJobs[MAX_JOB_RADIO];
+	EtTextureHandle m_hClassTexture;
 
 	CDnJobInformationMessageBox *m_pMessageBox;
 	CDnJobInformationPopupDlg *m_pPopupDlg;
 
+	int m_nRadioJobIDs[MAX_JOB_RADIO];
 	int m_nSelectedJobID;
+	int m_nRemoteQuestID;
+	std::vector<int> m_vecPreviewSkillIDs;
+	int m_nPreviewSkillIdx;
+
+	void RefreshJobList();
+	void UpdateSkillPreview( int nSkillIdx );
 
 public:
 	virtual void Initialize( bool bShow );

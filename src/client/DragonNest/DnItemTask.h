@@ -998,6 +998,12 @@ public:
 	bool IsLevelUpBoxItem( const CDnItem* pItem );
 	CDnItem* GetExistLevelUpBox( const int& nLevel );
 #endif
+
+	std::vector<int> m_vecSpecialItemIDs;
+	void OnRecvSpecialItemList( SCSpecialItemList* pPacket );
+	bool HasSpecialItemID( int nItemID ) const;
+	void OnRecvAutoUnpackResult( SCAutoUnpackResult* pPacket );
+	void OnRecvDeleteExpireItemList( SCDeleteExpireItemList* pPacket );
 };
 
 #define GetItemTask()	CDnItemTask::GetInstance()

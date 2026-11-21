@@ -364,6 +364,7 @@ protected:
 
 	bool m_bTempSkill;				// Temporarily created skill #26902
 
+	int m_iSkillGroupID;
 	int m_iGlobalSkillGroupID;
 	float m_afGlobalCoolTime[ NUM_SKILLLEVEL_APPLY_TYPE ];	// In ms in the table; convert to seconds when storing.
 	float m_fAnotherGlobalSkillCoolTime;					// When another global skill is used, apply that skill's cooldown.
@@ -638,6 +639,7 @@ public:
 	void CheckStateEffectApplyOnOffByBubbleProcessor();
 	void CheckProcessorOnEnd( void );
 
+	int GetSkillGroupID( void ) const { return m_iSkillGroupID; };
 	int GetGlobalSkillGroupID( void ) { return m_iGlobalSkillGroupID; };
 	void OnAnotherGlobalSkillBeginCoolTime( DnSkillHandle hSkill );
 

@@ -7,6 +7,9 @@
 #include <string>
 
 int RunUnitTests();
+#ifdef IRINE_HAS_TOOLS_TESTS
+int RunToolsTests();
+#endif
 int RunIntegrationTests(const WCHAR* moduleConfigDirPath);
 int RunNetworkingTests();
 int RunCompatibilityTests(const WCHAR* serverConfigDirPath);
@@ -27,6 +30,9 @@ int main(int argc, char* argv[])
 
     int totalFailures = 0;
     totalFailures += RunUnitTests();
+#ifdef IRINE_HAS_TOOLS_TESTS
+    totalFailures += RunToolsTests();
+#endif
     totalFailures += RunIntegrationTests(moduleConfigDir.c_str());
     totalFailures += RunNetworkingTests();
     totalFailures += RunCompatibilityTests(serverConfigDir.c_str());

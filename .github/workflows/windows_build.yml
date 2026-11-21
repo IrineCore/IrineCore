@@ -41,14 +41,20 @@ jobs:
             "env/dist/DNMasterServer64.exe",
             "env/dist/DNVillageServer64.exe",
             "env/dist/DNGameServer64.exe",
+            "env/dist/tools/DnMakeMD5.exe",
+            "env/dist/tools/DnMakeFullPatch.exe",
+            "env/dist/tools/PatchBuilder.exe",
+            "env/dist/tools/DnClientCreator.exe",
             "env/dist/config/DNLogin.ini",
             "env/dist/config/DNGame.ini",
-            "env/dist/module/FPS-PING.ini",
-            "env/dist/module/Hero-Ally.ini",
-            "env/dist/module/Player-Bots.ini",
+            "env/dist/module/modules.manifest",
             "env/dist/systems/ChannelInfo.xml"
           )
           foreach ($path in $required) {
             if (-not (Test-Path $path)) { throw "Missing expected file: $path" }
+          }
+          foreach ($cfg in (Get-Content "env/dist/module/modules.manifest" | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith("#") })) {
+            $cfgPath = Join-Path "env/dist/module" $cfg
+            if (-not (Test-Path $cfgPath)) { throw "Missing auto-discovered module config: $cfgPath" }
           }
           Write-Host "Verified IrineCore env/dist layout successfully."

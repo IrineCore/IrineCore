@@ -320,6 +320,10 @@ bool CDnCashShopTask::Initialize()
 #endif // PRE_ADD_CASHSHOP_RENEWAL
 
 		pInfo->bLimit		= (pSox->GetFieldFromLablePtr(nTableID, "_Limit")->GetInteger()) ? true : false;
+		{
+			DNTableCell *pUseCouponCell = pSox->GetFieldFromLablePtr(nTableID, "_UseCoupon");
+			pInfo->bUseCoupon = (pUseCouponCell != NULL) ? (pUseCouponCell->GetInteger() != 0) : true;
+		}
 
 		pInfo->bReserveOffer	= (pSox->GetFieldFromLablePtr(nTableID, "_ReserveGive")->GetInteger()) ? true : false;
 		pInfo->ReserveAmount	= pSox->GetFieldFromLablePtr(nTableID, "_Reserve")->GetInteger();
@@ -1277,6 +1281,8 @@ void CDnCashShopTask::OnRecvCashShopMessage( int nSubCmd, char *pData, int nSize
 #ifdef PRE_ADD_CADGE_CASH
 	case eCashShop::eSCCashShop::SC_CADGE:					OnRecvCashShopCadge( (SCCashShopCadge*)pData ); break;
 #endif // PRE_ADD_CADGE_CASH
+	case eCashShop::eSCCashShop::SC_SECRETCASHSHOP_NOTIFY:	OnRecvSecretCashShopNotify( (SCSecretCashShopNotify*)pData ); break;
+	case eCashShop::eSCCashShop::SC_SECRETCASHSHOP_OPEN:	OnRecvSecretCashShopOpen( (SCSecretCashShopOpen*)pData ); break;
 	default:
 		CDebugSet::ToLogFile( "CDnCashShopTask::OnRecvCashShopMessage, Invalid Message(%d)!", nSubCmd );
 	}
@@ -1285,6 +1291,41 @@ void CDnCashShopTask::OnRecvCashShopMessage( int nSubCmd, char *pData, int nSize
 void CDnCashShopTask::TerminateCashShop()
 {
 	m_bOpened = false;
+}
+
+void CDnCashShopTask::OnRecvSecretCashShopNotify(SCSecretCashShopNotify* pData)
+{
+	if( !pData || pData->nHiddenShopID <= 0 )
+		return;
+
+	DNTableFileFormat *pSox = GetDNTable( CDnTableDB::THIDDENCASHSHOPREAL );
+	if( !pSox || !pSox->IsExistItem( pData->nHiddenShopID ) )
+		return;
+
+	if( CDnInterface::IsActive() && GetInterface().GetSecretCashShopAlarmBtnDlg() )
+	{
+		GetInterface().GetSecretCashShopAlarmBtnDlg()->SetHiddenShop( pData->nHiddenShopID );
+		GetInterface().GetSecretCashShopAlarmBtnDlg()->Show( true );
+	}
+}
+
+void CDnCashShopTask::OnRecvSecretCashShopOpen(SCSecretCashShopOpen* pData)
+{
+	if( !pData )
+		return;
+
+	if( pData->nRet == ERROR_NONE )
+	{
+		if( CDnInterface::IsActive() && GetInterface().GetSecretCashShopBuyDlg() )
+		{
+			GetInterface().GetSecretCashShopBuyDlg()->SetHiddenShop( pData->nHiddenShopID );
+			GetInterface().GetSecretCashShopBuyDlg()->Show( true );
+		}
+	}
+	else if( CDnInterface::IsActive() )
+	{
+		GetInterface().ServerMessageBox( pData->nRet );
+	}
 }
 
 void CDnCashShopTask::RequestCashShopOpen()
@@ -5204,7 +5245,7 @@ INT64 CDnCashShopTask::GetItemApplyCouponSN( CASHITEM_SN sn )
 					continue;
 
 				const SCashShopItemInfo* pInfo = GetCashShopTask().GetItemInfo( nSaleItemID );
-				if( pInfo && pInfo->sn == sn )
+				if( pInfo && pInfo->sn == sn && pInfo->bUseCoupon )
 				{
 					bFindUsableCoupon = true;
 					break;

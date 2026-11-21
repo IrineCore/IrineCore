@@ -1,5 +1,8 @@
 #include "stdafx.h"
 #include "DnMonsterOrderBlow.h"
+#ifdef _GAMESERVER
+#include "DnMonsterActor.h"
+#endif
 
 #if !defined( USE_BOOST_MEMPOOL )
 #ifdef _DEBUG
@@ -22,6 +25,28 @@ CDnMonsterOrderBlow::~CDnMonsterOrderBlow( void )
 
 void CDnMonsterOrderBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
+#ifdef _GAMESERVER
+	if( !m_hActor || m_nOrderID <= 0 )
+		return;
+
+	if( m_hActor->IsMonsterActor() )
+	{
+		CDnMonsterActor* pMonster = static_cast<CDnMonsterActor*>( m_hActor.GetPointer() );
+		if( pMonster && !pMonster->IsDie() && pMonster->FindSkill( m_nOrderID ) )
+		{
+			pMonster->UseSkill( m_nOrderID, false, true );
+			return;
+		}
+	}
+
+	const std::list<DnMonsterActorHandle>& listSummoned = m_hActor->GetSummonedMonsterList();
+	for( std::list<DnMonsterActorHandle>::const_iterator it = listSummoned.begin(); it != listSummoned.end(); ++it )
+	{
+		DnMonsterActorHandle hSummon = *it;
+		if( hSummon && !hSummon->IsDie() && hSummon->FindSkill( m_nOrderID ) )
+			hSummon->UseSkill( m_nOrderID, false, true );
+	}
+#endif
 }
 
 void CDnMonsterOrderBlow::Process( LOCAL_TIME LocalTime, float fDelta )

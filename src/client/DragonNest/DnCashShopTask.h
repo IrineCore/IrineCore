@@ -130,6 +130,8 @@ public:
 	void OnRecvCashShopGiftReturn(SCCashShopGiftReturn* pData);
 #endif
 	void OnRecvCashShopServerTimeForCharge(SCCashShopChargeTime* pData);
+	void OnRecvSecretCashShopNotify(SCSecretCashShopNotify* pData);
+	void OnRecvSecretCashShopOpen(SCSecretCashShopOpen* pData);
 #ifdef PRE_ADD_LIMITED_CASHITEM
 	void RequestCashShopRefresh();
 	void OnRecvCashShopLimitedItemInfo(SCQuantityLimitedItem * pPacket);

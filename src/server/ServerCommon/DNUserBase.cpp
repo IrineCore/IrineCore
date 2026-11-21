@@ -4728,6 +4728,36 @@ int CDNUserBase::OnRecvCashShopMessage(int nSubCmd, char *pData, int nLen)
 		}
 		break;
 
+	case eCashShop::CS_SECRETCASHSHOP_OPEN:
+		{
+			if (nLen < (int)sizeof(CSSecretCashShopOpen))
+				return ERROR_INVALIDPACKET;
+
+			CSSecretCashShopOpen* pPacket = (CSSecretCashShopOpen*)pData;
+			int nRet = ERROR_NONE;
+			if (pPacket->nHiddenShopID <= 0)
+			{
+				nRet = ERROR_GENERIC_INVALIDREQUEST;
+			}
+			else if (g_pDataManager)
+			{
+				const CDNGameDataManager::THiddenCashShopData* pShop = g_pDataManager->GetHiddenCashShopData(pPacket->nHiddenShopID);
+				if (pShop)
+					SetWindowState(WINDOW_CASHSHOP);
+				else
+					nRet = ERROR_GENERIC_INVALIDREQUEST;
+			}
+			SendSecretCashShopOpen(nRet, pPacket->nHiddenShopID);
+		}
+		break;
+
+	case eCashShop::CS_SECRETCASHSHOP_CLOSE:
+		{
+			if (IsWindowState(WINDOW_CASHSHOP))
+				SetWindowState(WINDOW_NONE);
+		}
+		break;
+
 #ifdef PRE_ADD_LIMITED_CASHITEM
 	case eCashShop::CS_LIMITEDCASHITEM:
 		{

@@ -52,6 +52,28 @@ private:
 	typedef map<BYTE, TDefaultCreateData*> TMapDefaultCreate;	// first: ClassID
 	TMapDefaultCreate m_pMapDefaultCreate;
 
+public:
+	struct TDWCCreateData
+	{
+		BYTE cClassID;
+		BYTE cLevel;
+		int nExperience;
+		int nCreateMapIndex;
+		BYTE cJobCode1;
+		BYTE cJobCode2;
+		int nGold;
+		int nSkillPoint;
+		int nCreateMapStartPositionX[DEFAULTPOSITIONMAX];
+		int nCreateMapStartPositionY[DEFAULTPOSITIONMAX];
+		int nCreateMapStartRadius[DEFAULTPOSITIONMAX];
+		int nDefaultItemID[DEFAULTITEMMAX];
+		int nDefaultItemCount[DEFAULTITEMMAX];
+		int nDefaultSkillID[DEFAULTSKILLMAX];
+		TQuickSlot DefaultQuickSlot[DEFAULTQUICKSLOTMAX];
+	};
+private:
+	std::vector<TDWCCreateData> m_VecDWCCreate;
+
 	typedef map<int, TSkillData*> TMapSkillData;		// Select skills unlocked by default and insert them into the owned skill list at level 0.
 	TMapSkillData m_pMapSkillData;
 
@@ -220,6 +242,12 @@ public:
 
 	// DefaultCreateData
 	bool LoadDefaultCreateData();
+	bool LoadDWCCreateData();
+	const TDWCCreateData* GetDWCCreateData(BYTE cClassID, BYTE cJobCode1 = 0, BYTE cJobCode2 = 0) const;
+	int GetDWCCreateDefaultItem(const TDWCCreateData* pDWC, TCreateCharacterItem *CreateItemArray);
+	bool GetDWCCreateDefaultPosition(const TDWCCreateData* pDWC, int &nPosX, int &nPosY) const;
+	bool GetDWCCreateDefaultSkill(const TDWCCreateData* pDWC, int *CreateSkillArray) const;
+	bool GetDWCCreateDefaultQuickSlot(const TDWCCreateData* pDWC, TQuickSlot *QuickSlotArray) const;
 	bool LoadSkillData();
 	TDefaultCreateData* GetDefaultCreateData(BYTE cClassID);
 	int GetCreateDefaultItem(BYTE cClassID, TCreateCharacterItem *CreateItemArray);

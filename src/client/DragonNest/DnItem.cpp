@@ -1800,6 +1800,42 @@ bool CDnItem::IsCashItem(int nTableID)
 	return (pSox->GetFieldFromLablePtr(nTableID, "_IsCash")->GetInteger()) ? true : false;
 }
 
+bool CDnItem::IsEnabledInMap(int nMapIndex)
+{
+#ifdef PRE_ADD_63603
+	DNTableFileFormat *pSox = GetDNTable( CDnTableDB::TITEMUSEINFO );
+	if( !pSox )
+		return true;
+
+	std::string strEnabledMaps;
+	for( int i = 0; i < pSox->GetItemCount(); ++i )
+	{
+		int nRowID = pSox->GetItemID( i );
+		DNTableCell *pTypeCell = pSox->GetFieldFromLablePtr( nRowID, "_Type" );
+		if( pTypeCell && pTypeCell->GetInteger() == 3 )
+		{
+			DNTableCell *pMapCell = pSox->GetFieldFromLablePtr( nRowID, "_EnabledMapID" );
+			if( pMapCell && pMapCell->GetString() && pMapCell->GetString()[0] != '\0' )
+				strEnabledMaps = pMapCell->GetString();
+		}
+	}
+
+	if( strEnabledMaps.empty() )
+		return true;
+
+	std::vector<std::string> tokens;
+	TokenizeA( strEnabledMaps, tokens, ";" );
+	for( size_t k = 0; k < tokens.size(); ++k )
+	{
+		if( atoi( tokens[k].c_str() ) == nMapIndex )
+			return true;
+	}
+	return false;
+#else
+	return true;
+#endif
+}
+
 bool CDnItem::IsEternityItem() const
 {
 	return m_bEternity;

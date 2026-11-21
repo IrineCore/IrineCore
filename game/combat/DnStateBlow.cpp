@@ -1043,6 +1043,25 @@ void CDnStateBlow::OnTargetHit( DnActorHandle hTargetActor )
 	m_bLockStateBlowList = false;
 }
 
+void CDnStateBlow::OnBeginSkill( DnSkillHandle hSkill )
+{
+	DnBlowHandle hBlow;
+
+	m_bLockStateBlowList = true;
+
+	BLOW_HANDLE_LIST_ITER iter = m_listBlowHandle.begin();
+	for( ; iter != m_listBlowHandle.end(); ++iter )
+	{
+		hBlow = (*iter);
+		if( hBlow && (hBlow->GetCallBackType() & SB_ONBEGIN_SKILL) )
+		{
+			hBlow->OnBeginSkill( hSkill );
+		}
+	}
+
+	m_bLockStateBlowList = false;
+}
+
 
 void CDnStateBlow::ResetStateBlowBySkillType( int nSkillDurationType )
 {

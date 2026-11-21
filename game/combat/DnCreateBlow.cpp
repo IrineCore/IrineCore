@@ -38,7 +38,7 @@
 #include "DnIncreaseCooltimeChargingBlow.h"
 #include "DnFearBlow.h"
 #include "DnMonsterOrderBlow.h"
-#include "DnPostCap60CombatBlows.h"
+#include "DnExtendedCombatBlows.h"
 #include "DnChainAttackBlow.h"
 #include "DnCantUseItemBlow.h"
 #include "DnCantUseMPUsingSkillBlow.h"
@@ -568,8 +568,11 @@ bool CDnCreateBlow::IsBasicBlow( STATE_BLOW::emBLOW_INDEX emBlowIndex )
 		case STATE_BLOW::BLOW_234:
 		case STATE_BLOW::BLOW_306:
 		case STATE_BLOW::BLOW_307:
+		case STATE_BLOW::BLOW_308:
 		case STATE_BLOW::BLOW_309:
 		case STATE_BLOW::BLOW_310:
+		case STATE_BLOW::BLOW_311:
+		case STATE_BLOW::BLOW_312:
 		case STATE_BLOW::BLOW_313:
 			return true;
 	}

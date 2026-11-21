@@ -12,12 +12,22 @@
 namespace Irine {
 namespace Modules {
 
-// Resolves a module configuration file from either:
-//   1. <configDirPath>/<configFileName>                 (deployed env/dist/module/<Mod>.ini)
-//   2. <configDirPath>/<moduleFolderName>/modules/<file> (source tree modules/<Mod>/modules/<Mod>.ini)
+class IModule;
+
+// Automatically resolves a module configuration file by probing standard locations & extensions:
+//   1. <configDirPath>/<file> (or <ModName>.ini / .conf / .conf.dist)
+//   2. <configDirPath>/<moduleFolderName>/modules/<file> (or <ModName>.ini / .conf / .conf.dist)
+//   3. <configDirPath>/<moduleFolderName>/conf/<file>    (or <ModName>.ini / .conf / .conf.dist)
 std::wstring ResolveModuleConfigPath(const WCHAR* configDirPath,
                                      const WCHAR* moduleFolderName,
-                                     const WCHAR* configFileName);
+                                     const WCHAR* configFileName = nullptr);
+
+// Convenience overload: automatically derives module folder & config name from IModule::GetName()/GetConfigFileName().
+std::wstring ResolveModuleConfigPath(const WCHAR* configDirPath,
+                                     const IModule* module);
+
+// Dynamically enumerates all .ini / .conf / .conf.dist files inside a module config directory.
+std::vector<std::wstring> DiscoverModuleConfigFiles(const WCHAR* configDirPath);
 
 class IModule
 {
@@ -25,7 +35,8 @@ public:
     virtual ~IModule() = default;
 
     virtual const char* GetName() const noexcept = 0;
-    virtual const char* GetConfigFileName() const noexcept = 0;
+    // Optional override: returning nullptr (default) auto-resolves <GetName()>.ini / .conf / .conf.dist.
+    virtual const char* GetConfigFileName() const noexcept { return nullptr; }
     virtual bool        IsEnabled() const noexcept = 0;
 
     // Lifecycle hooks

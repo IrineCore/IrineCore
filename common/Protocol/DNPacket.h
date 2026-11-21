@@ -3664,6 +3664,22 @@ struct SCStageUseLimitItem	// SC_ITEM / SC_STAGE_USELIMITITEM
 };
 #endif
 
+struct SCSpecialItemList	// SC_ITEM / SC_SPECIAL_ITEM_LIST
+{
+	int nItemIDs[10];
+};
+
+struct SCAutoUnpackResult	// SC_ITEM / SC_AUTO_UNPACK_RESULT
+{
+	int nRet;
+};
+
+struct SCDeleteExpireItemList	// SC_ITEM / SC_DELETE_EXPIRE_ITEM_LIST
+{
+	WORD wCount;
+	INT64 biSerial[CASHINVENTORYMAX];
+};
+
 #if defined(PRE_ADD_TALISMAN_SYSTEM)
 struct CSTalismanOpenSlot		// CS_ITEM / CS_TALISMAN_OPENSLOT
 {
@@ -8369,6 +8385,22 @@ struct SCCashRefund			// SC_CASHSHOP / SC_CASH_REFUND
 struct SCCashShopChargeTime
 {
 	__time64_t tTime;
+};
+
+struct CSSecretCashShopOpen		// CS_CASHSHOP / CS_SECRETCASHSHOP_OPEN
+{
+	int nHiddenShopID;
+};
+
+struct SCSecretCashShopNotify	// SC_CASHSHOP / SC_SECRETCASHSHOP_NOTIFY
+{
+	int nHiddenShopID;
+};
+
+struct SCSecretCashShopOpen		// SC_CASHSHOP / SC_SECRETCASHSHOP_OPEN
+{
+	int nRet;
+	int nHiddenShopID;
 };
 
 #ifdef PRE_ADD_LIMITED_CASHITEM

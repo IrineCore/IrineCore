@@ -3,7 +3,7 @@
 # Dynamic automatic module discovery & static library aggregation.
 # Modules can exist inside modules/ and be disabled without modifying core code:
 #   -DIRINE_MODULES=disabled
-#   -DDISABLED_IRINE_MODULES="Player-Bots;Hero-Ally"
+#   -DDISABLED_IRINE_MODULES="Player-Bots;examples"
 #   -DIRINE_MODULE_PLAYER_BOTS=OFF
 #   or by placing a '.disabled' file inside modules/<ModuleName>/
 # =============================================================================

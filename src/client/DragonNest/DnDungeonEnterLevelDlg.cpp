@@ -767,6 +767,47 @@ void CDnDungeonEnterLevelDlg::SetFatigueDegree( int nMapIndex, int nDifficult )
 
 	DNTableFileFormat*  pSoxMap = GetDNTable( CDnTableDB::TMAP );
 	if( pSoxMap == NULL ) return;
+
+#if defined( PRE_ADD_STAGE_WEIGHT )
+	if( nDifficult >= 0 && nDifficult <= 4 && pSoxMap->IsExistItem( nMapIndex ) )
+	{
+		DNTableCell* pCondCell = pSoxMap->GetFieldFromLablePtr( nMapIndex, "_EnterConditionTableID" );
+		int nEnterCondID = pCondCell ? pCondCell->GetInteger() : 0;
+		if( nEnterCondID > 0 )
+		{
+			DNTableFileFormat* pEnterSox = GetDNTable( CDnTableDB::TDUNGEONENTER );
+			if( pEnterSox && pEnterSox->IsExistItem( nEnterCondID ) )
+			{
+				static const char* s_szWeightLabels[5] = {
+					"_Weight_Easy", "_Weight_Normal", "_Weight_Hard", "_Weight_VeryHard", "_Weight_Nightmare"
+				};
+				DNTableCell* pWeightIDCell = pEnterSox->GetFieldFromLablePtr( nEnterCondID, s_szWeightLabels[nDifficult] );
+				int nStageWeightID = pWeightIDCell ? pWeightIDCell->GetInteger() : 0;
+				if( nStageWeightID > 0 )
+				{
+					DNTableFileFormat* pWeightSox = GetDNTable( CDnTableDB::TSTAGEWEIGHT );
+					if( pWeightSox )
+					{
+						std::vector<int> vecWeightRows;
+						pWeightSox->GetItemIDListFromField( "_StageWeightID", nStageWeightID, vecWeightRows );
+						int nHeadCount = ( nPartyMemberCount > 0 ) ? nPartyMemberCount : 1;
+						for( size_t wi = 0; wi < vecWeightRows.size(); ++wi )
+						{
+							DNTableCell* pHeadCell = pWeightSox->GetFieldFromLablePtr( vecWeightRows[wi], "_HeadCount" );
+							if( pHeadCell && pHeadCell->GetInteger() == nHeadCount )
+							{
+								DNTableCell* pFatigueCell = pWeightSox->GetFieldFromLablePtr( vecWeightRows[wi], "_Fatigue" );
+								if( pFatigueCell )
+									fFatiguePercent = 1.0f + pFatigueCell->GetFloat();
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+#endif // PRE_ADD_STAGE_WEIGHT
 	int nMapSid = pSoxMap->GetFieldFromLablePtr( nMapIndex, "_MapSid" )->GetInteger();
 	if( nMapSid > 0 )
 	{

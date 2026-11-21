@@ -117,7 +117,8 @@ Sub -> Blue
 
 	virtual void Process( LOCAL_TIME LocalTime, float fDelta );
 	virtual void Initialize(NpcData& data);
-	virtual void RenderCustom( float fElapsedTime );	
+	virtual void RenderCustom( float fElapsedTime );
+	int GetNpcChatGuideUISize( int nKey ) const;
 	virtual bool LoadSkin( const char *szSkinName, const char *szAniName, bool bTwoPassAlpha = true );
 
 	virtual MAMovementBase* CreateMovement()

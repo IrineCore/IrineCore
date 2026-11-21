@@ -1,6 +1,9 @@
 #include "StdAfx.h"
 #include "DnNestNotifierDlg.h"
 #include "DnNestInfoTask.h"
+#include "DnTableDB.h"
+#include "DNTableFile.h"
+#include <algorithm>
 
 #ifdef _DEBUG
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
@@ -86,23 +89,92 @@ void CDnNestNotifierDlg::Show( bool bShow )
 	CDnCustomDlg::Show( bShow );
 }
 
+struct SNestNotifierSortEntry
+{
+	int nEnterConditionID;
+	int nRecommendHardLevel;
+	int nListSort;
+	std::wstring wszMapName;
+};
+
+static bool CompareNestNotifierSort( const SNestNotifierSortEntry &a, const SNestNotifierSortEntry &b )
+{
+	return a.nListSort < b.nListSort;
+}
+
 void CDnNestNotifierDlg::RefreshNestList()
 {
 	ClearNestList();
-	if( !CDnNestInfoTask::IsActive() )
+	if( CDnNestInfoTask::IsActive() )
+	{
+		CDnNestInfoTask &nestTask = CDnNestInfoTask::GetInstance();
+		DWORD dwCount = nestTask.GetNestDungeonCount();
+		for( DWORD i = 0; i < dwCount; ++i )
+		{
+			CDnNestInfoTask::NestDungeonInfoStruct *pInfo = nestTask.GetNestDungeonInfo( i );
+			if( !pInfo )
+				continue;
+			int nRemain = pInfo->nMaxTryCount - pInfo->nTryCount;
+			if( nRemain < 0 ) nRemain = 0;
+			AddNestItem( pInfo->szMapName.c_str(), nRemain, pInfo->nMaxTryCount );
+		}
+		if( dwCount > 0 )
+			return;
+	}
+
+	DNTableFileFormat *pMapSox = GetDNTable( CDnTableDB::TMAP );
+	DNTableFileFormat *pEnterSox = GetDNTable( CDnTableDB::TDUNGEONENTER );
+	if( !pMapSox || !pEnterSox )
 		return;
 
-	CDnNestInfoTask &nestTask = CDnNestInfoTask::GetInstance();
-	DWORD dwCount = nestTask.GetNestDungeonCount();
-	for( DWORD i = 0; i < dwCount; ++i )
+	std::vector<int> vecMapIDs;
+	pMapSox->GetItemIDListFromField( "_MapSubType", 1, vecMapIDs, true );
+	pMapSox->GetItemIDListFromField( "_MapSubType", 8, vecMapIDs, false );
+
+	std::vector<SNestNotifierSortEntry> vecEntries;
+	for( size_t i = 0; i < vecMapIDs.size(); ++i )
 	{
-		CDnNestInfoTask::NestDungeonInfoStruct *pInfo = nestTask.GetNestDungeonInfo( i );
-		if( !pInfo )
+		int nMapID = vecMapIDs[i];
+		DNTableCell *pCondCell = pMapSox->GetFieldFromLablePtr( nMapID, "_EnterConditionTableID" );
+		int nEnterCondID = pCondCell ? pCondCell->GetInteger() : 0;
+		if( nEnterCondID <= 0 || !pEnterSox->IsExistItem( nEnterCondID ) )
 			continue;
-		int nRemain = pInfo->nMaxTryCount - pInfo->nTryCount;
-		if( nRemain < 0 ) nRemain = 0;
-		AddNestItem( pInfo->szMapName.c_str(), nRemain, pInfo->nMaxTryCount );
+
+		bool bDup = false;
+		for( size_t j = 0; j < vecEntries.size(); ++j )
+		{
+			if( vecEntries[j].nEnterConditionID == nEnterCondID )
+			{
+				bDup = true;
+				break;
+			}
+		}
+		if( bDup ) continue;
+
+		DNTableCell *pIncCell = pMapSox->GetFieldFromLablePtr( nMapID, "_IncludeBuild" );
+		if( pIncCell && pIncCell->GetInteger() == 0 )
+			continue;
+
+		DNTableCell *pHardCntCell = pEnterSox->GetFieldFromLablePtr( nEnterCondID, "_RecommendHardPartyCount" );
+		int nHardPartyCount = pHardCntCell ? pHardCntCell->GetInteger() : 0;
+		if( nHardPartyCount != 8 )
+			continue;
+
+		SNestNotifierSortEntry entry;
+		entry.nEnterConditionID = nEnterCondID;
+		DNTableCell *pNameCell = pMapSox->GetFieldFromLablePtr( nMapID, "_MapNameID" );
+		int nNameID = pNameCell ? pNameCell->GetInteger() : 0;
+		entry.wszMapName = ( nNameID > 0 ) ? GetEtUIXML().GetUIString( CEtUIXML::idCategory1, nNameID ) : L"";
+		DNTableCell *pHardLvCell = pEnterSox->GetFieldFromLablePtr( nEnterCondID, "_RecommendHardLevel" );
+		entry.nRecommendHardLevel = pHardLvCell ? pHardLvCell->GetInteger() : 0;
+		DNTableCell *pSortCell = pEnterSox->GetFieldFromLablePtr( nEnterCondID, "_ListSort" );
+		entry.nListSort = pSortCell ? pSortCell->GetInteger() : 0;
+		vecEntries.push_back( entry );
 	}
+
+	std::sort( vecEntries.begin(), vecEntries.end(), CompareNestNotifierSort );
+	for( size_t i = 0; i < vecEntries.size(); ++i )
+		AddNestItem( vecEntries[i].wszMapName.c_str(), 0, 1 );
 }
 
 void CDnNestNotifierDlg::AddNestItem( const WCHAR *wszNestName, int nRemainCount, int nMaxCount )

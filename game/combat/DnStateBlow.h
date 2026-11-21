@@ -202,6 +202,7 @@ public:
 	float OnCalcDamage( float fOriginalDamage, CDnDamageBase::SHitParam& HitParam );
 	bool OnDie( DnActorHandle hHitter );
 	void OnTargetHit( DnActorHandle hTargetActor );
+	void OnBeginSkill( DnSkillHandle hSkill );
 	int CanAddThisBlow( const CDnSkill::SkillInfo* pParentSkill, STATE_BLOW::emBLOW_INDEX BlowIndex );
 	void ResetStateBlowBySkillType( int nSkillDurationType );
 	void OnCmdActionFromPacket( const char* pActionName );

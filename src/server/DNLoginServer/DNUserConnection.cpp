@@ -1061,6 +1061,25 @@ int CDNUserConnection::RequestCreateDWCCharacter(CSCreateDWCChar * pCreate, int 
 	int nCoin = (pCreate->nCoin >= 0) ? pCreate->nCoin : 0;
 	int nSkillPoint = (pCreate->nSkillPoint >= 0) ? pCreate->nSkillPoint : 0;
 
+	const CDNExtManager::TDWCCreateData* pDWCData = g_pExtManager->GetDWCCreateData(pCreate->cClass, cJobCode1, cJobCode2);
+	if (pDWCData)
+	{
+		if (pDWCData->cLevel > 0) cLevel = pDWCData->cLevel;
+		if (pDWCData->nExperience > 0) nExp = pDWCData->nExperience;
+		if (pDWCData->nCreateMapIndex > 0) nMapID = pDWCData->nCreateMapIndex;
+		if (pDWCData->cJobCode1 > 0 && pCreate->cJobCode1 == 0) cJobCode1 = pDWCData->cJobCode1;
+		if (pDWCData->cJobCode2 > 0 && pCreate->cJobCode2 == 0) cJobCode2 = pDWCData->cJobCode2;
+		if (pDWCData->nGold > 0) nCoin = pDWCData->nGold;
+		if (pDWCData->nSkillPoint > 0) nSkillPoint = pDWCData->nSkillPoint;
+
+		int nDWCItemCount = g_pExtManager->GetDWCCreateDefaultItem(pDWCData, CreateItemArray);
+		if (nDWCItemCount > 0)
+			nCount = nDWCItemCount;
+		g_pExtManager->GetDWCCreateDefaultPosition(pDWCData, Position.nX, Position.nZ);
+		g_pExtManager->GetDWCCreateDefaultSkill(pDWCData, nSkillArray);
+		g_pExtManager->GetDWCCreateDefaultQuickSlot(pDWCData, QuickSlotArray);
+	}
+
 	INT64 biCharacterDBID = 0;
 	TIMESTAMP_STRUCT tCreateDate = { 0, };
 	int nRet = 0;

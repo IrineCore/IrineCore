@@ -24,7 +24,6 @@ class PlayerBotsModule final : public IModule
 {
 public:
     const char* GetName() const noexcept override { return "Player-Bots"; }
-    const char* GetConfigFileName() const noexcept override { return "Player-Bots.ini"; }
     bool        IsEnabled() const noexcept override { return m_config.enabled; }
 
     bool OnLoadConfig(const WCHAR* moduleConfigDirPath) override;

@@ -311,7 +311,7 @@ add_executable(DNGameServer
     "${CMAKE_SOURCE_DIR}/game/combat/DnIncreaseCooltimeChargingBlow.cpp"
     "${CMAKE_SOURCE_DIR}/game/combat/DnFearBlow.cpp"
     "${CMAKE_SOURCE_DIR}/game/combat/DnMonsterOrderBlow.cpp"
-    "${CMAKE_SOURCE_DIR}/game/combat/DnPostCap60CombatBlows.cpp"
+    "${CMAKE_SOURCE_DIR}/game/combat/DnExtendedCombatBlows.cpp"
     "${CMAKE_SOURCE_DIR}/game/combat/DnOrderMySummonedMonsterBlow.cpp"
     "${CMAKE_SOURCE_DIR}/game/combat/DnParryBlow.cpp"
     "${CMAKE_SOURCE_DIR}/game/combat/DnParryingProbBlow.cpp"

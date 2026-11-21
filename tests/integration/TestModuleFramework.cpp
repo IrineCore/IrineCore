@@ -8,12 +8,6 @@
 #ifdef IRINE_MOD_PLAYER_BOTS
 #include "PlayerBotsModule.h"
 #endif
-#ifdef IRINE_MOD_HERO_ALLY
-#include "HeroAllyModule.h"
-#endif
-#ifdef IRINE_MOD_FPS_PING
-#include "FpsPingModule.h"
-#endif
 #include <cstdio>
 
 int RunIntegrationTests(const WCHAR* moduleConfigDirPath)
@@ -29,6 +23,13 @@ int RunIntegrationTests(const WCHAR* moduleConfigDirPath)
 
     auto& reg = Irine::Modules::ModuleRegistry::Instance();
 
+    // Auto-verify every registered module resolves its config dynamically without hardcoding
+    for (const auto& mod : reg.GetModules())
+    {
+        const std::wstring cfgPath = Irine::Modules::ResolveModuleConfigPath(moduleConfigDirPath, mod.get());
+        check(!cfgPath.empty(), "Module config path auto-resolved from module registry");
+    }
+
 #ifdef IRINE_MOD_PLAYER_BOTS
     {
         auto* bots = dynamic_cast<Irine::Modules::PlayerBotsModule*>(reg.GetModule("Player-Bots"));
@@ -43,40 +44,6 @@ int RunIntegrationTests(const WCHAR* moduleConfigDirPath)
     }
 #else
     check(reg.GetModule("Player-Bots") == nullptr, "Player-Bots cleanly excluded when disabled");
-#endif
-
-#ifdef IRINE_MOD_HERO_ALLY
-    {
-        auto* hero = dynamic_cast<Irine::Modules::HeroAllyModule*>(reg.GetModule("Hero-Ally"));
-        check(hero != nullptr && hero->IsEnabled(), "Hero-Ally module registered and enabled");
-        if (hero)
-        {
-            check(hero->ShouldSpawnHeroAlly(0) && hero->ShouldSpawnHeroAlly(1),
-                  "Hero-Ally active on Easy (0) and Normal (1) difficulty stages");
-            check(!hero->ShouldSpawnHeroAlly(2) && !hero->ShouldSpawnHeroAlly(3) && !hero->ShouldSpawnHeroAlly(4),
-                  "Hero-Ally excluded on Hard (2), Master (3), and Abyss (4) difficulty stages");
-            check(hero->SelectHeroAllyMonsterId(0) == 236005 &&
-                  hero->SelectHeroAllyMonsterId(1) == 236003 &&
-                  hero->SelectHeroAllyMonsterId(2) == 236011,
-                  "Hero-Ally rotates Geraint (236005), Argenta (236003), and Velskud (236011)");
-        }
-    }
-#else
-    check(reg.GetModule("Hero-Ally") == nullptr, "Hero-Ally cleanly excluded when disabled");
-#endif
-
-#ifdef IRINE_MOD_FPS_PING
-    {
-        auto* ping = dynamic_cast<Irine::Modules::FpsPingModule*>(reg.GetModule("FPS-PING"));
-        check(ping != nullptr && ping->IsEnabled(), "FPS-PING module registered and enabled");
-        if (ping)
-        {
-            check(ping->GetConfig().pingUpdateIntervalMs == 1000,
-                  "FPS-PING loaded PingUpdateIntervalMs=1000 from modules/FPS-PING/modules/FPS-PING.ini");
-        }
-    }
-#else
-    check(reg.GetModule("FPS-PING") == nullptr, "FPS-PING cleanly excluded when disabled");
 #endif
 
     return failures;

@@ -4,6 +4,9 @@
 #include "DnTableDB.h"
 #include "DNTableFile.h"
 #include "DnInterfaceString.h"
+#include "DnActor.h"
+#include "DnLocalPlayerActor.h"
+#include "DnQuestTask.h"
 
 #ifdef _DEBUG
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
@@ -124,13 +127,19 @@ CDnJobInformationMainDlg::CDnJobInformationMainDlg( UI_DIALOG_TYPE dialogType, C
 	, m_pMessageBox( NULL )
 	, m_pPopupDlg( NULL )
 	, m_nSelectedJobID( 0 )
+	, m_nRemoteQuestID( 0 )
+	, m_nPreviewSkillIdx( 0 )
 {
 	for( int i = 0; i < MAX_JOB_RADIO; ++i )
+	{
 		m_pRadioJobs[i] = NULL;
+		m_nRadioJobIDs[i] = 0;
+	}
 }
 
 CDnJobInformationMainDlg::~CDnJobInformationMainDlg()
 {
+	SAFE_RELEASE_SPTR( m_hClassTexture );
 	SAFE_DELETE( m_pMessageBox );
 	SAFE_DELETE( m_pPopupDlg );
 }
@@ -167,26 +176,203 @@ void CDnJobInformationMainDlg::InitialUpdate()
 	}
 }
 
+void CDnJobInformationMainDlg::RefreshJobList()
+{
+	for( int i = 0; i < MAX_JOB_RADIO; ++i )
+	{
+		m_nRadioJobIDs[i] = 0;
+		if( m_pRadioJobs[i] )
+			m_pRadioJobs[i]->Show( false );
+	}
+
+	DNTableFileFormat *pJobSox = GetDNTable( CDnTableDB::TJOB );
+	if( !pJobSox )
+		return;
+
+	int nCurrentJobID = 0;
+	if( CDnActor::s_hLocalActor && CDnActor::s_hLocalActor->IsPlayerActor() )
+	{
+		CDnPlayerActor *pPlayer = static_cast<CDnPlayerActor*>( CDnActor::s_hLocalActor.GetPointer() );
+		nCurrentJobID = pPlayer->GetJobClassID();
+	}
+
+	int nFirstJobID = 0;
+	int nFirstRadioIdx = -1;
+	for( int i = 0; i < pJobSox->GetItemCount(); ++i )
+	{
+		int nJobID = pJobSox->GetItemID( i );
+		DNTableCell *pParentCell = pJobSox->GetFieldFromLablePtr( nJobID, "_ParentJob" );
+		if( nCurrentJobID > 0 && pParentCell && pParentCell->GetInteger() != nCurrentJobID )
+			continue;
+
+		DNTableCell *pBtnCell = pJobSox->GetFieldFromLablePtr( nJobID, "_Characterbutton" );
+		if( !pBtnCell ) continue;
+		const char *szBtnName = pBtnCell->GetString();
+		if( !szBtnName || szBtnName[0] == '\0' ) continue;
+
+		for( int r = 0; r < MAX_JOB_RADIO; ++r )
+		{
+			if( m_pRadioJobs[r] && strcmp( m_pRadioJobs[r]->GetControlName(), szBtnName ) == 0 )
+			{
+				m_nRadioJobIDs[r] = nJobID;
+				m_pRadioJobs[r]->Show( true );
+				if( nFirstJobID == 0 )
+				{
+					nFirstJobID = nJobID;
+					nFirstRadioIdx = r;
+				}
+				break;
+			}
+		}
+	}
+
+	if( nFirstRadioIdx >= 0 && m_pRadioJobs[nFirstRadioIdx] )
+		m_pRadioJobs[nFirstRadioIdx]->SetChecked( true, false );
+	if( nFirstJobID > 0 )
+		SetJobInfo( nFirstJobID );
+	else if( nCurrentJobID > 0 )
+		SetJobInfo( nCurrentJobID );
+}
+
+void CDnJobInformationMainDlg::UpdateSkillPreview( int nSkillIdx )
+{
+	if( !m_pStaticSkillInfo )
+		return;
+	if( m_vecPreviewSkillIDs.empty() || nSkillIdx < 0 || nSkillIdx >= (int)m_vecPreviewSkillIDs.size() )
+	{
+		m_pStaticSkillInfo->SetText( L"" );
+		return;
+	}
+
+	int nSkillID = m_vecPreviewSkillIDs[nSkillIdx];
+	DNTableFileFormat *pSkillSox = GetDNTable( CDnTableDB::TSKILL );
+	if( pSkillSox && pSkillSox->IsExistItem( nSkillID ) )
+	{
+		DNTableCell *pNameCell = pSkillSox->GetFieldFromLablePtr( nSkillID, "_NameID" );
+		int nNameID = pNameCell ? pNameCell->GetInteger() : 0;
+		const WCHAR *wszSkillName = ( nNameID > 0 ) ? GetEtUIXML().GetUIString( CEtUIXML::idCategory1, nNameID ) : L"";
+		m_pStaticSkillInfo->SetText( wszSkillName );
+	}
+}
+
 void CDnJobInformationMainDlg::Show( bool bShow )
 {
+	if( bShow )
+		RefreshJobList();
 	CEtUIDialog::Show( bShow );
 }
 
 void CDnJobInformationMainDlg::SetJobInfo( int nJobID )
 {
 	m_nSelectedJobID = nJobID;
+	m_nRemoteQuestID = 0;
+	m_vecPreviewSkillIDs.clear();
+	m_nPreviewSkillIdx = 0;
+
 	if( m_pStaticClassIcon && nJobID > 0 )
 		m_pStaticClassIcon->SetIconID( nJobID );
 	if( m_pStaticClassName && nJobID > 0 )
 		m_pStaticClassName->SetText( DN_INTERFACE::STRING::GetJobString( nJobID ) );
+
+	DNTableFileFormat *pJobSox = GetDNTable( CDnTableDB::TJOB );
+	if( !pJobSox || !pJobSox->IsExistItem( nJobID ) )
+		return;
+
+	if( m_pStaticInfo )
+	{
+		DNTableCell *pDescCell = pJobSox->GetFieldFromLablePtr( nJobID, "_JobDescriptionID" );
+		int nDescID = pDescCell ? pDescCell->GetInteger() : 0;
+		m_pStaticInfo->SetText( ( nDescID > 0 ) ? GetEtUIXML().GetUIString( CEtUIXML::idCategory1, nDescID ) : L"" );
+	}
+
+	if( m_pTextureClass )
+	{
+		SAFE_RELEASE_SPTR( m_hClassTexture );
+		DNTableCell *pImgCell = pJobSox->GetFieldFromLablePtr( nJobID, "_CharacterImage" );
+		const char *szImg = pImgCell ? pImgCell->GetString() : NULL;
+		if( szImg && szImg[0] != '\0' )
+		{
+			m_hClassTexture = LoadResource( CEtResourceMng::GetInstance().GetFullName( szImg ).c_str(), RT_TEXTURE );
+			if( m_hClassTexture )
+				m_pTextureClass->SetTexture( m_hClassTexture, 0, 0, m_hClassTexture->Width(), m_hClassTexture->Height() );
+		}
+	}
+
+	DNTableCell *pSkillCell = pJobSox->GetFieldFromLablePtr( nJobID, "_SkillID" );
+	if( pSkillCell )
+	{
+		const char *szSkillStr = pSkillCell->GetString();
+		if( szSkillStr && szSkillStr[0] != '\0' )
+		{
+			std::vector<std::string> tokens;
+			TokenizeA( std::string( szSkillStr ), tokens, ";" );
+			for( size_t k = 0; k < tokens.size() && k < 4; ++k )
+			{
+				int nSkillID = atoi( tokens[k].c_str() );
+				if( nSkillID > 0 )
+					m_vecPreviewSkillIDs.push_back( nSkillID );
+			}
+		}
+	}
+	UpdateSkillPreview( 0 );
+
+	if( m_pBtnAddClass )
+	{
+		bool bEnableAddClass = false;
+#ifdef PRE_ADD_REMOTE_QUEST
+		DNTableCell *pRemoteCell = pJobSox->GetFieldFromLablePtr( nJobID, "_QuestRemote" );
+		int nRemoteID = pRemoteCell ? pRemoteCell->GetInteger() : 0;
+		if( nRemoteID > 0 )
+		{
+			DNTableFileFormat *pRemoteSox = GetDNTable( CDnTableDB::TREMOTEQUEST );
+			if( pRemoteSox && pRemoteSox->IsExistItem( nRemoteID ) )
+			{
+				DNTableCell *pQuestCell = pRemoteSox->GetFieldFromLablePtr( nRemoteID, "_QuestID" );
+				m_nRemoteQuestID = pQuestCell ? pQuestCell->GetInteger() : 0;
+				if( m_nRemoteQuestID > 0 && CDnQuestTask::IsActive() )
+					bEnableAddClass = GetQuestTask().IsExistRemoteQuestAskList( m_nRemoteQuestID, CDnQuestTree::REMOTEQUEST_ASK );
+			}
+		}
+#endif
+		m_pBtnAddClass->Enable( bEnableAddClass );
+	}
 }
 
 void CDnJobInformationMainDlg::ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEtUIControl *pControl, UINT uMsg )
 {
 	SetCmdControlName( pControl->GetControlName() );
-	if( nCommand == EVENT_BUTTON_CLICKED )
+	if( nCommand == EVENT_RADIOBUTTON_CHANGED && bTriggeredByUser )
 	{
-		if( IsCmdControl( "ID_BT_CLOSE" ) || IsCmdControl( "ID_CLOSE_DIALOG" ) )
+		for( int i = 0; i < MAX_JOB_RADIO; ++i )
+		{
+			if( m_pRadioJobs[i] == pControl && m_nRadioJobIDs[i] > 0 )
+			{
+				SetJobInfo( m_nRadioJobIDs[i] );
+				return;
+			}
+		}
+	}
+	else if( nCommand == EVENT_BUTTON_CLICKED )
+	{
+		if( IsCmdControl( "ID_BT_SKILL" ) )
+		{
+			if( !m_vecPreviewSkillIDs.empty() )
+			{
+				m_nPreviewSkillIdx = ( m_nPreviewSkillIdx + 1 ) % (int)m_vecPreviewSkillIDs.size();
+				UpdateSkillPreview( m_nPreviewSkillIdx );
+			}
+			return;
+		}
+		else if( IsCmdControl( "ID_BT_ADDCLASS" ) )
+		{
+			if( m_pMessageBox && m_nSelectedJobID > 0 )
+			{
+				m_pMessageBox->SetJobMessage( m_nSelectedJobID, DN_INTERFACE::STRING::GetJobString( m_nSelectedJobID ) );
+				m_pMessageBox->Show( true );
+			}
+			return;
+		}
+		else if( IsCmdControl( "ID_BT_CLOSE" ) || IsCmdControl( "ID_CLOSE_DIALOG" ) )
 		{
 			Show( false );
 			return;

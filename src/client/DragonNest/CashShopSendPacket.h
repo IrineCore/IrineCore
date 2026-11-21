@@ -462,3 +462,15 @@ inline void SendCashShopGiftListByShortCut()
 {
 	CClientSessionManager::GetInstance().SendPacket(CS_CASHSHOP, eCashShop::CS_GIFTLIST_BY_SHORTCUT, NULL, 0);
 }
+
+inline void SendSecretCashShopOpen(int nHiddenShopID)
+{
+	CSSecretCashShopOpen Packet;
+	Packet.nHiddenShopID = nHiddenShopID;
+	CClientSessionManager::GetInstance().SendPacket(CS_CASHSHOP, eCashShop::CS_SECRETCASHSHOP_OPEN, (char*)&Packet, sizeof(CSSecretCashShopOpen));
+}
+
+inline void SendSecretCashShopClose()
+{
+	CClientSessionManager::GetInstance().SendPacket(CS_CASHSHOP, eCashShop::CS_SECRETCASHSHOP_CLOSE, NULL, 0);
+}

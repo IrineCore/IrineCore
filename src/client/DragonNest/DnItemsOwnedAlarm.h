@@ -43,15 +43,29 @@ public:
 class CDnItemsOwnedAlarmMng
 {
 public:
+	struct SItemNoticeEntry
+	{
+		int nID;
+		int nType;
+		int nOrder;
+		int nNeedItemID;
+		int nPCCafeRank;
+		int nNameID;
+		int nDescID;
+	};
+
+public:
 	CDnItemsOwnedAlarmMng();
 	virtual ~CDnItemsOwnedAlarmMng();
 
 protected:
 	CDnItemsOwnedAlarm *m_pAlarmDlg;
+	std::vector<SItemNoticeEntry> m_vecNotices;
 
 public:
 	virtual void Initialize();
 	virtual void Finalize();
 	void CheckOwnedItemNotice( int nItemID );
+	void CheckAllOwnedItemNotices();
 	CDnItemsOwnedAlarm *GetAlarmDlg() const { return m_pAlarmDlg; }
 };

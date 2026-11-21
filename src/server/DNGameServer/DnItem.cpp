@@ -4,6 +4,7 @@
 #include "DnActor.h"
 #include "DNGameDataManager.h"
 #include "DnDropItem.h"
+#include "DNGameRoom.h"
 
 
 CDnItem::CDnItem( CMultiRoom *pRoom )
@@ -630,6 +631,23 @@ void CDnItem::_GenerationDropItem( void )
 
 	for( int i = 0; i < NUM_DISJOINT_DROP; ++i )
 		CDnDropItem::CalcDropItemList( GetRoom(), m_nDisjointDropTableID[ i ], m_VecDropItemList, false );
+
+	if( m_VecDropItemList.empty() && g_pDataManager && m_nDisjointDropTableID[0] > 0 )
+	{
+		const CDNGameDataManager::TDisjointorInfoData* pInfo = g_pDataManager->GetDisjointorInfoData( m_nDisjointDropTableID[0], m_cEnchantLevel );
+		if( pInfo )
+		{
+			for( size_t k = 0; k < pInfo->vecItemIndex.size(); ++k )
+			{
+				CDnItem::DropItemStruct Struct;
+				memset( &Struct, 0, sizeof(Struct) );
+				Struct.nItemID = pInfo->vecItemIndex[k];
+				Struct.nCount = 1;
+				Struct.nSeed = abs( _roomrand( GetRoom() ) );
+				m_VecDropItemList.push_back( Struct );
+			}
+		}
+	}
 
 	for( DWORD i = 0; i < m_VecDropItemList.size(); ++i )
 	{

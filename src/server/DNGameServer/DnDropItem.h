@@ -107,6 +107,7 @@ public:
 	static bool InitializeClass( CMultiRoom *pRoom );
 	static void ProcessClass( CMultiRoom *pRoom, LOCAL_TIME LocalTime, float fDelta );
 	static void ReleaseClass( CMultiRoom *pRoom );
+	static DWORD AllocUniqueID( CMultiRoom *pRoom ) { return STATIC_INSTANCE_( s_dwUniqueCount )++; }
 #if defined(PRE_ADD_STAGE_CLEAR_ENCHANT_REWARD)
 	static bool	PreInitializeItem( CMultiRoom *pRoom, int nItemID, int nEnchantID = 0 );
 	static DnDropItemHandle DropItem( CMultiRoom *pRoom, EtVector3 &vPos, DWORD dwUniqueID, int nItemID, int nSeed, char cOption, int nOverlapCount, int nRotate, UINT nOwnerUniqueID = -1, int nEnchantID = 0);
@@ -117,6 +118,7 @@ public:
 	
 	static void CalcDropItemList( CMultiRoom *pRoom, int nItemDropTableID, DNVector(CDnItem::DropItemStruct) &VecList, bool bIncreaseUniqueID = true );
 	static void CalcDropItemList( CMultiRoom *pRoom, TDUNGEONDIFFICULTY Difficulty, int nItemDropTableID, DNVector(CDnItem::DropItemStruct) &VecList, bool bIncreaseUniqueID = true );
+	static void CalcDropControlList( CMultiRoom *pRoom, int nDropControlGroupID, DNVector(CDnItem::DropItemStruct) &VecList, bool bIncreaseUniqueID = true );
 #if defined(PRE_ADD_STAGE_CLEAR_ENCHANT_REWARD)
 	int GetEnchantID(void){ return m_nEnchantID; }
 	static int GetDropItemEnchantID( CMultiRoom *pRoom, int nItemDropTableID );

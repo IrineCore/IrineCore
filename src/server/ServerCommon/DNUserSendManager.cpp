@@ -3555,6 +3555,40 @@ void CDNUserSendManager::SendStageUseLimitItem( int nItemID, int nUseCount )
 }
 #endif
 
+void CDNUserSendManager::SendSpecialItemList( const int* pItemIDs, int nCount )
+{
+	SCSpecialItemList Packet;
+	memset(&Packet, 0, sizeof(SCSpecialItemList));
+	if (pItemIDs && nCount > 0)
+	{
+		int nCopy = (nCount > 10) ? 10 : nCount;
+		for (int i = 0; i < nCopy; ++i)
+			Packet.nItemIDs[i] = pItemIDs[i];
+	}
+	m_pSession->AddSendData(SC_ITEM, eItem::SC_SPECIAL_ITEM_LIST, (char*)&Packet, sizeof(SCSpecialItemList));
+}
+
+void CDNUserSendManager::SendAutoUnpackResult( int nRet )
+{
+	SCAutoUnpackResult Packet;
+	Packet.nRet = nRet;
+	m_pSession->AddSendData(SC_ITEM, eItem::SC_AUTO_UNPACK_RESULT, (char*)&Packet, sizeof(SCAutoUnpackResult));
+}
+
+void CDNUserSendManager::SendDeleteExpireItemList( const std::vector<INT64>& vecSerials )
+{
+	if (vecSerials.empty())
+		return;
+	SCDeleteExpireItemList Packet;
+	memset(&Packet, 0, sizeof(SCDeleteExpireItemList));
+	WORD wMax = static_cast<WORD>((vecSerials.size() > CASHINVENTORYMAX) ? CASHINVENTORYMAX : vecSerials.size());
+	Packet.wCount = wMax;
+	for (WORD i = 0; i < wMax; ++i)
+		Packet.biSerial[i] = vecSerials[i];
+	int nSize = static_cast<int>(sizeof(WORD) + sizeof(INT64) * wMax);
+	m_pSession->AddSendData(SC_ITEM, eItem::SC_DELETE_EXPIRE_ITEM_LIST, (char*)&Packet, nSize);
+}
+
 // Item Goods
 void CDNUserSendManager::SendChangePetNameResult(int nRet, UINT nUserSessionID, INT64 biItemSerial, const WCHAR* wszName)
 {
@@ -7604,6 +7638,21 @@ void CDNUserSendManager::SendCashShopServerTimeForCharge(__time64_t tTime)
 	Result.tTime = tTime;
 
 	m_pSession->AddSendData(SC_CASHSHOP, eCashShop::SC_CHARGE_TIME, (char*)&Result, sizeof(SCCashShopChargeTime));
+}
+
+void CDNUserSendManager::SendSecretCashShopNotify(int nHiddenShopID)
+{
+	SCSecretCashShopNotify Packet;
+	Packet.nHiddenShopID = nHiddenShopID;
+	m_pSession->AddSendData(SC_CASHSHOP, eCashShop::SC_SECRETCASHSHOP_NOTIFY, (char*)&Packet, sizeof(SCSecretCashShopNotify));
+}
+
+void CDNUserSendManager::SendSecretCashShopOpen(int nRet, int nHiddenShopID)
+{
+	SCSecretCashShopOpen Packet;
+	Packet.nRet = nRet;
+	Packet.nHiddenShopID = nHiddenShopID;
+	m_pSession->AddSendData(SC_CASHSHOP, eCashShop::SC_SECRETCASHSHOP_OPEN, (char*)&Packet, sizeof(SCSecretCashShopOpen));
 }
 
 #ifdef PRE_ADD_LIMITED_CASHITEM

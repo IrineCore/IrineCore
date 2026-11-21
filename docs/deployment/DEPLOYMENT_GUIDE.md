@@ -31,7 +31,7 @@ Or if dependencies are already installed:
 cmake -S . -B build -A x64 -DIRINE_MODULES=disabled
 
 # Exclude specific modules
-cmake -S . -B build -A x64 -DDISABLED_IRINE_MODULES="Player-Bots;Hero-Ally"
+cmake -S . -B build -A x64 -DDISABLED_IRINE_MODULES="Player-Bots;examples"
 ```
 
 ## 2. Database & Patch WebServer

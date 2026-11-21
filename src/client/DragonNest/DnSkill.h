@@ -354,6 +354,7 @@ protected:
 	// Check if skill was created by an item (different purpose from m_bItemSkill) [2011/03/16 semozz]
 	bool m_isCreatedByItem;
 
+	int m_iSkillGroupID;
 	int m_iGlobalSkillGroupID;
 	float m_afGlobalCoolTime[ NUM_SKILLLEVEL_APPLY_TYPE ];	// In ms in the table; convert to seconds when storing.
 	float m_fAnotherGlobalSkillCoolTime;					// When another global skill is used, apply that skill's cooldown.
@@ -668,6 +669,7 @@ public:
 	void SetLevelUpValue(int nLevelUp) { m_nLevelUpValue = nLevelUp; }
 	int GetLevelUpValue() { return m_nLevelUpValue; }
 
+	int GetSkillGroupID( void ) const { return m_iSkillGroupID; }
 	int GetGlobalSkillGroupID( void ) { return m_iGlobalSkillGroupID; };
 	void OnAnotherGlobalSkillBeginCoolTime( DnSkillHandle hSkill );
 

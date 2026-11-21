@@ -34,8 +34,6 @@ Here are the main points we focus on:
 IrineCore isolates gameplay extensions as standalone static libraries under `modules/`. Each module contains its own `CMakeLists.txt`, `src/`, default configuration template under `modules/<ModuleName>/modules/<ModuleName>.ini` (installed into `env/dist/module/`), and optional `resource/` and `data/` folders:
 
 - **`Player-Bots`**: Autonomous AI party companions for Hard, Master, and Abyss dungeons and Nests (excluded on Easy and Normal stages).
-- **`Hero-Ally`**: Story hero accompaniment (Geraint, Argenta, or Velskud) across Easy and Normal stage areas until stage clear.
-- **`FPS-PING`**: Real-time FPS and latency telemetry module with custom UI resource (`resource/ui/common/perfhuddlg.ui`).
 
 ## Installation
 
@@ -80,11 +78,15 @@ Staged outputs in `env/client/`: `DragonNest.exe` and `DnLauncher.exe` (both nat
 ```text
 env/dist/
 ├── config/            # Server .ini & .dat files
-├── module/            # Module .ini files (FPS-PING.ini, Hero-Ally.ini, Player-Bots.ini)
+├── module/            # Auto-discovered module configs + modules.manifest
 ├── systems/           # ChannelInfo.xml
+├── tools/             # DnClientCreator, PatchBuilder, DnMakeFullPatch, DnMakeMD5
 ├── <server-binaries>  # DNLogServer64 .. DNGameServer64
 └── <dlls>             # Runtime dynamic libraries (if any)
 ```
+
+### Packaging & Patching Tools (`tools/`)
+See [`tools/README.md`](../tools/README.md) for usage examples of `DnClientCreator` (packs unpacked `GameRes` folders into split `ResourceXX.pak` client builds), `PatchBuilder`, `DnMakeFullPatch`, and `DnMakeMD5`.
 
 ## Community & Support
 

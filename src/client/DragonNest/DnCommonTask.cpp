@@ -2526,8 +2526,7 @@ void CDnCommonTask::OnRecvWorldBuffMsg( SCWorldBuffMsg *pData )
 
 	if( pData )
 	{
-		GetInterface().ShowCaptionDialog( CDnInterface::typeCaption3, FormatW( GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 9168),  pData->wszCharacterName ).c_str() , textcolor::HOTPINK, 10.0f );
-		
+		int nCaptionUIStringID = 9168;
 		std::string strTargetEffectName;
 		DNTableFileFormat* pSox = GetDNTable( CDnTableDB::TNAMEDITEM );
 		if( pSox )
@@ -2539,10 +2538,15 @@ void CDnCommonTask::OnRecvWorldBuffMsg( SCWorldBuffMsg *pData )
 				if( nItemIndex == pData->nItemID )
 				{
 					strTargetEffectName = pSox->GetFieldFromLablePtr( nIndex , "_Target_Effect" )->GetString();
+					DNTableCell *pUIStringCell = pSox->GetFieldFromLablePtr( nIndex, "_UistringIndex" );
+					if( pUIStringCell && pUIStringCell->GetInteger() > 0 )
+						nCaptionUIStringID = pUIStringCell->GetInteger();
 					break;
 				}
 			}
 		}
+
+		GetInterface().ShowCaptionDialog( CDnInterface::typeCaption3, FormatW( GetEtUIXML().GetUIString( CEtUIXML::idCategory1, nCaptionUIStringID ),  pData->wszCharacterName ).c_str() , textcolor::HOTPINK, 10.0f );
 
 		if( strTargetEffectName.empty() == false )
 		{

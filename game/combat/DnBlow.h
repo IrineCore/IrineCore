@@ -223,6 +223,9 @@ public:
 	// Time when the target is hit.
 	virtual void OnTargetHit( DnActorHandle hTargetActor ) {};
 
+	// Time when a skill begins execution (SB_ONBEGIN_SKILL).
+	virtual void OnBeginSkill( DnSkillHandle hSkill ) {};
+
 	// Function used only in CDnActorStatIntervalManipulator!
 	virtual bool OnCheckIntervalProb( void ) { return true; };
 	virtual float GetStatDelta( void ) { return 0.0f; };

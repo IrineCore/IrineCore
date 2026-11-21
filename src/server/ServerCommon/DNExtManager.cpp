@@ -96,6 +96,8 @@ bool CDNExtManager::AllLoad()
 	if (LoadDefaultCreateData() == false)
 		++iLoadFailCount;
 
+	LoadDWCCreateData();
+
 
 	if (LoadSkillData() == false)
 		++iLoadFailCount;
@@ -2257,6 +2259,135 @@ bool CDNExtManager::LoadDefaultCreateData()
 
 	SAFE_DELETE(pSox);
 
+	return true;
+}
+
+bool CDNExtManager::LoadDWCCreateData()
+{
+	m_VecDWCCreate.clear();
+	DNTableFileFormat *pSox = LoadExtTable( "dwccreatetable" );
+	if( !pSox )
+		return true;
+
+	char szLabel[64] = { 0, };
+	for (int i = 0; i < pSox->GetItemCount(); ++i)
+	{
+		int nIndex = pSox->GetItemID(i);
+		TDWCCreateData Data;
+		memset(&Data, 0, sizeof(TDWCCreateData));
+
+		DNTableCell* pCell = NULL;
+		if ((pCell = pSox->GetFieldFromLablePtr(nIndex, "_ClassID")) != NULL) Data.cClassID = static_cast<BYTE>(pCell->GetInteger());
+		if ((pCell = pSox->GetFieldFromLablePtr(nIndex, "_Level")) != NULL) Data.cLevel = static_cast<BYTE>(pCell->GetInteger());
+		if ((pCell = pSox->GetFieldFromLablePtr(nIndex, "_Experience")) != NULL) Data.nExperience = pCell->GetInteger();
+		if ((pCell = pSox->GetFieldFromLablePtr(nIndex, "_CreateMapIndex")) != NULL) Data.nCreateMapIndex = pCell->GetInteger();
+		if ((pCell = pSox->GetFieldFromLablePtr(nIndex, "_Jobcode1")) != NULL) Data.cJobCode1 = static_cast<BYTE>(pCell->GetInteger());
+		if ((pCell = pSox->GetFieldFromLablePtr(nIndex, "_Jobcode2")) != NULL) Data.cJobCode2 = static_cast<BYTE>(pCell->GetInteger());
+		if ((pCell = pSox->GetFieldFromLablePtr(nIndex, "_Gold")) != NULL) Data.nGold = pCell->GetInteger();
+		if ((pCell = pSox->GetFieldFromLablePtr(nIndex, "_SkillPoint")) != NULL) Data.nSkillPoint = pCell->GetInteger();
+
+		for (int j = 0; j < DEFAULTPOSITIONMAX; ++j)
+		{
+			sprintf_s(szLabel, "_CreateMapStartPosition_%02d_x", j + 1);
+			if ((pCell = pSox->GetFieldFromLablePtr(nIndex, szLabel)) != NULL) Data.nCreateMapStartPositionX[j] = pCell->GetInteger();
+			sprintf_s(szLabel, "_CreateMapStartPosition_%02d_y", j + 1);
+			if ((pCell = pSox->GetFieldFromLablePtr(nIndex, szLabel)) != NULL) Data.nCreateMapStartPositionY[j] = pCell->GetInteger();
+			sprintf_s(szLabel, "_CreateMapStartRadius_%02d", j + 1);
+			if ((pCell = pSox->GetFieldFromLablePtr(nIndex, szLabel)) != NULL) Data.nCreateMapStartRadius[j] = pCell->GetInteger();
+		}
+
+		for (int j = 0; j < DEFAULTITEMMAX; ++j)
+		{
+			sprintf_s(szLabel, "_DefaultItem%d", j + 1);
+			if ((pCell = pSox->GetFieldFromLablePtr(nIndex, szLabel)) != NULL) Data.nDefaultItemID[j] = pCell->GetInteger();
+			sprintf_s(szLabel, "_DefaultItem%dNumber", j + 1);
+			if ((pCell = pSox->GetFieldFromLablePtr(nIndex, szLabel)) != NULL) Data.nDefaultItemCount[j] = pCell->GetInteger();
+		}
+
+		for (int j = 0; j < DEFAULTSKILLMAX; ++j)
+		{
+			sprintf_s(szLabel, "_DefaultSkill%d", j + 1);
+			if ((pCell = pSox->GetFieldFromLablePtr(nIndex, szLabel)) != NULL) Data.nDefaultSkillID[j] = pCell->GetInteger();
+		}
+
+		for (int j = 0; j < DEFAULTQUICKSLOTMAX; ++j)
+		{
+			sprintf_s(szLabel, "_QuickSlot%dType", j + 1);
+			if ((pCell = pSox->GetFieldFromLablePtr(nIndex, szLabel)) != NULL) Data.DefaultQuickSlot[j].cType = static_cast<BYTE>(pCell->GetInteger());
+			sprintf_s(szLabel, "_QuickSlot%dIndex", j + 1);
+			if ((pCell = pSox->GetFieldFromLablePtr(nIndex, szLabel)) != NULL) Data.DefaultQuickSlot[j].nID = pCell->GetInteger();
+		}
+
+		m_VecDWCCreate.push_back(Data);
+	}
+
+	SAFE_DELETE(pSox);
+	return true;
+}
+
+const CDNExtManager::TDWCCreateData* CDNExtManager::GetDWCCreateData(BYTE cClassID, BYTE cJobCode1, BYTE cJobCode2) const
+{
+	const TDWCCreateData* pFallback = NULL;
+	for (size_t i = 0; i < m_VecDWCCreate.size(); ++i)
+	{
+		const TDWCCreateData& entry = m_VecDWCCreate[i];
+		if (entry.cClassID != cClassID)
+			continue;
+		if (!pFallback)
+			pFallback = &entry;
+		if (cJobCode2 > 0 && entry.cJobCode2 == cJobCode2)
+			return &entry;
+		if (cJobCode1 > 0 && cJobCode2 == 0 && entry.cJobCode1 == cJobCode1)
+			return &entry;
+	}
+	return pFallback;
+}
+
+int CDNExtManager::GetDWCCreateDefaultItem(const TDWCCreateData* pDWC, TCreateCharacterItem *CreateItemArray)
+{
+	if (!pDWC || !CreateItemArray) return 0;
+	int nCount = 0;
+	for (int i = 0; i < DEFAULTITEMMAX; ++i)
+	{
+		if (pDWC->nDefaultItemID[i] <= 0) continue;
+		CreateItemArray[nCount].nItemID = pDWC->nDefaultItemID[i];
+		CreateItemArray[nCount].cCount = static_cast<BYTE>(pDWC->nDefaultItemCount[i] > 0 ? pDWC->nDefaultItemCount[i] : 1);
+		CreateItemArray[nCount].wDur = GetItemDurability(pDWC->nDefaultItemID[i]);
+		++nCount;
+	}
+	return nCount;
+}
+
+bool CDNExtManager::GetDWCCreateDefaultPosition(const TDWCCreateData* pDWC, int &nPosX, int &nPosY) const
+{
+	if (!pDWC) return false;
+	std::vector<int> vecIdx;
+	for (int i = 0; i < DEFAULTPOSITIONMAX; ++i)
+	{
+		if (pDWC->nCreateMapStartPositionX[i] == 0 && pDWC->nCreateMapStartPositionY[i] == 0) continue;
+		vecIdx.push_back(i);
+	}
+	if (vecIdx.empty())
+		return false;
+	int idx = vecIdx[rand() % vecIdx.size()];
+	nPosX = pDWC->nCreateMapStartPositionX[idx];
+	nPosY = pDWC->nCreateMapStartPositionY[idx];
+	return true;
+}
+
+bool CDNExtManager::GetDWCCreateDefaultSkill(const TDWCCreateData* pDWC, int *CreateSkillArray) const
+{
+	if (!pDWC || !CreateSkillArray) return false;
+	for (int i = 0; i < DEFAULTSKILLMAX; ++i)
+		CreateSkillArray[i] = pDWC->nDefaultSkillID[i];
+	return true;
+}
+
+bool CDNExtManager::GetDWCCreateDefaultQuickSlot(const TDWCCreateData* pDWC, TQuickSlot *QuickSlotArray) const
+{
+	if (!pDWC || !QuickSlotArray) return false;
+	for (int i = 0; i < DEFAULTQUICKSLOTMAX; ++i)
+		QuickSlotArray[i] = pDWC->DefaultQuickSlot[i];
 	return true;
 }
 

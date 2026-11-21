@@ -63,6 +63,7 @@ bool g_bEnableShadow[MAX_SESSION_COUNT] = { 0, };
 #include "DnImmuneByTypeBlow.h"
 #include "DnComboDamageLimitBlow.h"
 #include "DnTransmitDamageBlow.h"
+#include "DnExtendedCombatBlows.h"
 #include "DnChangeStandActionBlow.h"
 
 #if defined(PRE_ADD_TOTAL_LEVEL_SKILL)
@@ -3290,6 +3291,53 @@ float CDnActor::PreCalcDamage( CDnDamageBase *pHitter, SHitParam &HitParam, cons
 	// Additional damage can be dealt from the state effect. 
 	fResult += m_pStateBlow->OnCalcDamage( fResult, m_HitParam );
 
+	// Extended attacker damage bonus blows (BLOW_292 weapon-based, BLOW_293 distance, BLOW_294 weight)
+	if( hHitter && fResult > 0.0f )
+	{
+		if( hHitter->IsAppliedThisStateBlow( STATE_BLOW::BLOW_292 ) )
+		{
+			DNVector(DnBlowHandle) vlBlows292;
+			hHitter->GatherAppliedStateBlowByBlowIndex( STATE_BLOW::BLOW_292, vlBlows292 );
+			float fWeaponAtk = ( HitParam.cAttackType == 1 ) ? (float)pState->GetAttackMMax() : (float)pState->GetAttackPMax();
+			for( DWORD bi = 0; bi < vlBlows292.size(); ++bi )
+			{
+				if( vlBlows292[bi] )
+				{
+					CDnAddWeaponBasedDamageBlow* pWBlow = static_cast<CDnAddWeaponBasedDamageBlow*>( vlBlows292[bi].GetPointer() );
+					fResult += fWeaponAtk * pWBlow->GetDamageRatio();
+				}
+			}
+		}
+		if( hHitter->IsAppliedThisStateBlow( STATE_BLOW::BLOW_293 ) )
+		{
+			DNVector(DnBlowHandle) vlBlows293;
+			hHitter->GatherAppliedStateBlowByBlowIndex( STATE_BLOW::BLOW_293, vlBlows293 );
+			EtVector3 vDist = *GetPosition() - *hHitter->GetPosition();
+			float fDist = EtVec3Length( &vDist );
+			float fDistBonus = 0.0f;
+			for( DWORD bi = 0; bi < vlBlows293.size(); ++bi )
+			{
+				if( vlBlows293[bi] )
+					fDistBonus += static_cast<CDnAddDamageByTargetDistanceBlow*>( vlBlows293[bi].GetPointer() )->CalcDistanceDamageRatio( fDist );
+			}
+			if( fDistBonus > 0.0f )
+				fResult += fResult * fDistBonus;
+		}
+		if( hHitter->IsAppliedThisStateBlow( STATE_BLOW::BLOW_294 ) )
+		{
+			DNVector(DnBlowHandle) vlBlows294;
+			hHitter->GatherAppliedStateBlowByBlowIndex( STATE_BLOW::BLOW_294, vlBlows294 );
+			float fWeightBonus = 0.0f;
+			for( DWORD bi = 0; bi < vlBlows294.size(); ++bi )
+			{
+				if( vlBlows294[bi] )
+					fWeightBonus += static_cast<CDnAddDamageByWeightBlow*>( vlBlows294[bi].GetPointer() )->CalcWeightDamageRatio( GetWeight() );
+			}
+			if( fWeightBonus > 0.0f )
+				fResult += fResult * fWeightBonus;
+		}
+	}
+
 #if defined(PRE_FIX_59680)
 	//When calling Summon Puppet's OnCalcDamage, the owner actor's StateBlow OnCalcDamage must also be called so that effects apply properly when damage is applied to the owner actor.
 	//For Cleric's Holy Shield, CDnAddStateOnHitBlow(178) state effect is applied to self, and if Summon Puppet is summoned afterward, Summon Puppet... this state effect
@@ -3840,6 +3888,10 @@ void CDnActor::OnDamage( CDnDamageBase *pHitter, SHitParam &HitParam, HitStruct 
 		if( fCriticalProb > CGlobalWeightTable::GetInstance().GetValue( CGlobalWeightTable::CriticalMax ) )
 			fCriticalProb = CGlobalWeightTable::GetInstance().GetValue( CGlobalWeightTable::CriticalMax );
 
+		// BLOW_282: Target suffers forced critical damage
+		if( IsAppliedThisStateBlow( STATE_BLOW::BLOW_282 ) )
+			fCriticalProb = 1.0f;
+
 		bool bBreakSuperAmmor = false;
 		//If Super Armor Break state effect is active and probability succeeds, change to critical (must not be immune).
 		if (hHitter->IsAppliedThisStateBlow(STATE_BLOW::BLOW_162) && !IsImmuned(STATE_BLOW::BLOW_162))
@@ -4179,6 +4231,20 @@ void CDnActor::OnDamage( CDnDamageBase *pHitter, SHitParam &HitParam, HitStruct 
 								}
 								nAmmorDamage = int((float)nAmmorDamage * fValue);
 							}
+							// BLOW_314: Target takes increased super armor damage (decreased super armor)
+							if( IsAppliedThisStateBlow( STATE_BLOW::BLOW_314 ) )
+							{
+								DNVector(DnBlowHandle) vlBlows314;
+								GatherAppliedStateBlowByBlowIndex( STATE_BLOW::BLOW_314, vlBlows314 );
+								float fReduceRatio = 0.0f;
+								for( DWORD bi = 0; bi < vlBlows314.size(); ++bi )
+								{
+									if( vlBlows314[bi] )
+										fReduceRatio += static_cast<CDnDecreaseSuperArmorBlow*>( vlBlows314[bi].GetPointer() )->GetDecreaseRatio();
+								}
+								if( fReduceRatio > 0.0f )
+									nAmmorDamage = (int)( (float)nAmmorDamage * ( 1.0f + fReduceRatio ) );
+							}
 							//////////////////////////////////////////////////////////////////////////
 
 							m_nSkillSuperAmmorValue[m_HitParam.nSkillSuperAmmorIndex] -= nAmmorDamage;
@@ -4188,6 +4254,17 @@ void CDnActor::OnDamage( CDnDamageBase *pHitter, SHitParam &HitParam, HitStruct 
 							m_nSkillSuperAmmorValue[m_HitParam.nSkillSuperAmmorIndex] = 0;
 							hHitter->OnBreakSkillSuperAmmor( m_HitParam.nSkillSuperAmmorIndex, m_nLastUpdateSkillSuperAmmorValue[m_HitParam.nSkillSuperAmmorIndex], nAmmorDamage );
 							OnBreakSkillSuperAmmor( m_HitParam );
+							// BLOW_295: AddStateOnBreakSuperArmorBlow
+							if( hHitter && hHitter->IsAppliedThisStateBlow( STATE_BLOW::BLOW_295 ) )
+							{
+								DNVector(DnBlowHandle) vlBlows295;
+								hHitter->GatherAppliedStateBlowByBlowIndex( STATE_BLOW::BLOW_295, vlBlows295 );
+								for( DWORD bi = 0; bi < vlBlows295.size(); ++bi )
+								{
+									if( vlBlows295[bi] )
+										static_cast<CDnAddStateOnBreakSuperArmorBlow*>( vlBlows295[bi].GetPointer() )->OnBreakSuperArmor( GetMySmartPtr() );
+								}
+							}
 
 						}
 						else bApplySuperAmmor = true;

@@ -49,6 +49,7 @@ bool CDnTradeItem::Initialize()
 	if( strlen( szFileName ) > 0 )
 		m_nSellSoundIndex = CEtSoundEngine::GetInstance().LoadSound( CEtResourceMng::GetInstance().GetFullName( szFileName ).c_str(), false, false );
 
+	BuildSampleShopItemCounts();
 	return true;
 }
 
@@ -486,6 +487,48 @@ void CDnTradeItem::OpenShopSuccess()
 	m_vecCombinedStoreData.resize(SHOPTABMAX);
 }
 
+void CDnTradeItem::BuildSampleShopItemCounts()
+{
+	m_mapSampleItemCount.clear();
+	DNTableFileFormat *pSox = GetDNTable( CDnTableDB::TCOMBINEDSHOP );
+	DNTableFileFormat *pItemSox = GetDNTable( CDnTableDB::TITEM );
+	if( !pSox || !pItemSox )
+		return;
+
+	for( int i = 0; i < pSox->GetItemCount(); ++i )
+	{
+		int nTableID = pSox->GetItemID( i );
+		DNTableCell *pSampleCell = pSox->GetFieldFromLablePtr( nTableID, "_SampleID" );
+		if( !pSampleCell || pSampleCell->GetInteger() <= 0 )
+			continue;
+
+		DNTableCell *pItemIdxCell = pSox->GetFieldFromLablePtr( nTableID, "_itemindex" );
+		int nItemID = pItemIdxCell ? pItemIdxCell->GetInteger() : 0;
+		if( nItemID <= 0 || !pItemSox->IsExistItem( nItemID ) )
+			continue;
+
+		DNTableCell *pJobCell = pItemSox->GetFieldFromLablePtr( nItemID, "_NeedJobClass" );
+		if( !pJobCell ) continue;
+		const char *szJob = pJobCell->GetString();
+		if( !szJob || szJob[0] == '\0' ) continue;
+
+		std::vector<std::string> tokens;
+		TokenizeA( std::string( szJob ), tokens, ";" );
+		for( size_t k = 0; k < tokens.size(); ++k )
+		{
+			int nJobID = atoi( tokens[k].c_str() );
+			if( nJobID >= 0 )
+				m_mapSampleItemCount[nJobID] += 1;
+		}
+	}
+}
+
+int CDnTradeItem::GetSampleShopItemCount( int nClassID ) const
+{
+	std::map<int, int>::const_iterator it = m_mapSampleItemCount.find( nClassID );
+	return ( it != m_mapSampleItemCount.end() ) ? it->second : 0;
+}
+
 void CDnTradeItem::CombinedShopOpen( int nShopID )
 {
 	int nOpenShopID = nShopID;
@@ -542,6 +585,26 @@ void CDnTradeItem::CombinedShopOpen( int nShopID )
 		TItemInfo itemInfo;
 		CDnItem::MakeItemInfo( nItemID, nCount, itemInfo );
 		itemInfo.cSlotIndex = static_cast<BYTE>(nListID);
+
+		DNTableCell *pOptionIDCell = pSox->GetFieldFromLablePtr( nTableID, "_ItemOptionID" );
+		if( pOptionIDCell && pOptionIDCell->GetInteger() > 0 )
+		{
+			int nOptionID = pOptionIDCell->GetInteger();
+			DNTableFileFormat *pOptionSox = GetDNTable( CDnTableDB::TITEMOPTION );
+			if( pOptionSox && pOptionSox->IsExistItem( nOptionID ) )
+			{
+				DNTableCell *pEnchantCell = pOptionSox->GetFieldFromLablePtr( nOptionID, "_Enchant" );
+				if( pEnchantCell && pEnchantCell->GetInteger() > 0 )
+					itemInfo.Item.cLevel = static_cast<BYTE>( pEnchantCell->GetInteger() );
+				DNTableCell *pOptCell = pOptionSox->GetFieldFromLablePtr( nOptionID, "_Option" );
+				if( pOptCell && pOptCell->GetInteger() > 0 )
+					itemInfo.Item.cOption = static_cast<BYTE>( pOptCell->GetInteger() );
+				DNTableCell *pPotenCell = pOptionSox->GetFieldFromLablePtr( nOptionID, "_Potential" );
+				if( pPotenCell && pPotenCell->GetInteger() > 0 )
+					itemInfo.Item.cPotential = static_cast<BYTE>( pPotenCell->GetInteger() );
+			}
+		}
+
 		pItem = CDnItemTask::GetInstance().CreateItem( itemInfo );
 		if( pItem == NULL ) 
 			continue;

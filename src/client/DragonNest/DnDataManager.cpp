@@ -2741,6 +2741,9 @@ bool CDnDataManager::LoadNpcData()
 		pActorData = GetActorData(ActorIndex);
 		if (pActorData) pNpcData->ActorData = *pActorData;
 
+		DNTableCell *pShopIconCell = pSox->GetFieldFromLablePtr(pNpcData->nNpcID, "_ShopIcon");
+		pNpcData->bShopIcon = (pShopIconCell && pShopIconCell->GetInteger() != 0);
+
 		pNpcData->nParam[0] = pSox->GetFieldFromLablePtr(pNpcData->nNpcID, "_Param1")->GetInteger();
 		pNpcData->nParam[1] = pSox->GetFieldFromLablePtr(pNpcData->nNpcID, "_Param2")->GetInteger();
 		_strcpy(pNpcData->szTalkFile, _countof(pNpcData->szTalkFile), pSox->GetFieldFromLablePtr(pNpcData->nNpcID, "_TalkFile")->GetString(), (int)strlen(pSox->GetFieldFromLablePtr(pNpcData->nNpcID, "_TalkFile")->GetString()));

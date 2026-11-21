@@ -27,8 +27,15 @@ public:
 	virtual ~CDnSkillCountDlg();
 
 protected:
+	CEtUIControl *m_pCustomMask;
 	int m_nComboCount;
 	float m_fDelayTime;
+	bool m_bSlideIn;
+	bool m_bShake;
+	bool m_bSlideOut;
+	int m_nShakeCount;
+	float m_fBasePosX;
+	float m_fSlideProgress;
 
 public:
 	virtual void Initialize( bool bShow );

@@ -967,7 +967,7 @@ protected:
 	class CDnDWCMarkTooltipDlg *m_pDWCMarkTooltipDlg;
 	class CDnDWCMarkInformer *m_pDWCMarkInformer;
 #endif
-	// Post-Cap 60 / Pre-Cap 70 UI & QoL Dialogs
+	// Extended UI & QoL Dialogs
 	class CDnMainQuestDlg *m_pMainQuestDlg;
 	class CDnJobInformationMainDlg *m_pJobInformationMainDlg;
 	class CDnSkillClassInfoDlg *m_pSkillClassInfoDlg;

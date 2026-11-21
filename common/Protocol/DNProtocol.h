@@ -901,6 +901,9 @@ namespace eItem {
 #if defined( PRE_ADD_STAGE_USECOUNT_ITEM )
 		SC_STAGE_USELIMITITEM,
 #endif
+		SC_SPECIAL_ITEM_LIST,			// Special/daily item check list (up to 10 item IDs)
+		SC_AUTO_UNPACK_RESULT,			// Auto-unpack / charm progress completion result
+		SC_DELETE_EXPIRE_ITEM_LIST,		// Batch delete expired items by serial
 	};
 };
 
@@ -1979,6 +1982,8 @@ namespace eCashShop
 #endif		//#ifdef PRE_ADD_LIMITED_CASHITEM
 		CS_CADGE,			// Wish request
 		CS_GIFTLIST_BY_SHORTCUT,		// Request gift box (received gifts) (gift box indicator icon clicked)
+		CS_SECRETCASHSHOP_OPEN,			// Open secret cash shop
+		CS_SECRETCASHSHOP_CLOSE,		// Close secret cash shop
 	};
 
 	// SC_CASHSHOP
@@ -2020,6 +2025,8 @@ namespace eCashShop
 #endif		//#ifdef PRE_ADD_LIMITED_CASHITEM
 		SC_CADGE,			// Wish request
 		SC_GIFTLIST_BY_SHORTCUT,		// Request gift box (received gifts) (gift box indicator icon clicked) (server sends packet via existing sC_GIFTLIST..)
+		SC_SECRETCASHSHOP_NOTIFY,		// Notify available secret cash shop ID
+		SC_SECRETCASHSHOP_OPEN,			// Secret cash shop open response
 	};
 };
 

@@ -9,6 +9,7 @@
 #include "DnRangeChecker.h"
 #include "EtActionSignal.h"
 #include "DnPlayAniProcess.h"
+#include "DnCoolTimeChargingProcess.h"
 #include "DnPartialPlayProcessor.h"
 #include "TaskManager.h"
 #include "DnUIString.h"
@@ -147,6 +148,7 @@ CDnSkill::CDnSkill( DnActorHandle hActor ) : MIInventoryItem( MIInventoryItem::S
 
 	m_nLevelUpValue = 0;
 
+	m_iSkillGroupID = 0;
 	m_iGlobalSkillGroupID = 0;
 	SecureZeroMemory( m_afGlobalCoolTime, sizeof(m_afGlobalCoolTime) );
 	m_fAnotherGlobalSkillCoolTime = 0.0f;
@@ -503,6 +505,16 @@ bool CDnSkill::_LoadSkillLevelData( int iSkillTableID, int iLevel, int iSkillLev
 			}
 
 			this->AddProcessor( pSkillProcessor, iSkillLevelDataApplyType );
+			if( pSkillProcessor->GetType() == IDnSkillProcessor::COOLTIME_CHARGING )
+			{
+				CDnCoolTimeChargingProcess* pChargeProc = static_cast<CDnCoolTimeChargingProcess*>( pSkillProcessor );
+				if( pChargeProc && pChargeProc->GetMaxChargeCount() > 1 )
+				{
+					m_bUseCoolTimeCharging = true;
+					m_nMaxCoolTimeChargeCount = pChargeProc->GetMaxChargeCount();
+					m_nCurCoolTimeChargeCount = m_nMaxCoolTimeChargeCount;
+				}
+			}
 		}
 	}
 
@@ -570,6 +582,9 @@ bool CDnSkill::_LoadSkillLevelData( int iSkillTableID, int iLevel, int iSkillLev
 	m_iUnlockPrice = pSkillTable->GetFieldFromLablePtr( iSkillTableID, "_UnlockPrice" )->GetInteger();
 	m_iExclusiveID = pSkillTable->GetFieldFromLablePtr( iSkillTableID, "_DuplicatedSkillType" )->GetInteger();
 	m_iBaseSkillID = pSkillTable->GetFieldFromLablePtr( iSkillTableID, "_BaseSkillID" )->GetInteger();
+	DNTableCell* pSkillGroupCell = pSkillTable->GetFieldFromLablePtr( iSkillTableID, "_SkillGroup" );
+	if( pSkillGroupCell )
+		m_iSkillGroupID = pSkillGroupCell->GetInteger();
 
 	m_iGlobalSkillGroupID = pSkillTable->GetFieldFromLablePtr( iSkillTableID, "_GlobalSkillGroup" )->GetInteger();
 
@@ -1132,7 +1147,12 @@ CDnSkill::UsingResult CDnSkill::CanExecute( void )
 		case CDnSkill::SummonOnOff:
 		case CDnSkill::StanceChange:
 			{
-				if( m_fCoolTime > 0.0f )
+				if( m_bUseCoolTimeCharging )
+				{
+					if( m_nCurCoolTimeChargeCount <= 0 )
+						return UsingResult::FailedByCooltime;
+				}
+				else if( m_fCoolTime > 0.0f )
 					return UsingResult::FailedByCooltime;
 			}
 			break;
@@ -1236,6 +1256,14 @@ float CDnSkill::GetDelayTime( void )
 void CDnSkill::OnBeginCoolTime()
 {
 	m_fCoolTimeAdjustBlowValue = 1.0f;
+
+	if( m_bUseCoolTimeCharging && m_nMaxCoolTimeChargeCount > 1 )
+	{
+		if( m_nCurCoolTimeChargeCount > 0 )
+			--m_nCurCoolTimeChargeCount;
+		if( m_fLeftDelayTime > 0.0f )
+			return;
+	}
 
 	m_fCoolTime = (GetDelayTime() == 0.f) ? 0.0f : 1.0f;
 	m_fLeftDelayTime = GetDelayTime()*m_fCoolTimeAdjustBlowValue;
@@ -1573,6 +1601,12 @@ void CDnSkill::Process( LOCAL_TIME LocalTime, float fDelta )
 #if defined(PRE_ADD_TOTAL_LEVEL_SKILL)
 							m_fDeltaGlobalCoolTime = 0.0f;
 #endif // PRE_ADD_TOTAL_LEVEL_SKILL
+							if( m_bUseCoolTimeCharging && m_nCurCoolTimeChargeCount < m_nMaxCoolTimeChargeCount )
+							{
+								++m_nCurCoolTimeChargeCount;
+								if( m_nCurCoolTimeChargeCount < m_nMaxCoolTimeChargeCount )
+									m_fLeftDelayTime = GetDelayTime() * fTempAdjustValue;
+							}
 						}
 
 						// [2011/03/09 semozz]
