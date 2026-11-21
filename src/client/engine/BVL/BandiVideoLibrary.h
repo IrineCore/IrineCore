@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// 
-/// BandiVideoLibrary 2.0
+/// BandiVideoLibrary 2.1
 /// 
-/// Copyright(C) 2008-2009 BandiSoft.com All rights reserved.
+/// Copyright(C) 2008-2014 BandiSoft.com All rights reserved.
 ///
 /// Visit http://www.bandisoft.com for more information.
 /// 
@@ -50,8 +50,8 @@ public :
 	ULONG   STDMETHODCALLTYPE Release(void)	{return 0;}
 
 	// IBandiVideo2
-	HRESULT		Verify(LPCSTR szID, LPCSTR szKey);		// 인증하기			
-	INT			GetVersion();							// 버전 정보		
+	HRESULT		Verify(LPCSTR szID, LPCSTR szKey);		// Verify the license
+	INT			GetVersion();							// Version number
 
 	HRESULT		Open(LPCWSTR path_name, BOOL async = FALSE);
 	HRESULT		Open(LPCSTR path_name, BOOL async = FALSE);

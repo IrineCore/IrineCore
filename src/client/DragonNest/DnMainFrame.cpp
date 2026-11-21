@@ -1933,7 +1933,10 @@ void CDnMainFrame::ToggleRecord()
 			if( !PathFileExists( szTemp ) ) _wmkdir( szTemp );
 
 			m_pCaptureEngine = new CEtBCLEngine;
-			m_pCaptureEngine->Initialize( m_hWnd, CEtDevice::GetInstancePtr() ) ;
+			if( m_pCaptureEngine->Initialize( m_hWnd, CEtDevice::GetInstancePtr() ) == false ) {
+				SAFE_DELETE( m_pCaptureEngine );
+				return;
+			}
 			m_pCaptureEngine->SetMinMaxFPS( 30, 60 );
 			m_pCaptureEngine->SetDefaultPath( szTemp );
 
@@ -1948,6 +1951,7 @@ void CDnMainFrame::ToggleRecord()
 			m_pCaptureEngine->SetOption( Option );
 
 			BCAP_CONFIG *pConfig = m_pCaptureEngine->GetConfig();
+			pConfig->VideoCodec = m_pCaptureEngine->GetSuggestedVideoCodec();
 			switch( CGameOption::GetInstance().m_nRecordFPS ) {
 				case 0: pConfig->VideoFPS = 15.f; break;
 				case 1: pConfig->VideoFPS = 30.f; break;

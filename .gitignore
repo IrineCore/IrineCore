@@ -61,9 +61,12 @@ ipch/
 /core
 core.[0-9]*
 
-# Keep optional Win32 client runtime DLLs (Bandicam video/capture)
+# Keep client runtime DLLs (BandiVideoLibrary 2.1.5.19 & BandiCaptureLibrary 3.1.3.334)
 !src/client/engine/BVL/bdvid32.dll
+!src/client/engine/BVL/bdvid64.dll
 !src/client/engine/BCL/bdcap32.dll
+!src/client/engine/BCL/bdcap64.dll
+!src/client/engine/BCL/amf-*.dll
 
 # Large binary game client patch archives (exceeds GitHub 100 MB file-size limit;
 # sync locally via deploy/webserver/scripts/sync-patches.{ps1,sh})

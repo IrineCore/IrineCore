@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// 
-/// BandiVideoLibrary 2.0
+/// BandiVideoLibrary 2.1 (2.1.5.19)
 /// 
-/// Copyright(C) 2008-2009 BandiSoft.com All rights reserved.
+/// Copyright(C) 2008-2014 BandiSoft.com All rights reserved.
 ///
 /// Visit http://www.bandisoft.com for more information.
 /// 
@@ -10,6 +10,7 @@
 #include "stdafx.h"
 
 #include "BandiVideoLibrary.h"
+#include "NativeVideoPlayer.h"
 
 CBandiVideoLibrary::CBandiVideoLibrary()
 {
@@ -24,42 +25,39 @@ CBandiVideoLibrary::~CBandiVideoLibrary()
 	Destroy();
 }
 
-// ∂Û¿Ã∫Í∑Ø∏Æ √ ±‚»≠
+// Create BandiVideo2 (uses official bdvid64/32.dll 2.1.5.19 when present,
+// with automatic fallback to built-in native VP8/MPEG-1/MP2 decoder if absent).
 HRESULT CBandiVideoLibrary::Create(LPCTSTR dll_path_name, IBandiVideoFileReader *reader /*= NULL */, IBandiVideoSound *sound /*= NULL */)
 {
-	if(m_dll) {ASSERT(0); return BVERR_ALREADY_CREATED;}
+	if(m_dll || m_bvl) {ASSERT(0); return BVERR_ALREADY_CREATED;}
 
-	// check os version
-	OSVERSIONINFO osv;
-	osv.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-	if (GetVersionEx(&osv)==FALSE || 
-		osv.dwPlatformId <=VER_PLATFORM_WIN32_WINDOWS)		// does not support 98
-	{
-		return BVERR_UNSUPPORTED_OS;
-	}
-
-	// DLL ∑ŒµÂ
+	// Load DLL
 	m_dll = LoadLibrary(dll_path_name);
 	if(m_dll==NULL)
 	{
 		m_dll = LoadLibrary(BANDIVIDEO_RELEASE_DLL_FILE_NAME);
-		if(m_dll==NULL)
-		{
-			//ASSERT(0);
-			return BVERR_LOAD_LIBRARY_FAIL;
-		}
 	}
 
-	m_pCreateBandiVideo2 = (LPCREATEBANDIVIDEO2)GetProcAddress(m_dll, "CreateBandiVideo2");
-	if(m_pCreateBandiVideo2==NULL)
+	if(m_dll!=NULL)
 	{
-		ASSERT(0);
+		m_pCreateBandiVideo2 = (LPCREATEBANDIVIDEO2)GetProcAddress(m_dll, "CreateBandiVideo2");
+		if(m_pCreateBandiVideo2!=NULL)
+		{
+			HRESULT hr = m_pCreateBandiVideo2(BVL_VERSION, (void**)&m_bvl, reader, sound);
+			if(SUCCEEDED(hr) && m_bvl != NULL)
+			{
+				return hr;
+			}
+		}
+
+		// Incompatible or mismatched DLL version ‚Äî unload and fall back to built-in decoder.
+		m_pCreateBandiVideo2 = NULL;
+		m_bvl = NULL;
 		FreeLibrary(m_dll);
 		m_dll = NULL;
-		return BVERR_GET_PROC_ADDRESS_FAIL;
 	}
 
-	return m_pCreateBandiVideo2(BVL_VERSION, (void**)&m_bvl, reader, sound);								
+	return CreateNativeBandiVideo2(BVL_VERSION, (void**)&m_bvl, reader, sound);
 }
 
 
@@ -69,7 +67,7 @@ BOOL CBandiVideoLibrary::IsCreated()
 }
 
 
-// ∂Û¿Ã∫Í∑Ø∏Æ «ÿ¡¶
+// Release Library and Unload
 void CBandiVideoLibrary::Destroy()
 {
 	if(m_bvl)
@@ -83,14 +81,14 @@ void CBandiVideoLibrary::Destroy()
 	m_dll = NULL;
 }
 
-// ¿Œ¡ı«œ±‚			
+// Verify the license
 HRESULT	CBandiVideoLibrary::Verify(LPCSTR id, LPCSTR key)
 {
 	if(m_bvl==NULL) {ASSERT(0); return BVERR_LIBRARY_NOT_LOADED;}
 	return m_bvl->Verify(id, key);
 }
 
-// πˆ¿¸ ¡§∫∏
+// Version number
 INT		CBandiVideoLibrary::GetVersion()
 {
 	if(m_bvl==NULL) {ASSERT(0); return 0;}
@@ -107,8 +105,8 @@ HRESULT CBandiVideoLibrary::Open(LPCSTR path_name, BOOL async)
 {
 	if(m_bvl==NULL) {ASSERT(0); return BVERR_LIBRARY_NOT_LOADED;}
 	
-	WCHAR wszPath[MAX_PATH+1];
-	MultiByteToWideChar(CP_ACP, NULL, path_name, -1, wszPath, MAX_PATH);
+	WCHAR wszPath[MAX_PATH * 2 + 1] = {0};
+	MultiByteToWideChar(CP_ACP, 0, path_name, -1, wszPath, MAX_PATH * 2);
 	
 	return m_bvl->Open(wszPath, async);
 }

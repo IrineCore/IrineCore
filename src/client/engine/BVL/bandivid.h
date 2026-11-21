@@ -2,7 +2,9 @@
 /// 
 /// BandiVideoLibrary 2.1
 /// 
-/// Copyright(C) 2008-2010 BandiSoft.com All rights reserved.
+/// Copyright(C) 2008-2014 BandiSoft.com All rights reserved.
+///
+/// Author: denny
 ///
 /// Visit http://www.bandisoft.com for more information.
 ///
@@ -32,19 +34,19 @@
 #endif
 
 #define _BVL_MAKE_VER(a,b,c,d)	((a<<24)+(b<<16)+(c<<8)+d)
-#define BVL_VERSION				_BVL_MAKE_VER(2,1,1,9)		// 2.1.1.9
+#define BVL_VERSION				_BVL_MAKE_VER(2,1,5,19)		// 2.1.5.19
 
 
-// 이미지의 픽셀 포맷(타입)
+// pixel type of video in movie file
 enum BVL_PIXEL_FORMAT
 {
 	BVLPF_NULL,						
-	BVLPF_X8R8G8B8,					 // D3DFMT_X8R8G8B8 사용
-	BVLPF_R8G8B8,					 // D3DFMT_R8G8B8 사용
-	BVLPF_R5G6B5,					 // D3DFMT_R5G6B5 사용
-	BVLPF_R5G5B5,					 // D3DFMT_X1R5G5B5 사용
+	BVLPF_X8R8G8B8,					// use D3DFMT_X8R8G8B8 in D3D9	
+	BVLPF_R8G8B8,					// use D3DFMT_R8G8B8 in D3D9	
+	BVLPF_R5G6B5,					// use D3DFMT_R5G6B5 in D3D9	
+	BVLPF_R5G5B5,					// use D3DFMT_X1R5G5B5 in D3D9	
 
-	BVLPF_A8R8G8B8,					 // D3DFMT_A8R8G8B8 사용
+	BVLPF_A8R8G8B8,					// use D3DFMT_A8R8G8B8 in D3D9	
 };
 
 
@@ -56,7 +58,7 @@ enum BVL_SEEK_FLAG
 };
 
 
-// 비디오의 현재 상태
+// Current status of Video player
 enum BVL_STATUS
 {
 	BVL_STATUS_ERROR = -1,
@@ -69,7 +71,7 @@ enum BVL_STATUS
 };
 
 
-// 프레임 데이터 구조체
+// Frame data
 struct BVL_FRAME
 {
 	void*				frame_buf;		// Pointer to the frame buffer
@@ -84,7 +86,7 @@ struct BVL_FRAME
 };
 
 
-// 비디오 정보 구조체
+// Video infomation
 struct BVL_VIDEO_INFO
 {
 	INT		width;
@@ -100,10 +102,10 @@ struct BVL_VIDEO_INFO
 };
 
 
-// IBandiVideoFileReader 인터페이스
+// IBandiVideoFileReader interface
 struct IBandiVideoFileReader : public IUnknown
 {
-	virtual HRESULT		Open(LPCSTR path_name) PURE;
+	virtual HRESULT		Open(LPCWSTR path_name) PURE;
 	virtual void		Close() PURE;
 	virtual	INT			Read(BYTE* buf, INT bytes_to_read) PURE;
 	virtual INT64		SetPosition(INT64 pos) PURE;
@@ -112,14 +114,14 @@ struct IBandiVideoFileReader : public IUnknown
 };
 
 
-// IBandiVideoSoundCB 인터페이스
+// IBandiVideoSoundCB interface
 struct IBandiVideoSoundCB : public IUnknown
 {
 	virtual INT GetPcmData(INT16* pcm_buf, INT req_samples) PURE;
 };
 
 
-// IBandiVideoSound 인터페이스
+// IBandiVideoSound interface
 struct IBandiVideoSound : public IUnknown
 {
 	virtual HRESULT		Open(INT channels, INT samplerate, IBandiVideoSoundCB *callback) PURE;
@@ -135,13 +137,13 @@ struct IBandiVideoSound : public IUnknown
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// IBandiVideo2 인터페이스
+// IBandiVideo2 Interface
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 struct IBandiVideo2 : public IUnknown
 {
-	virtual HRESULT		Verify(LPCSTR id, LPCSTR key) PURE;		// 인증하기			
+	virtual HRESULT		Verify(LPCSTR id, LPCSTR key) PURE;		// Verify the license
 
-	virtual INT			GetVersion() PURE;						// 버전 정보		
+	virtual INT			GetVersion() PURE;						// Version number
 
 	// playback
 	virtual HRESULT		Open(LPCWSTR path_name, BOOL async) PURE;
@@ -161,13 +163,12 @@ struct IBandiVideo2 : public IUnknown
 };
 
 
-// IBandiVideo2 인터페이스 생성 함수
 typedef HRESULT (*LPCREATEBANDIVIDEO2)(UINT sdk_version, void** pp, IBandiVideoFileReader* reader, IBandiVideoSound *sound);
 
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// 반디비디오 에러 코드
+// IBandiVideo2 error code
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #define _FACBV  0x586
 #define MAKE_BVHRESULT( code )				MAKE_HRESULT( 1, _FACBV, code )
@@ -176,18 +177,18 @@ typedef HRESULT (*LPCREATEBANDIVIDEO2)(UINT sdk_version, void** pp, IBandiVideoF
 #define BV_OK								S_OK
 #define BV_FALSE							S_FALSE
 
-#define BVERR_FAIL							E_FAIL						 // 함수의 정해진 명령을 처리하는데 실패하였음								
+#define BVERR_FAIL							E_FAIL						 // Failed to appropriate operatio
 
-#define BVERR_LOAD_LIBRARY_FAIL				MAKE_BVHRESULT(0x1020)		 // LoadLibrary 함수 실행중 에러											
-#define BVERR_ALREADY_CREATED				MAKE_BVHRESULT(0x1021)		 // 비디오 라이브러리의 인스턴스가 이미 생성되었음							
-#define BVERR_GET_PROC_ADDRESS_FAIL			MAKE_BVHRESULT(0x1022)		 // 비디오 라이브러리의 CreateBandiVideo 함수의 주소를 얻는데 실패하였음	
-#define BVERR_LIBRARY_NOT_LOADED			MAKE_BVHRESULT(0x1023)		 // 라이브러리가 로드되지 않았음											
-#define BVERR_UNSUPPORTED_OS				MAKE_BVHRESULT(0x1024)		 // 지원되지 않는 운영체제임												
+#define BVERR_LOAD_LIBRARY_FAIL				MAKE_BVHRESULT(0x1020)		 // Faild to LoadLibrary()
+#define BVERR_ALREADY_CREATED				MAKE_BVHRESULT(0x1021)		 // Video library instance is already created
+#define BVERR_GET_PROC_ADDRESS_FAIL			MAKE_BVHRESULT(0x1022)		 // Failed to get proc address of CreateBandiVideo()
+#define BVERR_LIBRARY_NOT_LOADED			MAKE_BVHRESULT(0x1023)		 // Video library is not loaded
+#define BVERR_UNSUPPORTED_OS				MAKE_BVHRESULT(0x1024)		 // Unsupported operating system
 
-#define BVERR_INVALID_VERSION				MAKE_BVHRESULT(0x1030)		 // 비디오 라이브러리의 헤더와 DLL 의 버젼이 안맞음							
-#define BVERR_OUT_OF_MEMORY					MAKE_BVHRESULT(0x1031)		 // 메모리가 부족하여 비디오라이브러리의 인스턴스를 생성할수 없음			
+#define BVERR_INVALID_VERSION				MAKE_BVHRESULT(0x1030)		 // Mismatch DLL version and header file version
+#define BVERR_OUT_OF_MEMORY					MAKE_BVHRESULT(0x1031)		 //	Out of memory to create video library instance
 
-#define BVERR_OPEN_FAILED					MAKE_BVHRESULT(0x1040)       // 파일이 없거나 지원되지 않는 컨테이너 형식임								
-#define BVERR_NOT_OPENED					MAKE_BVHRESULT(0x1041)		 // Open 되지 않은 파일에서 재생시도										
+#define BVERR_OPEN_FAILED					MAKE_BVHRESULT(0x1040)       // Unsupported file or not exist
+#define BVERR_NOT_OPENED					MAKE_BVHRESULT(0x1041)		 // Unopened video file 
 
 #endif // _BANDIVID_H

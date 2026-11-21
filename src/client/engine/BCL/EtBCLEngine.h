@@ -64,12 +64,16 @@ public:
 	WCHAR *GetSaveFileName() { return (WCHAR *)m_szSaveFileName.c_str(); }
 
 	void Start( TCHAR *szFileName = NULL );
+	void Pause( bool bPause );
 	void Stop();
 	bool IsCapturing();
 
 	void SetOption( CaptureOptionEnum Option );
 	BCAP_CONFIG *GetConfig() { return &m_Config; }
 	void RefreshConfig();
+	DWORD GetSuggestedVideoCodec();
+	bool IsSupportedVideoCodec( DWORD dwCodec );
+	bool CaptureImage( LPCWSTR wszFilePath, int nFileType = BCAP_IMAGE_PNG, int nQuality = 90, bool bIncludeCursor = true );
 
 	int GetCaptureTime();
 	INT64 GetCaptureFileSize();

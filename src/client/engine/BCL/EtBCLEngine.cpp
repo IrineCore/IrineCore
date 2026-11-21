@@ -11,6 +11,31 @@
 
 void (__stdcall *CEtBCLEngine::s_pCaptureInfoCallback)() = NULL;
 
+static BCAP_PRESET MapCaptureOptionToPreset( CEtBCLEngine::CaptureOptionEnum Option )
+{
+	switch( Option ) {
+		case CEtBCLEngine::Default:       return BCAP_PRESET_DEFAULT;
+		case CEtBCLEngine::HalfSize:      return BCAP_PRESET_HALFSIZE;
+		case CEtBCLEngine::Res_320x240:   return BCAP_PRESET_320x240;
+		case CEtBCLEngine::Res_400x300:   return BCAP_PRESET_400x300;
+		case CEtBCLEngine::Res_512x384:   return BCAP_PRESET_512x384;
+		case CEtBCLEngine::Res_576x432:   return BCAP_PRESET_576x432;
+		case CEtBCLEngine::Res_640x480:   return BCAP_PRESET_640x480;
+		case CEtBCLEngine::Res_800x600:   return BCAP_PRESET_800x600;
+		case CEtBCLEngine::Mpeg1:         return BCAP_PRESET_MPEG1;
+		case CEtBCLEngine::MJpeg:         return BCAP_PRESET_MJPEG;
+		case CEtBCLEngine::MJpeg_HighQ:   return BCAP_PRESET_MJPEG_HIGH_QUALITY;
+		case CEtBCLEngine::Mpeg4:         return BCAP_PRESET_MPEG4;
+		case CEtBCLEngine::Youtube:       return BCAP_PRESET_YOUTUBE;
+		case CEtBCLEngine::Youtube_HighQ: return BCAP_PRESET_YOUTUBE_HIGH_QUALITY;
+		case CEtBCLEngine::Youtube_HighD: return BCAP_PRESET_YOUTUBE_HIGH_DEFINITION;
+		case CEtBCLEngine::Naver:         return BCAP_PRESET_NAVER_BLOG;
+		case CEtBCLEngine::Daum:          return BCAP_PRESET_DAUM_TVPOT;
+		case CEtBCLEngine::MnCast:
+		default:                          return BCAP_PRESET_DEFAULT;
+	}
+}
+
 CEtBCLEngine::CEtBCLEngine()
 {
 	m_pBCL = NULL;
@@ -19,7 +44,7 @@ CEtBCLEngine::CEtBCLEngine()
 	m_szDefaultPath = L".";
 	m_pPrevPrePresentCallback = NULL;
 
-	SetOption( Default );
+	m_Config.Default();
 }
 
 CEtBCLEngine::~CEtBCLEngine()
@@ -30,6 +55,8 @@ CEtBCLEngine::~CEtBCLEngine()
 
 bool CEtBCLEngine::Initialize( HWND hWnd, CEtDevice *pDev, WCHAR *wszDefaultPath )
 {
+	Finalize();
+
 	m_pBCL = new CBandiCaptureLibrary;
 
 	if( FAILED( m_pBCL->Create( BANDICAP_RELEASE_DLL_FILE_NAME ) ) ) {
@@ -37,6 +64,7 @@ bool CEtBCLEngine::Initialize( HWND hWnd, CEtDevice *pDev, WCHAR *wszDefaultPath
 		return false;
 	}
 	if( m_pBCL->GetVersion() < BCAP_VERSION ) {
+		m_pBCL->Destroy();
 		SAFE_DELETE( m_pBCL );
 		return false;
 	}
@@ -55,6 +83,9 @@ bool CEtBCLEngine::Initialize( HWND hWnd, CEtDevice *pDev, WCHAR *wszDefaultPath
 void CEtBCLEngine::Finalize()
 {
 	if( m_pBCL == NULL ) return;
+	if( m_pBCL->IsCapturing() ) {
+		Stop();
+	}
 	m_pBCL->Destroy();
 	SAFE_DELETE( m_pBCL );
 }
@@ -63,7 +94,7 @@ void CEtBCLEngine::SetOption( CaptureOptionEnum Option )
 {
 	if( !m_pBCL || !m_pBCL->IsCreated() ) return;
 
-	BCapConfigPreset( &m_Config, (BCAP_PRESET)Option );
+	BCapConfigPreset( &m_Config, MapCaptureOptionToPreset( Option ) );
 	m_Config.IncludeCursor = TRUE;
 	m_pBCL->CheckConfig( &m_Config );
 	m_pBCL->SetConfig( &m_Config );
@@ -77,41 +108,101 @@ void CEtBCLEngine::RefreshConfig()
 	m_pBCL->SetConfig( &m_Config );
 }
 
+DWORD CEtBCLEngine::GetSuggestedVideoCodec()
+{
+	if( !m_pBCL || !m_pBCL->IsCreated() ) return FOURCC_H264;
+	return m_pBCL->GetSuggestedVideoCodec();
+}
+
+bool CEtBCLEngine::IsSupportedVideoCodec( DWORD dwCodec )
+{
+	if( !m_pBCL || !m_pBCL->IsCreated() ) return false;
+	return m_pBCL->IsSupportedVideoCodec( dwCodec ) == TRUE;
+}
+
+bool CEtBCLEngine::CaptureImage( LPCWSTR wszFilePath, int nFileType, int nQuality, bool bIncludeCursor )
+{
+	if( !m_pBCL || !m_pBCL->IsCreated() || !m_pEtDevice || !wszFilePath ) return false;
+	HRESULT hr = m_pBCL->CaptureImage( wszFilePath, nFileType, nQuality, BCAP_MODE_D3D9,
+		bIncludeCursor ? TRUE : FALSE, (LONG_PTR)m_pEtDevice->GetDevicePtr() );
+	return SUCCEEDED( hr );
+}
+
 void CEtBCLEngine::Start( TCHAR *szFileName )
 {
-	if( !m_pBCL || !m_pBCL->IsCreated() ) return;
+	if( !m_pBCL || !m_pBCL->IsCreated() || !m_pEtDevice ) return;
 
-	TCHAR szResultName[256] = { 0, };
+	TCHAR szResultName[MAX_PATH * 2] = { 0, };
+	const WCHAR *wszExt = ( m_Config.FileType == BCAP_CONFIG::F_MP4 ) ? L"mp4" : L"avi";
 
 	if( szFileName == NULL ) {
 		__time64_t ltime;
 		TCHAR szBuf[256] = { 0, };
-		struct	tm tm_ptr;
-		time(&ltime);
+		struct tm tm_ptr;
+		time( &ltime );
 		_localtime64_s( &tm_ptr, &ltime );
 
-		wcsftime( szBuf, 256, L"%Y-%m-%d %H-%M-%S %a", &tm_ptr );
+		wcsftime( szBuf, _countof(szBuf), L"%Y-%m-%d %H-%M-%S %a", &tm_ptr );
 
-		wsprintf( szResultName, L"DN %s.avi", szBuf );
+		swprintf_s( szResultName, _countof(szResultName), L"DN %s.%s", szBuf, wszExt );
 		m_szSaveFileName = szResultName;
-		wsprintf( szResultName, L"%s\\DN %s.avi", m_szDefaultPath.c_str(), szBuf );
+		swprintf_s( szResultName, _countof(szResultName), L"%s\\DN %s.%s", m_szDefaultPath.c_str(), szBuf, wszExt );
 	}
 	else {
 		m_szSaveFileName = szFileName;
-		if( !( szFileName[1] == L':' || szFileName[1] == L'\\' ) ) {
-			wsprintf( szResultName, L"%s\\%s", m_szDefaultPath.c_str(), szFileName );
+		if( szFileName[0] != L'\0' && ( szFileName[1] == L':' || ( szFileName[0] == L'\\' && szFileName[1] == L'\\' ) ) ) {
+			wcsncpy_s( szResultName, _countof(szResultName), szFileName, _TRUNCATE );
+		}
+		else {
+			swprintf_s( szResultName, _countof(szResultName), L"%s\\%s", m_szDefaultPath.c_str(), szFileName );
 		}
 	}
 
-	m_pBCL->Start( szResultName, NULL, BCAP_MODE_D3D9_SCALE, (LONG_PTR)m_pEtDevice->GetDevicePtr() );
+	m_pBCL->CheckConfig( &m_Config );
+	m_pBCL->SetConfig( &m_Config );
+
+	HRESULT hr = m_pBCL->Start( szResultName, m_hWnd, BCAP_MODE_D3D9_SCALE, (LONG_PTR)m_pEtDevice->GetDevicePtr() );
+	if( hr == BCERR_AUDIO_CAPTURE ) {
+		// Retry video-only capture if system audio loopback capture is unavailable.
+		m_Config.AudioCodec = WAVETAG_NULL;
+		m_pBCL->CheckConfig( &m_Config );
+		m_pBCL->SetConfig( &m_Config );
+		hr = m_pBCL->Start( szResultName, m_hWnd, BCAP_MODE_D3D9_SCALE, (LONG_PTR)m_pEtDevice->GetDevicePtr() );
+	}
+
+	if( FAILED( hr ) ) {
+		CaptureErrorEnum ErrorCode = ErrorUnknown;
+		switch( hr ) {
+			case BCERR_VIDEO_CAPTURE:        ErrorCode = ErrorVideo; break;
+			case BCERR_AUDIO_CAPTURE:        ErrorCode = ErrorAudio; break;
+			case BCERR_FILE_CREATE:          ErrorCode = ErrorCreateFile; break;
+			case BCERR_FILE_WRITE:           ErrorCode = ErrorWriteFile; break;
+			case BCERR_NOT_ENOUGH_DISKSPACE: ErrorCode = ErrorNotEnoughDiskSpace; break;
+		}
+		m_pBCL->Stop();
+		if( m_hWnd ) {
+			SendMessage( m_hWnd, UM_CAPTURE_ERROR, ErrorCode, 0 );
+		}
+		return;
+	}
+
 	m_pPrevPrePresentCallback = ( void ( __stdcall * )() )m_pEtDevice->SetPrePresentCallback( PrePresentCallback );
+}
+
+void CEtBCLEngine::Pause( bool bPause )
+{
+	if( !m_pBCL || !m_pBCL->IsCreated() ) return;
+	m_pBCL->Pause( bPause ? TRUE : FALSE );
 }
 
 void CEtBCLEngine::Stop()
 {
 	if( !m_pBCL || !m_pBCL->IsCreated() ) return;
 
-	m_pEtDevice->SetPrePresentCallback( m_pPrevPrePresentCallback );
+	if( m_pEtDevice ) {
+		m_pEtDevice->SetPrePresentCallback( m_pPrevPrePresentCallback );
+	}
+	m_pPrevPrePresentCallback = NULL;
 	m_pBCL->Stop();
 }
 
@@ -179,7 +270,7 @@ void __stdcall CEtBCLEngine::PrePresentCallback()
 
 void CEtBCLEngine::Work()
 {
-	if( !m_pBCL || !m_pBCL->IsCreated() ) return;
+	if( !m_pBCL || !m_pBCL->IsCreated() || !m_pEtDevice ) return;
 
 	HRESULT hResult = m_pBCL->Work( (LONG_PTR)m_pEtDevice->GetDevicePtr() );
 	if( FAILED( hResult ) ) {
@@ -191,6 +282,8 @@ void CEtBCLEngine::Work()
 			case BCERR_FILE_WRITE: ErrorCode = ErrorWriteFile; break;
 			case BCERR_NOT_ENOUGH_DISKSPACE: ErrorCode = ErrorNotEnoughDiskSpace; break;
 		}
-		SendMessage( m_hWnd, UM_CAPTURE_ERROR, ErrorCode, 0 );
+		if( m_hWnd ) {
+			SendMessage( m_hWnd, UM_CAPTURE_ERROR, ErrorCode, 0 );
+		}
 	}
 }

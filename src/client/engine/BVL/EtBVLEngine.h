@@ -16,9 +16,9 @@ public:
 
 	enum BVL_OPEN_OPT
 	{
-		BVL_OPEN_OPT_NONE,				// ÆÄÀÏ ¿­±â¸¸ ÇÏ°í Àç»ıÀº ÇÏÁö ¾ÊÀ½
-		BVL_OPEN_OPT_AUTOPLAY,			// ÆÄÀÏ ¿­±â°¡ ¿Ï·áµÇ¸é ÀÚµ¿ Àç»ı
-		BVL_OPEN_OPT_AUTOPLAY_REPEAT,	// ÆÄÀÏ ¿­±â°¡ ¿Ï·áµÇ¸é ÀÚµ¿ ¹İº¹ Àç»ı
+		BVL_OPEN_OPT_NONE,				// íŒŒì¼ ì—´ê¸°ë§Œ í•˜ê³  ì¬ìƒì€ í•˜ì§€ ì•ŠìŒ
+		BVL_OPEN_OPT_AUTOPLAY,			// íŒŒì¼ ì—´ê¸°ê°€ ì™„ë£Œë˜ë©´ ìë™ ì¬ìƒ
+		BVL_OPEN_OPT_AUTOPLAY_REPEAT,	// íŒŒì¼ ì—´ê¸°ê°€ ì™„ë£Œë˜ë©´ ìë™ ë°˜ë³µ ì¬ìƒ
 	};
 
 protected:
@@ -63,10 +63,10 @@ public:
 
 	// IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** p) { return E_NOTIMPL; }
-	ULONG   STDMETHODCALLTYPE AddRef(void)	{return 0;}
-	ULONG   STDMETHODCALLTYPE Release(void)	{return 0;}
+	ULONG   STDMETHODCALLTYPE AddRef(void)	{ return 1; }
+	ULONG   STDMETHODCALLTYPE Release(void)	{ return 1; }
 
-	virtual HRESULT	Open(LPCSTR path_name);
+	virtual HRESULT	Open(LPCWSTR path_name);
 	virtual void	Close();
 	virtual	INT		Read(BYTE* pBuf, INT nBytesToRead);
 	virtual INT64	SetPosition(INT64 nPos);

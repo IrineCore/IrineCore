@@ -2,12 +2,11 @@
 /// 
 /// BandiVideoLibrary 2.1
 /// 
-/// Copyright(C) 2008-2010 BandiSoft.com All rights reserved.
+/// Copyright(C) 2008-2014 BandiSoft.com All rights reserved.
 ///
 /// Visit http://www.bandisoft.com for more information.
 /// 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#include "stdafx.h"
 
 #include "BandiVideoTexture_DX9.h"
 
@@ -371,10 +370,23 @@ HRESULT	CBandiVideoTexture_DX9::Draw(INT x, INT y, INT width, INT height)
 	hr = m_device.m_d3d9_device->SetTexture(0, m_texture);
 	if(FAILED(hr)) return hr;
 
+	static DWORD dwAddressU, dwAddressV;
+
+	m_device.m_d3d9_device->GetSamplerState(0, D3DSAMP_ADDRESSU, &dwAddressU);
+	m_device.m_d3d9_device->GetSamplerState(0, D3DSAMP_ADDRESSV, &dwAddressV);
+
+	m_device.m_d3d9_device->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+	m_device.m_d3d9_device->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+
 	m_device.m_d3d9_device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 	m_device.m_d3d9_device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
 
-	return SetVertices((float)x, (float)y, (float)width, (float)height);
+	hr = SetVertices((float)x, (float)y, (float)width, (float)height);
+
+	m_device.m_d3d9_device->SetSamplerState(0, D3DSAMP_ADDRESSU, dwAddressU);
+	m_device.m_d3d9_device->SetSamplerState(0, D3DSAMP_ADDRESSV, dwAddressV);
+
+	return hr;
 }
 
 
@@ -441,3 +453,5 @@ int CBandiVideoTexture_DX9::CalcTexSize(int vid_size, BOOL pow2)
 	
 	return vid_size;
 }
+
+

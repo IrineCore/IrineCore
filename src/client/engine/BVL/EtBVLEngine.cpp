@@ -157,10 +157,15 @@ bool CEtBVLEngine::GetVideoTexture( EtTexture **ppTexture )
 		if( m_pBVT == NULL && m_pEtDevice )
 		{
 			BV_DEVICE_DX9 bvd;
+			bvd.m_d3d9 = NULL;
 			bvd.m_d3d9_device = (LPDIRECT3DDEVICE9)m_pEtDevice->GetDevicePtr();
 			bvd.m_d3d9_device->GetDirect3D( &bvd.m_d3d9 );
 			bvd.m_hwnd_parent = m_pEtDevice->GetHWnd();
 			m_pBVT = new CBandiVideoTexture_DX9( &bvd );
+			if( bvd.m_d3d9 ) {
+				bvd.m_d3d9->Release();
+				bvd.m_d3d9 = NULL;
+			}
 			if( !m_pBVT || FAILED( m_pBVT->Open( m_VideoInfo.width , m_VideoInfo.height ) ) )
 			{
 				m_pBVL->Stop();
@@ -306,9 +311,15 @@ CEtBandiVideoStream::CEtBandiVideoStream()
 {
 }
 
-HRESULT CEtBandiVideoStream::Open(LPCSTR path_name)
+HRESULT CEtBandiVideoStream::Open(LPCWSTR path_name)
 {
-	if( CResMngStream::Open( path_name ) ) return BV_OK;
+	if( !path_name || path_name[0] == L'\0' ) return BVERR_OPEN_FAILED;
+
+	char szAnsiPath[MAX_PATH * 2 + 1] = {0,};
+	int nLen = WideCharToMultiByte( CP_ACP, 0, path_name, -1, szAnsiPath, sizeof(szAnsiPath) - 1, NULL, NULL );
+	if( nLen <= 0 ) return BVERR_OPEN_FAILED;
+
+	if( CResMngStream::Open( szAnsiPath ) ) return BV_OK;
 	return BVERR_OPEN_FAILED;
 }
 
@@ -319,6 +330,7 @@ void CEtBandiVideoStream::Close()
 
 INT	CEtBandiVideoStream::Read(BYTE* pBuf, INT nBytesToRead)
 {
+	if( !m_pStream || !pBuf || nBytesToRead <= 0 ) return 0;
 	int nValue = m_pStream->Tell();
 	m_pStream->Read( pBuf, nBytesToRead );
 	return m_pStream->Tell() - nValue;
@@ -326,16 +338,19 @@ INT	CEtBandiVideoStream::Read(BYTE* pBuf, INT nBytesToRead)
 
 INT64 CEtBandiVideoStream::SetPosition(INT64 nPos)
 {
+	if( !m_pStream ) return -1;
 	m_pStream->Seek( (int)nPos, SEEK_SET );
-	return m_pStream->Tell();
+	return (INT64)m_pStream->Tell();
 }
 
 INT64 CEtBandiVideoStream::GetPosition()
 {
-	return (int)m_pStream->Tell();
+	if( !m_pStream ) return 0;
+	return (INT64)m_pStream->Tell();
 }
 
 INT64 CEtBandiVideoStream::GetFileSize()
 {
-	return m_pStream->Size();
+	if( !m_pStream ) return 0;
+	return (INT64)m_pStream->Size();
 }

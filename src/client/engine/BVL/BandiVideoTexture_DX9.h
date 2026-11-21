@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// 
-/// BandiVideoLibrary 2.0
+/// BandiVideoLibrary 2.1
 /// 
-/// Copyright(C) 2008-2009 BandiSoft.com All rights reserved.
+/// Copyright(C) 2008-2014 BandiSoft.com All rights reserved.
 ///
 /// Visit http://www.bandisoft.com for more information.
 /// 
