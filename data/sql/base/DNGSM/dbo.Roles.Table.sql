@@ -1,0 +1,20 @@
+USE [dngsm]
+GO
+/****** Object:  Table [dbo].[Roles]    Script Date: 11/14/2026 8:47:03 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Roles](
+	[RoleID] [int] IDENTITY(1,1) NOT NULL,
+	[RoleName] [nvarchar](50) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[Memo] [nvarchar](300) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[DeleteFlag] [bit] NOT NULL,
+ CONSTRAINT [PK_Roles] PRIMARY KEY CLUSTERED 
+(
+	[RoleID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[Roles] ADD  CONSTRAINT [DF_Roles_DeleteFlag]  DEFAULT ((0)) FOR [DeleteFlag]
+GO

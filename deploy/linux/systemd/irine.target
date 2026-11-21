@@ -1,0 +1,7 @@
+[Unit]
+Description=IrineCore MMORPG Server Cluster Target
+Requires=irine@DNLogServer64.service irine@DNDBServer64.service irine@DNCashServer64.service irine@DNMasterServer64.service irine@DNLoginServer64.service irine@DNVillageServer64.service irine@DNGameServer64.service
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target

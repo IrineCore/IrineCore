@@ -1,0 +1,96 @@
+USE [dnworld]
+GO
+/****** Object:  StoredProcedure [dbo].[P_ModParty]    Script Date: 11/14/2026 8:54:39 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/**
+version : 5
+author : ???
+e-mail : ohtack@eyedentitygames.com
+created date : 2012-01-09
+description : ?? ??? ?????.
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+103322 = ?? ??? ???? ????.
+history :
+3 = MaxLevel ?? ??? ?? ?? by ??? at 2012-03-07
+4 = ???? ??? ?? ??? ?? ?? by ??? at 2012-03-12
+5 = PartyCode ?? ?? by ??? at 2012-03-26
+**/
+
+CREATE PROCEDURE [dbo].[P_ModParty]
+	  @inbPartyID bigint --// ??ID
+	, @intServerID int --// ??ID
+	, @inyServerType tinyint --// ??? ??
+	, @intServerCommonID int --// ??? ??? ??ID
+	, @inyPartyCode tinyint --// 0=????, 1=?????
+	, @nvcPartyName nvarchar(40) --// ????
+	, @insPartyMaxCount smallint --// ???? ???
+	, @intGoalMapID int --// ?? ????ID
+	, @inyDifficultyCode tinyint --// 1=??,2??,3=???,4=???,5=???
+	, @intPartyOptionFlagBitmap int --// ?? ?? ??? ?
+	, @intPassWordValue int --// ??????(??4??)
+	, @inyMinLevel tinyint --// ?? ??
+	, @inyDefaultDistributionCode tinyint --// 0=??,1=????,2=?????,3=??????,4=???????
+	, @inyRandomDistributionCode tinyint --// 0=??,1=??,2=??,3=??,4=???,5=???,6=??????
+	, @intUpkeepCount int --// ?? ?? ???
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int;
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	/**_# ?? ??? ?????.*/
+	UPDATE dbo.Parties
+	SET ServerID = @intServerID
+	  , ServerType = @inyServerType
+	  , ServerCommonID = @intServerCommonID
+	  , PartyCode = @inyPartyCode
+	  , PartyName = @nvcPartyName
+	  , PartyMaxCount = @insPartyMaxCount
+	  , GoalMapID = @intGoalMapID
+	  , DifficultyCode = @inyDifficultyCode
+	  , PartyOptionFlagBitmap = @intPartyOptionFlagBitmap
+	  , PassWordValue = @intPassWordValue
+	  , MinLevel = @inyMinLevel
+	  , DefaultDistributionCode = @inyDefaultDistributionCode
+	  , RandomDistributionCode = @inyRandomDistributionCode
+	  , UpkeepCount = @intUpkeepCount
+	WHERE PartyID = @inbPartyID;
+
+	/**_## UPDATE? ?? ???, ?(?) ?????.*/
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @intReturnValue = 103322;
+		GOTO ErrorHandler;
+	END
+END TRY
+BEGIN CATCH
+
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+
+RETURN @intReturnValue;
+GO

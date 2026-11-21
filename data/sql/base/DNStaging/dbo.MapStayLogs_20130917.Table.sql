@@ -1,0 +1,38 @@
+USE [dnstaging]
+GO
+/****** Object:  Table [dbo].[MapStayLogs_20130917]    Script Date: 11/14/2026 9:00:08 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[MapStayLogs_20130917](
+	[ExitDate] [datetime2](0) NOT NULL,
+	[MapID] [int] NOT NULL,
+	[CharacterID] [bigint] NOT NULL,
+	[JobCode] [tinyint] NOT NULL,
+	[CharacterLevel] [tinyint] NOT NULL,
+	[EntranceDate] [datetime2](0) NOT NULL
+) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_NC_MapStayLogs_20130917_ExitDate]    Script Date: 11/14/2026 9:00:08 AM ******/
+CREATE CLUSTERED INDEX [IX_NC_MapStayLogs_20130917_ExitDate] ON [dbo].[MapStayLogs_20130917]
+(
+	[ExitDate] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_NN_MapStayLogs_20130917_CharacterID]    Script Date: 11/14/2026 9:01:05 AM ******/
+CREATE NONCLUSTERED INDEX [IX_NN_MapStayLogs_20130917_CharacterID] ON [dbo].[MapStayLogs_20130917]
+(
+	[CharacterID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_NN_MapStayLogs_20130917_MapID]    Script Date: 11/14/2026 9:01:05 AM ******/
+CREATE NONCLUSTERED INDEX [IX_NN_MapStayLogs_20130917_MapID] ON [dbo].[MapStayLogs_20130917]
+(
+	[MapID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[MapStayLogs_20130917]  WITH CHECK ADD  CONSTRAINT [CK_MapStayLogs_20130917_ExitDate] CHECK  (([ExitDate]>='2013-09-17' AND [ExitDate]<'2013-09-18'))
+GO
+ALTER TABLE [dbo].[MapStayLogs_20130917] CHECK CONSTRAINT [CK_MapStayLogs_20130917_ExitDate]
+GO

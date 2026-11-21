@@ -1,0 +1,103 @@
+USE [dnworld]
+GO
+/****** Object:  StoredProcedure [dbo].[P_AddSkill2]    Script Date: 11/14/2026 8:54:37 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/**
+version : 1
+author : ???
+e-mail : ohtack@eyedentitygames.com
+created date : 2013-01-11
+description : ??? ?????.
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+103102 = ???? ???? ????.
+103123 = ??? ?????.
+103143 = ?? ??? ?????.
+**/
+
+CREATE PROCEDURE [dbo].[P_AddSkill2]
+	  @inbCharacterID bigint --// ??? ID
+	, @intSkillID int --// ?? ID
+	, @inySkillLevel tinyint --// ?? ??
+	, @intCoolTime int --// ? ?? (?)
+	, @inySkillChangeCode tinyint --// 4=?? ?? (???), 5=?? ?? (?? ??), 6=?? ?? (???), 7=?? ?? (???), 8=?? ?? (by ???), 14?? ??(??)
+	, @inbCoin bigint --// ??? ??? ?? ?? ??. ??? ??? ??? 0? ?????.
+	, @intChannelID int --// ???? ??? ?? ID
+	, @intMapID int --// ???? ??? ? ID
+	, @inySkillCode tinyint = 1 --// 1=1? ??, 2=2? ??
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int, @dt2Now datetime2(0) = GETDATE();
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	/**_# ??? ??? ?? ??? ?????. ??? ???? 103123? ?????.*/
+	IF @inbCoin > 0
+	BEGIN
+		EXEC @intReturnValue = dbo.P_ModCoinForSubProc
+			  @inbCharacterID = @inbCharacterID
+			, @inyCoinChangeCode = 17
+			, @inbCoinChangeFKey = @intSkillID
+			, @inbCoin = @inbCoin
+			, @intChannelID = @intChannelID
+			, @intMapID = @intMapID
+			, @dt2LogDate = @dt2Now;
+
+		IF @intReturnValue <> 0 
+			GOTO ErrorHandler;
+	END
+
+	/**_# [Skills] ???? INSERT???.*/
+	/**_# ?? ??? ???? 103143? ?????.*/
+	/**_# ???? ??? 103102? ?????.*/
+	INSERT dbo.Skills (CharacterID, SkillID, SkillLevel, CoolTime, UsedSkillPoint, DefaultSkillLevel, SkillCode)
+	VALUES (@inbCharacterID, @intSkillID, @inySkillLevel, @intCoolTime, 0, @inySkillLevel, @inySkillCode);
+
+	/**_# [P_AddSkillLog]? ???? ??? ?????.*/
+	EXEC @intReturnValue = dbo.P_AddSkillLog
+		  @dt2LogDate = @dt2Now
+		, @inbCharacterID = @inbCharacterID
+		, @inySkillChangeCode = @inySkillChangeCode
+		, @intSkillID = @intSkillID
+		, @inySkillLevelBefore = @inySkillLevel
+		, @inySkillLevelAfter = @inySkillLevel
+		, @intChannelID = @intChannelID
+		, @intMapID = @intMapID
+		, @inySkillCode = @inySkillCode;
+
+END TRY
+BEGIN CATCH
+	IF ERROR_NUMBER() = 547 AND ERROR_MESSAGE() LIKE N'%FK_Characters_Skills_CharacterID%'
+		SET @intReturnValue = 103102;
+
+	ELSE IF ERROR_NUMBER() = 2627 AND ERROR_MESSAGE() LIKE N'%PK_Skills%'
+		SET @intReturnValue = 103143;
+
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+
+RETURN @intReturnValue;
+GO

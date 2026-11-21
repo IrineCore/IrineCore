@@ -1,0 +1,81 @@
+USE [dnworld]
+GO
+/****** Object:  StoredProcedure [dbo].[P_ExtractManufactureSkillRecipe2]    Script Date: 11/14/2026 8:54:38 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/**
+version : 1
+author : ???
+e-mail : purumae@eyedentitygames.com
+created date : 2011-07-11
+description : ?? ?? ???? ?????.
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+103227 = ??? ?? ?? ???? ???? ????.
+103232 = @inyItemLocationCode ?? ???? ????.
+103233 = ?? ?? ???? ??? ???? ??????.
+history :
+2 = input param. @intSecondarySkillID ? ?? at 2010-09-03
+3 = ????? ?? ?, ???? ??? ?? ????? ?? at 2010-09-06
+4 = ItemLocation.MaterializedItemID ?? ??? ?? ?? at 2011-03-31
+**/
+
+CREATE PROCEDURE [dbo].[P_ExtractManufactureSkillRecipe2]
+	  @inbCharacterID bigint --// ??? ID
+	, @inbItemSerial bigint --// ??? ???? ??? ????
+	, @inyItemLocationCode tinyint --// ??? ???? ???? ??. 2=????, 5=?? ????
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int, @inbMaterializedItemID bigint;
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	UPDATE dbo.MaterializedItems
+	SET ItemLocationCode = @inyItemLocationCode
+	WHERE ItemSerial = @inbItemSerial AND OwnerCharacterID = @inbCharacterID;
+
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @intReturnValue = 103227;
+		GOTO ErrorHandler;
+	END
+
+	/**_# [ManufactureSkillRecipes] ????? DELETE???.*/
+	DELETE dbo.ManufactureSkillRecipes
+	WHERE CharacterID = @inbCharacterID AND SecondarySkillID > 0 AND ItemSerial = @inbItemSerial;
+
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @intReturnValue = 103227;
+		GOTO ErrorHandler;
+	END
+
+END TRY
+BEGIN CATCH
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+
+RETURN @intReturnValue;
+GO

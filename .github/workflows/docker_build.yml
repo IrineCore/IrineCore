@@ -1,0 +1,28 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-validate:
+    name: Docker Compose & Infrastructure Image Validation
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose manifests
+        run: |
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f deploy/mssql/docker-compose.yml config --quiet
+          docker compose -f deploy/webserver/docker-compose.yml config --quiet
+
+      - name: Build Nginx Patch WebServer image
+        run: docker build -t irinecore-webserver:ci ./deploy/webserver

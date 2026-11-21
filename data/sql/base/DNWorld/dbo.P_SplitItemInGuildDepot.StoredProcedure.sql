@@ -1,0 +1,153 @@
+USE [dnworld]
+GO
+/****** Object:  StoredProcedure [dbo].[P_SplitItemInGuildDepot]    Script Date: 11/14/2026 8:54:39 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/**
+version : 8
+author : ???
+e-mail : purumae@eyedentitygames.com
+created date : 2010-10-07
+description : ?? ????? ???? Split ???.
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+103269 = ?? ???? Split ? ???? ?? ??? ???? ?? ??? Lock?? ????.
+103270 = ?? ???? Split ? ???? ???? ????.
+103271 = ?? ???? Split ? ???? ??? ???? ????.
+103255 = ?? ??? ? ????.
+history :
+3 = ?? ?? ?? ???? ??? ???? ?? ? DB ?? ??? ????? ?? at 2010-10-13
+4 = ItemLocation.MaterializedItemID ?? ??? ?? ?? at 2011-04-06
+5~6 = ???? ?? ???? ??     by 20110629.wgkim
+7 = ???? MaterializedItemID ?? ?? ?? by ??? at 2012-12-27
+**/
+
+CREATE PROCEDURE [dbo].[P_SplitItemInGuildDepot]
+	  @intGuildID int --// ?? ID
+	, @intItemID int --// ??? ID
+	, @inbItemSerial bigint --// ??? ?? ??
+	, @inbNewItemSerial bigint --// Split?? ?? ???? ? ?? ??
+	, @insItemCount smallint --// @inbItemSerial ?? ???? ???? ?? ? ? ??
+	, @insSplitItemCount smallint --// Split?? ?? ??? ??
+	, @intMapID int --// ? ID
+	, @insItemCountNew smallint = NULL OUTPUT --// 103271? ???? ?? DB? ??? ??? ??
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int
+	, @dt2Now datetime2(0) = GETDATE()
+	, @insItemRemainCount smallint
+	, @inbMaterializedItemID bigint
+	, @inbNewMaterializedItemID bigint;
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	/**_# ???? ?? ??? ?????.*/
+	SELECT @insItemRemainCount = ItemRemainCount
+		, @inbMaterializedItemID = MaterializedItemID
+	FROM dbo.MaterializedItems WITH (NOLOCK)
+	WHERE ItemSerial = @inbItemSerial AND OwnerCharacterID IS NULL;
+
+	/**_## ???? ???? ??? 103270? ?????.*/
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @intReturnValue = 103270;
+		GOTO ErrorHandler;
+	END
+
+	/**_# ???? ??? ???? ??? 103271? ?????.*/
+	IF @insItemRemainCount <> @insItemCount
+	BEGIN
+		SET @insItemCountNew = @insItemRemainCount;
+		SET @intReturnValue = 103271;
+		GOTO ErrorHandler;
+	END
+
+	/**_# Split? ???? Lock? ?????.*/
+	UPDATE dbo.GuildDepots
+	SET LockFlag = 1, LockDate = @dt2Now
+	WHERE GuildID = @intGuildID AND MaterializedItemID = @inbMaterializedItemID AND (
+		LockFlag = CAST(0 AS bit) OR LockDate < DATEADD(SECOND, -90, @dt2Now)
+	);
+
+	/**_## ???? ?? ??? ???? ?? ??? Lock?? ??? 103269? ?????.*/
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @intReturnValue = 103269;
+		GOTO ErrorHandler;
+	END
+
+	/**_# ?? ??? FULL ???? 103255? ?????. ?, ??? ??? ?? ?? Max ?? ???? ???? ??? ? ????.*/
+	IF (
+			SELECT CAST(GuildDepotSize AS smallint)
+			FROM dbo.VIX_GuildDepotSize WITH (NOEXPAND, NOLOCK)
+			WHERE GuildID = @intGuildID
+		) >= (
+			SELECT GuildDepotSize
+			FROM dbo.Guilds WITH (NOLOCK)
+			WHERE GuildID = @intGuildID
+		)
+	BEGIN
+		UPDATE dbo.GuildDepots
+		SET LockFlag = 0, LockDate = NULL
+		WHERE GuildID = @intGuildID AND MaterializedItemID = @inbMaterializedItemID;
+
+		SET @intReturnValue = 103255;
+		GOTO ErrorHandler;
+	END
+
+	/**_# ???? Split ???.*/
+	EXEC @intReturnValue = dbo.P_SplitMaterializedItem
+		  @dt2SplitDate = @dt2Now
+		, @inbMaterializedItemID = @inbMaterializedItemID
+		, @inbNewItemSerial = @inbNewItemSerial
+		, @insItemCount = @insSplitItemCount
+		, @bitInitOwnerCharacter = 0
+		, @intChannelID = NULL
+		, @intMapID = @intMapID
+		, @inyCallProc = 6
+		, @inbNewMaterializedItemID = @inbNewMaterializedItemID OUTPUT;
+
+	IF @intReturnValue <> 0
+	BEGIN
+		UPDATE dbo.GuildDepots
+		SET LockFlag = 0, LockDate = NULL
+		WHERE GuildID = @intGuildID AND MaterializedItemID = @inbMaterializedItemID;
+
+		GOTO ErrorHandler;
+	END
+
+	/**_# Lock? ?????.*/
+	UPDATE dbo.GuildDepots
+	SET LockFlag = 0, LockDate = NULL
+	WHERE GuildID = @intGuildID AND MaterializedItemID = @inbMaterializedItemID;
+
+	/**_# Split? ? ???? ?? ??? ?????.*/
+	INSERT dbo.GuildDepots (GuildID, ItemSerial, LockFlag, LockDate, MaterializedItemID)
+	VALUES (@intGuildID, @inbNewItemSerial, 0, NULL, @inbNewMaterializedItemID);
+END TRY
+BEGIN CATCH
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+RETURN @intReturnValue;
+GO

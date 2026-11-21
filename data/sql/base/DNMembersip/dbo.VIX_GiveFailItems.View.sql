@@ -1,0 +1,65 @@
+USE [dnmembership]
+GO
+/****** Object:  View [dbo].[VIX_GiveFailItems]    Script Date: 11/14/2026 8:51:03 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.views WHERE object_id = OBJECT_ID(N'[dbo].[VIX_GiveFailItems]'))
+EXEC dbo.sp_executesql @statement = N'CREATE VIEW [dbo].[VIX_GiveFailItems]
+WITH SCHEMABINDING
+AS
+SELECT SI.SelectedItemID, SI.PurchaseOrderDetailID, SI.ItemID, SI.ItemOption, PO.CharacterID, PO.ReceiverCharacterID
+FROM dbo.PurchaseOrders PO
+	INNER JOIN dbo.PurchaseOrderDetails PD ON PO.PurchaseOrderID = PD.PurchaseOrderID
+	INNER JOIN dbo.SelectedItems SI ON PD.PurchaseOrderDetailID = SI.PurchaseOrderDetailID
+WHERE PO.OrderStatusCode = 2 AND SI.GiveFailFlag = CAST(1 AS bit);
+' 
+GO
+SET ARITHABORT ON
+SET CONCAT_NULL_YIELDS_NULL ON
+SET QUOTED_IDENTIFIER ON
+SET ANSI_NULLS ON
+SET ANSI_PADDING ON
+SET ANSI_WARNINGS ON
+SET NUMERIC_ROUNDABORT OFF
+GO
+/****** Object:  Index [IX_UC_VIX_GiveFailItems]    Script Date: 11/14/2026 8:51:03 AM ******/
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[VIX_GiveFailItems]') AND name = N'IX_UC_VIX_GiveFailItems')
+CREATE UNIQUE CLUSTERED INDEX [IX_UC_VIX_GiveFailItems] ON [dbo].[VIX_GiveFailItems]
+(
+	[SelectedItemID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [IndexFG1]
+GO
+SET ARITHABORT ON
+SET CONCAT_NULL_YIELDS_NULL ON
+SET QUOTED_IDENTIFIER ON
+SET ANSI_NULLS ON
+SET ANSI_PADDING ON
+SET ANSI_WARNINGS ON
+SET NUMERIC_ROUNDABORT OFF
+GO
+/****** Object:  Index [IX_NN_VIX_GiveFailItems_CharacterID]    Script Date: 11/14/2026 8:51:10 AM ******/
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[VIX_GiveFailItems]') AND name = N'IX_NN_VIX_GiveFailItems_CharacterID')
+CREATE NONCLUSTERED INDEX [IX_NN_VIX_GiveFailItems_CharacterID] ON [dbo].[VIX_GiveFailItems]
+(
+	[CharacterID] ASC
+)
+INCLUDE([PurchaseOrderDetailID],[ItemID]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [IndexFG1]
+GO
+SET ARITHABORT ON
+SET CONCAT_NULL_YIELDS_NULL ON
+SET QUOTED_IDENTIFIER ON
+SET ANSI_NULLS ON
+SET ANSI_PADDING ON
+SET ANSI_WARNINGS ON
+SET NUMERIC_ROUNDABORT OFF
+GO
+/****** Object:  Index [IX_NN_VIX_GiveFailItems_ReceiverCharacterID]    Script Date: 11/14/2026 8:51:10 AM ******/
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[VIX_GiveFailItems]') AND name = N'IX_NN_VIX_GiveFailItems_ReceiverCharacterID')
+CREATE NONCLUSTERED INDEX [IX_NN_VIX_GiveFailItems_ReceiverCharacterID] ON [dbo].[VIX_GiveFailItems]
+(
+	[ReceiverCharacterID] ASC
+)
+INCLUDE([PurchaseOrderDetailID],[ItemID]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [IndexFG1]
+GO

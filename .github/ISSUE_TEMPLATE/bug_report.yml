@@ -1,0 +1,65 @@
+name: Bug Report
+description: Report a crash, protocol issue, build error, or gameplay bug in IrineCore.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue in **IrineCore**. Please provide as much detail as possible to help reproduce it.
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Host Operating System
+      options:
+        - Windows Server 2025 / 2022 / 2019
+        - Windows 11 / 10
+        - Ubuntu 24.04 / 26.04 LTS
+        - Ubuntu 22.04 LTS
+        - Debian 12+
+        - Docker / Docker Compose
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Server or Module
+      options:
+        - DNLoginServer64
+        - DNMasterServer64
+        - DNVillageServer64
+        - DNGameServer64
+        - DNDBServer64
+        - DNCashServer64
+        - DNLogServer64
+        - Module (Player-Bots / Hero-Ally / FPS-PING)
+        - Build System (CMake / Docker)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      placeholder: Clearly explain what happened and what you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Start servers from env/dist/
+        2. Log in with Cap 60 client
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Paste relevant lines from server logs (`<timestamp> [<severity>] [<file>:<line>] [<function>] : <message>`).
+      render: text

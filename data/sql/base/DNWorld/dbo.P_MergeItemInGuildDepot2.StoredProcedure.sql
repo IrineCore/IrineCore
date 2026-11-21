@@ -1,0 +1,186 @@
+USE [dnworld]
+GO
+/****** Object:  StoredProcedure [dbo].[P_MergeItemInGuildDepot2]    Script Date: 11/14/2026 8:54:38 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/**
+version : 6
+author : ???
+e-mail : purumae@eyedentitygames.com
+created date : 2011-08-08
+description : ?? ????? ???? Merge ???.
+return value :
+0 = ??? ????.
+1 = ????? Commit? ? ?? ?????. ????? Rollback???.
+100 = ??? ??? ???????. dbo.ErrorLogs ???? ?????.
+103272 = Merge? ??? 2?? ??? ? 1? ??? ???? ?? ??? ???? ?? ??? Lock?? ????.
+103273 = @inbItemSerial? ???? ???? ???? ????.
+103274 = @inbItemSerial? ???? ???? ??? ???? ????.
+103275 = @inbMergeTargetItemSerial? ???? ???? ???? ????.
+103276 = @inbMergeTargetItemSerial? ???? ???? ??? ???? ????.
+history :
+2 = ItemMerge? ItemLog ?? ??? ?? by ??? at 2012-02-24
+5 = ItemMerge? ItemLog ??? ?? by ??? at 2012-08-24
+6 = ???? MaterializedItemID ?? ?? ?? by ??? at 2012-12-27
+**/
+
+CREATE PROCEDURE [dbo].[P_MergeItemInGuildDepot2]
+	  @intGuildID int --// ?? ID
+	, @intItemID int --// ??? ID
+	, @inbItemSerial bigint --// ??? ?? ??
+	, @inbMergeTargetItemSerial bigint --// Merge ?? ???? ?? ??
+	, @insItemCount smallint --// @inbItemSerial ?? ???? ???? ?? ? ? ??
+	, @insMergeTargetItemCount smallint --// @inbMergeTargetItemSerial ?? ???? ???? ?? ? ? ??
+	, @intMapID int --// ? ID
+	, @insItemCountNew smallint = NULL OUTPUT --// 103274? ???? ?? DB? ??? ??? ??
+	, @insMergeTargetItemCountNew smallint = NULL OUTPUT --// 103276? ???? ?? DB? ??? ??? ??
+--WITH EXECUTE AS 'SPExecutor'
+AS
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @intReturnValue int
+	, @dt2Now datetime2(0) = GETDATE()
+	, @insItemRemainCount smallint
+	, @inbMaterializedItemID bigint
+	, @inbMergeTargetMaterializedItemID bigint
+	, @insTargetItemCountBefore smallint
+	, @insTargetItemCountAfter smallint;;
+
+/**_# Rollback and return if inside an uncommittable transaction.*/
+IF XACT_STATE() = -1
+BEGIN
+	SET @intReturnValue = 1;
+	GOTO ErrorHandler;
+END
+
+BEGIN TRY
+	/**_# ???? ?? ??? ?????.*/
+	SELECT @insItemRemainCount = ItemRemainCount
+		, @inbMaterializedItemID = MaterializedItemID
+	FROM dbo.MaterializedItems WITH (NOLOCK, INDEX(IX_UNI_MaterializedItems_ItemSerial), FORCESEEK)
+	WHERE ItemSerial = @inbItemSerial AND OwnerCharacterID IS NULL
+	OPTION (KEEPFIXED PLAN);
+
+	/**_## ???? ???? ??? 103273? ?????.*/
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @intReturnValue = 103273;
+		GOTO ErrorHandler;
+	END
+
+	/**_# ???? ??? ???? ??? 103274? ?????.*/
+	IF @insItemRemainCount <> @insItemCount
+	BEGIN
+		SET @insItemCountNew = @insItemRemainCount;
+		SET @intReturnValue = 103274;
+		GOTO ErrorHandler;
+	END
+
+	/**_# Merge ?? ???? ?? ??? ?????.*/
+	SELECT @insItemRemainCount = ItemRemainCount
+		, @inbMergeTargetMaterializedItemID = MaterializedItemID
+	FROM dbo.MaterializedItems WITH (NOLOCK, INDEX(IX_UNI_MaterializedItems_ItemSerial), FORCESEEK)
+	WHERE ItemSerial = @inbMergeTargetItemSerial AND OwnerCharacterID IS NULL
+	OPTION (KEEPFIXED PLAN);
+
+	/**_## Merge ?? ???? ???? ??? 103275? ?????.*/
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @intReturnValue = 103275;
+		GOTO ErrorHandler;
+	END
+	/**_# Merge ?? ???? ??? ???? ??? 103276? ?????.*/
+	IF @insItemRemainCount <> @insMergeTargetItemCount
+	BEGIN
+		SET @insMergeTargetItemCountNew = @insItemRemainCount;
+		SET @intReturnValue = 103276;
+		GOTO ErrorHandler;
+	END
+
+	BEGIN TRANSACTION;
+
+	/**_# ???? Lock? ?????.*/
+	UPDATE dbo.GuildDepots 
+	SET LockFlag = 1, LockDate = @dt2Now
+	WHERE GuildID = @intGuildID AND MaterializedItemID IN (@inbMaterializedItemID, @inbMergeTargetMaterializedItemID) AND (
+		LockFlag = CAST(0 AS bit) OR LockDate < DATEADD(SECOND, -90, @dt2Now)
+	)
+	OPTION (KEEPFIXED PLAN);
+
+	/**_## ???? ?? ??? ???? ?? ??? Lock?? ??? 103272? ?????.*/
+	IF @@ROWCOUNT < 2
+	BEGIN
+		SET @intReturnValue = 103272;
+		GOTO ErrorHandler;
+	END
+
+	COMMIT TRANSACTION;
+
+
+	/**_# ???? Merge ???.*/
+	DELETE dbo.MaterializedItems 
+	WHERE MaterializedItemID = @inbMaterializedItemID
+	OPTION (KEEPFIXED PLAN);
+
+	UPDATE dbo.MaterializedItems 
+	SET @insTargetItemCountBefore = ItemRemainCount
+		, @insTargetItemCountAfter = ItemRemainCount += @insItemCount
+	WHERE MaterializedItemID = @inbMergeTargetMaterializedItemID
+	OPTION (KEEPFIXED PLAN);
+
+	EXEC dbo.P_AddItemLog
+		  @dt2LogDate = @dt2Now
+		, @inbItemSerial = @inbItemSerial
+		, @intItemID = @intItemID
+		, @inyItemLogCode = 33
+		, @inbOwnerCharacterID = NULL
+		, @inbOwnerCharacterIDBefore = NULL
+		, @insItemCount = 0
+		, @insItemCountBefore = @insItemRemainCount
+		, @inbItemLogFKey1 = @inbMergeTargetItemSerial
+		, @inbItemLogFKey2 = NULL
+		, @dt2OwnershipStartDate = @dt2Now
+		, @intIP = NULL;
+
+	EXEC dbo.P_AddItemLog
+		  @dt2LogDate = @dt2Now
+		, @inbItemSerial = @inbMergeTargetItemSerial
+		, @intItemID = @intItemID
+		, @inyItemLogCode = 34
+		, @inbOwnerCharacterID = NULL
+		, @inbOwnerCharacterIDBefore = NULL
+		, @insItemCount = @insTargetItemCountAfter
+		, @insItemCountBefore = @insTargetItemCountBefore
+		, @inbItemLogFKey1 = @inbItemSerial
+		, @inbItemLogFKey2 = NULL
+		, @dt2OwnershipStartDate = NULL
+		, @intIP = NULL;
+
+	/**_# Merge?? ??? ???? ?? ???? ?????.*/
+	DELETE dbo.GuildDepots 
+	WHERE GuildID = @intGuildID AND MaterializedItemID = @inbMaterializedItemID
+	OPTION (KEEPFIXED PLAN);
+
+	/**_# Lock? ?????.*/
+	UPDATE dbo.GuildDepots 
+	SET LockFlag = 0, LockDate = NULL
+	WHERE GuildID = @intGuildID AND MaterializedItemID = @inbMergeTargetMaterializedItemID
+	OPTION (KEEPFIXED PLAN);
+END TRY
+BEGIN CATCH
+	GOTO ErrorHandler;
+END CATCH;
+
+RETURN 0;
+
+ErrorHandler:
+IF XACT_STATE() <> 0
+	ROLLBACK TRANSACTION;
+
+IF @intReturnValue IS NULL OR @intReturnValue = 0
+	EXEC @intReturnValue = dbo.P_AddErrorLog;
+RETURN @intReturnValue;
+GO

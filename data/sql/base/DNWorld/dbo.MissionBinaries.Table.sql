@@ -1,0 +1,20 @@
+USE [dnworld]
+GO
+/****** Object:  Table [dbo].[MissionBinaries]    Script Date: 11/14/2026 8:54:16 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[MissionBinaries](
+	[CharacterID] [bigint] NOT NULL,
+	[GainMissionBin] [binary](1250) NOT NULL,
+ CONSTRAINT [PK_MissionBinaries] PRIMARY KEY CLUSTERED 
+(
+	[CharacterID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DataFG1]
+) ON [DataFG1]
+GO
+SET ANSI_PADDING OFF
+GO

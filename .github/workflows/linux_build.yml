@@ -1,0 +1,44 @@
+name: Linux Build
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-validate:
+    name: Linux Scripts, SQL Bundler & Config Checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux build toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build unixodbc-dev zlib1g-dev
+
+      - name: Validate SQL bundler Python script
+        run: python3 -m py_compile deploy/mssql/scripts/build-sql-bundle.py
+
+      - name: Validate Linux & Docker shell scripts
+        run: |
+          bash -n apps/compiler/compile.sh
+          bash -n apps/installer/install.sh
+          bash -n apps/docker/entrypoint.sh
+          bash -n apps/docker/deploy-infra.sh
+          bash -n apps/docker/deploy-all.sh
+          bash -n scripts/server.sh
+          bash -n deploy/linux/configure.sh
+          bash -n deploy/linux/start.sh
+          bash -n deploy/linux/stop.sh
+          bash -n deploy/linux/restart.sh
+          bash -n deploy/linux/status.sh
+          bash -n deploy/mssql/scripts/entrypoint.sh
+          bash -n deploy/mssql/scripts/init-db.sh
+          bash -n deploy/webserver/scripts/sync-patches.sh

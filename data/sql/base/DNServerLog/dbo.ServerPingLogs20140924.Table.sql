@@ -1,0 +1,58 @@
+USE [dnserverlog]
+GO
+/****** Object:  Table [dbo].[ServerPingLogs20140924]    Script Date: 11/14/2026 8:57:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[ServerPingLogs20140924](
+	[LogDate] [datetime2](0) NOT NULL,
+	[ServerType] [int] NOT NULL,
+	[WorldID] [int] NULL,
+	[AccountID] [int] NULL,
+	[CharacterID] [bigint] NULL,
+	[SessionID] [int] NULL,
+	[ServiceManagerID] [int] NULL,
+	[IP] [varchar](15) COLLATE Chinese_PRC_CI_AS NULL,
+	[TCPPing] [int] NULL,
+	[TCPTotalLatancy] [int] NULL,
+	[TCPCount] [int] NULL,
+	[UDPPing] [int] NULL,
+	[UDPTotalLatancy] [int] NULL,
+	[UDPCount] [int] NULL
+) ON [PRIMARY]
+GO
+SET ANSI_PADDING OFF
+GO
+SET ANSI_PADDING ON
+GO
+/****** Object:  Index [IX_NC_ServerPingLogs20140924_LogDate]    Script Date: 11/14/2026 8:57:59 AM ******/
+CREATE CLUSTERED INDEX [IX_NC_ServerPingLogs20140924_LogDate] ON [dbo].[ServerPingLogs20140924]
+(
+	[LogDate] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_NN_ServerPingLogs20140924_AccountID]    Script Date: 11/14/2026 8:58:01 AM ******/
+CREATE NONCLUSTERED INDEX [IX_NN_ServerPingLogs20140924_AccountID] ON [dbo].[ServerPingLogs20140924]
+(
+	[AccountID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_NN_ServerPingLogs20140924_CharacterID]    Script Date: 11/14/2026 8:58:01 AM ******/
+CREATE NONCLUSTERED INDEX [IX_NN_ServerPingLogs20140924_CharacterID] ON [dbo].[ServerPingLogs20140924]
+(
+	[CharacterID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_NN_ServerPingLogs20140924_SessionID]    Script Date: 11/14/2026 8:58:01 AM ******/
+CREATE NONCLUSTERED INDEX [IX_NN_ServerPingLogs20140924_SessionID] ON [dbo].[ServerPingLogs20140924]
+(
+	[SessionID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[ServerPingLogs20140924]  WITH CHECK ADD  CONSTRAINT [CK_ServerPingLogs20140924_LogDate] CHECK  (([LogDate]>='2014-09-24' AND [LogDate]<'2014-09-25'))
+GO
+ALTER TABLE [dbo].[ServerPingLogs20140924] CHECK CONSTRAINT [CK_ServerPingLogs20140924_LogDate]
+GO

@@ -1,0 +1,52 @@
+USE [dnstaging]
+GO
+/****** Object:  Table [dbo].[AccountLogoutLogs_20130915]    Script Date: 11/14/2026 9:00:07 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[AccountLogoutLogs_20130915](
+	[LogoutDate] [datetime2](0) NOT NULL,
+	[AccountID] [int] NOT NULL,
+	[LoginDate] [datetime2](0) NOT NULL,
+	[LoginIP] [int] NOT NULL,
+	[SessionID] [int] NOT NULL,
+	[MachineID] [binary](16) NULL
+) ON [PRIMARY]
+GO
+SET ANSI_PADDING OFF
+GO
+SET ANSI_PADDING ON
+GO
+/****** Object:  Index [IX_NC_AccountLogoutLogs_20130915_LogoutDate]    Script Date: 11/14/2026 9:00:07 AM ******/
+CREATE CLUSTERED INDEX [IX_NC_AccountLogoutLogs_20130915_LogoutDate] ON [dbo].[AccountLogoutLogs_20130915]
+(
+	[LogoutDate] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_NN_AccountLogoutLogs_20130915_AccountID]    Script Date: 11/14/2026 9:01:05 AM ******/
+CREATE NONCLUSTERED INDEX [IX_NN_AccountLogoutLogs_20130915_AccountID] ON [dbo].[AccountLogoutLogs_20130915]
+(
+	[AccountID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_NN_AccountLogoutLogs_20130915_LoginIP]    Script Date: 11/14/2026 9:01:05 AM ******/
+CREATE NONCLUSTERED INDEX [IX_NN_AccountLogoutLogs_20130915_LoginIP] ON [dbo].[AccountLogoutLogs_20130915]
+(
+	[LoginIP] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+SET ANSI_PADDING ON
+GO
+/****** Object:  Index [IX_NN_AccountLogoutLogs_20130915_MachineID]    Script Date: 11/14/2026 9:01:05 AM ******/
+CREATE NONCLUSTERED INDEX [IX_NN_AccountLogoutLogs_20130915_MachineID] ON [dbo].[AccountLogoutLogs_20130915]
+(
+	[MachineID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[AccountLogoutLogs_20130915]  WITH CHECK ADD  CONSTRAINT [CK_AccountLogoutLogs_20130915_LogoutDate] CHECK  (([LogoutDate]>='2013-09-15' AND [LogoutDate]<'2013-09-16'))
+GO
+ALTER TABLE [dbo].[AccountLogoutLogs_20130915] CHECK CONSTRAINT [CK_AccountLogoutLogs_20130915_LogoutDate]
+GO

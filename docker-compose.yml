@@ -1,0 +1,206 @@
+# =============================================================================
+# IrineCore — OpenSource Dragon Nest Server Emulator
+# Full Cluster Docker Compose Configuration:
+#   - irine-database  : Auto-initialized SQL Server 2022 (all 5 Dragon Nest DBs)
+#   - irine-webserver : Nginx Patch & Launcher HTTP server (port 80)
+#   - 7 Game Cluster Daemons: Log, DB, Cash, Master, Login, Village, Game
+#
+# Infrastructure-only (for running native Windows/Linux env/dist binaries):
+#   docker compose up -d --build irine-database irine-webserver
+#
+# Full containerized stack:
+#   docker compose up -d --build
+# =============================================================================
+services:
+  irine-database:
+    build:
+      context: .
+      dockerfile: deploy/mssql/Dockerfile
+    image: irinecore-mssql:2022
+    container_name: irine-database
+    environment:
+      ACCEPT_EULA: "${ACCEPT_EULA:-Y}"
+      MSSQL_PID: "${MSSQL_PID:-Developer}"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-DnCap60!Local2026}"
+      DN_APP_USER: "${DN_APP_USER:-DragonNest}"
+      DN_APP_PASSWORD: "${DN_APP_PASSWORD:-DnCap60!App2026}"
+    ports:
+      - "${MSSQL_PORT:-1433}:1433"
+    volumes:
+      - irine-mssql-data:/var/opt/mssql
+      - ./data/sql/updates:/opt/dn-init/updates:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "test -f /var/opt/mssql/.dn_initialized && SQLCMDPASSWORD=\"$$MSSQL_SA_PASSWORD\" /opt/mssql-tools18/bin/sqlcmd -C -S 127.0.0.1 -U sa -h -1 -W -Q \"SET NOCOUNT ON; IF (SELECT COUNT(*) FROM sys.databases WHERE state = 0 AND name IN (N'dngsm',N'dnmembership',N'dnserverlog',N'dnstaging',N'dnworld')) = 5 AND OBJECT_ID(N'dnworld.dbo.P_AddDWCCharacter',N'P') IS NOT NULL AND OBJECT_ID(N'dnworld.dbo.P_UpsEquipment',N'P') IS NOT NULL AND OBJECT_ID(N'dnmembership.dbo.Auth_ResetAuthByAccountWorld',N'P') IS NOT NULL SELECT 1 ELSE THROW 50000, 'DBs not ready', 1;\" || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    restart: unless-stopped
+
+  irine-webserver:
+    build:
+      context: ./deploy/webserver
+      dockerfile: Dockerfile
+    image: irinecore-webserver:nginx
+    container_name: irine-webserver
+    ports:
+      - "${WEBSERVER_PORT:-80}:80"
+    volumes:
+      - ./deploy/webserver/www:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  irine-logserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: irine-logserver
+    command: ["DNLogServer64"]
+    environment:
+      IRINE_DB_HOST: irine-database
+    depends_on:
+      irine-database:
+        condition: service_healthy
+    volumes:
+      - ./env/dist/config:/irinecore/env/dist/config
+      - ./env/dist/module:/irinecore/env/dist/module
+      - ./env/dist/systems:/irinecore/env/dist/systems
+      - ./env/dist/logs:/irinecore/env/dist/logs
+    restart: unless-stopped
+
+  irine-dbserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: irine-dbserver
+    command: ["DNDBServer64"]
+    environment:
+      IRINE_DB_HOST: irine-database
+    depends_on:
+      irine-database:
+        condition: service_healthy
+      irine-logserver:
+        condition: service_started
+    volumes:
+      - ./env/dist/config:/irinecore/env/dist/config
+      - ./env/dist/module:/irinecore/env/dist/module
+      - ./env/dist/systems:/irinecore/env/dist/systems
+      - ./env/dist/logs:/irinecore/env/dist/logs
+    restart: unless-stopped
+
+  irine-cashserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: irine-cashserver
+    command: ["DNCashServer64"]
+    environment:
+      IRINE_DB_HOST: irine-database
+    depends_on:
+      irine-database:
+        condition: service_healthy
+      irine-logserver:
+        condition: service_started
+    volumes:
+      - ./env/dist/config:/irinecore/env/dist/config
+      - ./env/dist/module:/irinecore/env/dist/module
+      - ./env/dist/systems:/irinecore/env/dist/systems
+      - ./env/dist/logs:/irinecore/env/dist/logs
+    restart: unless-stopped
+
+  irine-masterserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: irine-masterserver
+    command: ["DNMasterServer64"]
+    depends_on:
+      irine-logserver:
+        condition: service_started
+      irine-dbserver:
+        condition: service_started
+    volumes:
+      - ./env/dist/config:/irinecore/env/dist/config
+      - ./env/dist/module:/irinecore/env/dist/module
+      - ./env/dist/systems:/irinecore/env/dist/systems
+      - ./env/dist/logs:/irinecore/env/dist/logs
+    restart: unless-stopped
+
+  irine-loginserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: irine-loginserver
+    command: ["DNLoginServer64"]
+    environment:
+      IRINE_DB_HOST: irine-database
+    depends_on:
+      irine-database:
+        condition: service_healthy
+      irine-masterserver:
+        condition: service_started
+    ports:
+      - "14300:14300"
+    volumes:
+      - ./env/dist/config:/irinecore/env/dist/config
+      - ./env/dist/module:/irinecore/env/dist/module
+      - ./env/dist/systems:/irinecore/env/dist/systems
+      - ./env/dist/logs:/irinecore/env/dist/logs
+    restart: unless-stopped
+
+  irine-villageserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: irine-villageserver
+    command: ["DNVillageServer64"]
+    depends_on:
+      irine-dbserver:
+        condition: service_started
+      irine-cashserver:
+        condition: service_started
+      irine-masterserver:
+        condition: service_started
+    ports:
+      - "14400:14400"
+    volumes:
+      - ./env/dist/config:/irinecore/env/dist/config
+      - ./env/dist/module:/irinecore/env/dist/module
+      - ./env/dist/systems:/irinecore/env/dist/systems
+      - ./env/dist/logs:/irinecore/env/dist/logs
+    restart: unless-stopped
+
+  irine-gameserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: irine-gameserver
+    command: ["DNGameServer64"]
+    depends_on:
+      irine-dbserver:
+        condition: service_started
+      irine-cashserver:
+        condition: service_started
+      irine-masterserver:
+        condition: service_started
+    ports:
+      - "15100-15110:15100-15110/udp"
+    volumes:
+      - ./env/dist/config:/irinecore/env/dist/config
+      - ./env/dist/module:/irinecore/env/dist/module
+      - ./env/dist/systems:/irinecore/env/dist/systems
+      - ./env/dist/logs:/irinecore/env/dist/logs
+    restart: unless-stopped
+
+volumes:
+  irine-mssql-data:
+    name: irine-mssql-data
