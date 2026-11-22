@@ -1030,6 +1030,158 @@ namespace AIBot
 			return 0;
 		}
 
+		bool IsMagicClassSpec(const BotJobSpec* pSpec)
+		{
+			if (!pSpec)
+				return false;
+			// Sorceress (3), Cleric (4, except Guardian/Paladin physical tank), Moonlord (24), Artillery (30),
+			// Alchemist/Adept/Physician (49/50/51), Screamer/DarkSummoner/SoulEater (6/54/55/56)
+			if (pSpec->cSecondJob == 41) // Guardian (Physical Paladin Tank)
+				return false;
+			if (pSpec->cBaseClass == 3 || pSpec->cBaseClass == 4)
+				return true;
+			if (pSpec->cSecondJob == 24 || pSpec->cSecondJob == 30 ||
+				pSpec->cSecondJob == 50 || pSpec->cSecondJob == 51 ||
+				pSpec->cSecondJob == 55 || pSpec->cSecondJob == 56)
+				return true;
+			return false;
+		}
+
+		bool IsAgiPrimarySpec(const BotJobSpec* pSpec)
+		{
+			if (!pSpec)
+				return false;
+			// Archer (2: Bowmaster/Acrobat/Sniper/Tempest/Windwalker) and Academic Engineer (5/46/47/48)
+			if (pSpec->cBaseClass == 2 && pSpec->cSecondJob != 30)
+				return true;
+			if (pSpec->cBaseClass == 5 && pSpec->cSecondJob != 50 && pSpec->cSecondJob != 51)
+				return true;
+			return false;
+		}
+
+		// Returns class- and role-tailored priority score for a Dragon Nest state ID (0..104)
+		int ScoreStatForClassSpec(int nStateType, const BotJobSpec* pSpec)
+		{
+			if (!pSpec || nStateType < 0)
+				return 0;
+
+			// Normalize percentage/ratio state IDs (50..79) to their base state ID (0..29)
+			int nBaseState = (nStateType >= 50 && nStateType < 80) ? (nStateType - 50) : nStateType;
+
+			const bool bMagic = IsMagicClassSpec(pSpec);
+			const bool bAgi = IsAgiPrimarySpec(pSpec);
+			const bool bHybridStrInt = (pSpec->cSecondJob == 24 || pSpec->cSecondJob == 42); // Moonlord / Crusader
+			const bool bHybridAgiInt = (pSpec->cSecondJob == 30);                            // Artillery
+
+			if (pSpec->Role == RoleType::Tank)
+			{
+				switch (nBaseState)
+				{
+				case 3:  return 1000; // VIT (Health)
+				case 25: return 960;  // Max HP (Life)
+				case 4:
+				case 5:  return bMagic ? 680 : 910;  // Physical Attack (Destruction)
+				case 0:  return 880;                 // STR (Bear)
+				case 8:  return 840;                 // Physical Defense (Iron Wall)
+				case 9:  return 810;                 // Magical Defense (Tent)
+				case 12: return 760;                 // Critical (Fatal)
+				case 29:
+				case 30: return 730;                 // Final Damage (Ultimate)
+				case 1:  return 670;                 // AGI (Wind)
+				case 6:
+				case 7:  return bMagic ? 890 : -400; // Magical Attack
+				case 2:  return bMagic ? 850 : 520;  // INT (Wise - MDef)
+				case 13: return 620;                 // Critical Resist
+				case 10: return 590;                 // Paralyze
+				case 11: return 570;                 // Paralyze Resist
+				case 14: return 550;                 // Stun
+				case 15: return 530;                 // Stun Resist
+				case 26: return 500;                 // Max MP
+				case 27:
+				case 28: return 480;                 // MP Recovery
+				default: return 100;
+				}
+			}
+
+			if (pSpec->Role == RoleType::Healer)
+			{
+				switch (nBaseState)
+				{
+				case 6:
+				case 7:  return 1000; // Magical Attack (scales Healing power!)
+				case 2:  return 950;  // INT (Wise)
+				case 3:  return 910;  // VIT (Health)
+				case 25: return 880;  // Max HP (Life)
+				case 8:  return 810;  // Physical Defense (Iron Wall)
+				case 9:  return 780;  // Magical Defense (Tent)
+				case 12: return 740;  // Critical (Fatal)
+				case 26: return 700;  // Max MP
+				case 27:
+				case 28: return 680;  // MP Recovery
+				case 29:
+				case 30: return 650;  // Final Damage
+				case 1:  return 620;  // AGI
+				case 13: return 590;  // Crit Resist
+				case 4:
+				case 5:  return -500; // Avoid pure Physical Attack on Healers
+				default: return 100;
+				}
+			}
+
+			// DPS / IceStacker / Support specializations
+			if (bMagic)
+			{
+				switch (nBaseState)
+				{
+				case 6:
+				case 7:  return 1000; // Magical Attack (Magician)
+				case 2:  return 950;  // INT (Wise)
+				case 29:
+				case 30: return 890;  // Final Damage (Ultimate)
+				case 12: return 860;  // Critical (Fatal)
+				case 16: return 840;  // Element Attack
+				case 0:  return bHybridStrInt ? 820 : 540; // STR (high for Moonlord/Crusader)
+				case 1:  return bHybridAgiInt ? 820 : 750; // AGI (Crit & Artillery scaling)
+				case 3:  return 720;  // VIT (Health)
+				case 25: return 690;  // Max HP (Life)
+				case 8:  return 600;  // Physical Defense (Iron Wall)
+				case 9:  return 580;  // Magical Defense (Tent)
+				case 26: return 550;  // Max MP
+				case 27:
+				case 28: return 530;  // MP Recovery
+				case 10: return 510;  // Paralyze
+				case 4:
+				case 5:  return bHybridStrInt ? 680 : -500; // Avoid pure PAtk on pure Magic classes
+				default: return 100;
+				}
+			}
+			else
+			{
+				switch (nBaseState)
+				{
+				case 4:
+				case 5:  return 1000; // Physical Attack (Destruction)
+				case 1:  return bAgi ? 950 : 810; // AGI (Wind - #1 for Archer/Engineer, #2 for Warrior/Dancer)
+				case 0:  return bAgi ? 770 : 950; // STR (Bear - #1 for Warrior/Dancer, #2 for Archer/Engineer)
+				case 29:
+				case 30: return 890;  // Final Damage (Ultimate)
+				case 12: return 865;  // Critical (Fatal)
+				case 16: return 830;  // Element Attack
+				case 3:  return 730;  // VIT (Health)
+				case 25: return 700;  // Max HP (Life)
+				case 8:  return 610;  // Physical Defense (Iron Wall)
+				case 9:  return 585;  // Magical Defense (Tent)
+				case 10: return 550;  // Paralyze
+				case 14: return 525;  // Stun
+				case 26: return 490;  // Max MP
+				case 6:
+				case 7:  return -500; // Avoid pure MAtk on Physical classes
+				case 2:  return 450;  // INT (MDef only)
+				default: return 100;
+				}
+			}
+		}
+
 		char PickBestPotentialIndex(int nPotentialID, const BotJobSpec* pSpec)
 		{
 			if (nPotentialID <= 0 || !pSpec)
@@ -1042,9 +1194,8 @@ namespace AIBot
 			if (!pPotentialSox)
 				return 1;
 
-			bool bMagicClass = (pSpec->cBaseClass == 3 || pSpec->cBaseClass == 4 || pSpec->cSecondJob == 24 || pSpec->cSecondJob == 30 || pSpec->cSecondJob == 50 || pSpec->cSecondJob == 51 || pSpec->cSecondJob == 55 || pSpec->cSecondJob == 56);
 			int nBestIdx = 1;
-			double fBestScore = -1.0;
+			double fBestScore = -1e9;
 
 			for (size_t i = 0; i < pPotential->pVecItemData.size(); ++i)
 			{
@@ -1061,14 +1212,8 @@ namespace AIBot
 						break;
 					sprintf_s(szLabel, "_State%dValue", s + 1);
 					double fVal = atof(pPotentialSox->GetFieldFromLablePtr(nRowID, szLabel)->GetString());
-					if (nStateType == 3 || nStateType == 12 || nStateType == 16 || nStateType == 29 || nStateType == 30 || nStateType == 32)
-						fScore += fVal * 2.0 + 10.0;
-					else if (!bMagicClass && (nStateType == 0 || nStateType == 1 || nStateType == 4 || nStateType == 5 || nStateType == 25 || nStateType == 26))
-						fScore += fVal * 3.0 + 25.0;
-					else if (bMagicClass && (nStateType == 2 || nStateType == 6 || nStateType == 7 || nStateType == 27 || nStateType == 28))
-						fScore += fVal * 3.0 + 25.0;
-					else
-						fScore += 1.0;
+					int nStatWeight = ScoreStatForClassSpec(nStateType, pSpec);
+					fScore += (double)nStatWeight * 10.0 + fVal * 0.25;
 				}
 				if (fScore > fBestScore)
 				{
@@ -1482,22 +1627,44 @@ namespace AIBot
 			outSkillCount = nWriteIdx;
 
 			// =========================================================================
-			// Heraldries (Glyphs) — synced to player count, level & rank!
+			// Heraldries (Glyphs) & Talismans — active starting at Level 10,
+			// scored specifically for the bot's exact class, specialization, and role!
 			// =========================================================================
 			const bool bEndgameMode = (cfg.gearSyncMode == Irine::Modules::GEAR_SYNC_FIXED_ENDGAME);
-			const bool bMatchGlyphs = (!bEndgameMode && cfg.matchPlayerGlyphs);
+			const bool bUnlockedHeraldryAndTalisman = bEndgameMode || (nBotLevel >= 10);
+			const int nBaselineGearRank = BotUtil::ComputeSyncedGearRank(nBotLevel, human.nEquippedNormalCount, human.fAvgRank, cfg);
 
-			int nTargetEnhGlyphs = bMatchGlyphs ? human.nEnhGlyphCount : (nBotLevel >= 24 ? 8 : (nBotLevel >= 16 ? 4 : 0));
-			int nTargetSkillGlyphs = bMatchGlyphs ? human.nSkillGlyphCount : (nBotLevel >= 24 ? 4 : 0);
-			bool bWantSpecialGlyph = bMatchGlyphs ? human.bHasSpecialGlyph : (nBotLevel >= 40);
-			int nTargetCashGlyphs = bMatchGlyphs ? human.nCashGlyphCount : (bEndgameMode ? 3 : 0);
-			int nTargetDragonGlyphs = bMatchGlyphs ? human.nDragonGlyphCount : (bEndgameMode ? 4 : 0);
-			int nGlyphRankCap = bMatchGlyphs ? min(human.nMaxGlyphRank + max(0, cfg.gearQualityOffset), cfg.maxGearRank) : cfg.maxGearRank;
-			int nGlyphLevelCap = bEndgameMode ? 60 : nBotLevel;
+			int nTargetEnhGlyphs = 0;
+			int nTargetSkillGlyphs = 0;
+			bool bWantSpecialGlyph = false;
+			int nTargetCashGlyphs = 0;
+			int nTargetDragonGlyphs = 0;
+
+			if (bUnlockedHeraldryAndTalisman)
+			{
+				nTargetEnhGlyphs = 8;
+				nTargetSkillGlyphs = 4;
+				bWantSpecialGlyph = (nBotLevel >= 16 || human.bHasSpecialGlyph);
+				nTargetCashGlyphs = bEndgameMode ? 3 : human.nCashGlyphCount;
+				nTargetDragonGlyphs = (bEndgameMode || nBotLevel >= 60) ? max(4, human.nDragonGlyphCount) : human.nDragonGlyphCount;
+			}
+			else if (cfg.matchPlayerGlyphs)
+			{
+				nTargetEnhGlyphs = human.nEnhGlyphCount;
+				nTargetSkillGlyphs = human.nSkillGlyphCount;
+				bWantSpecialGlyph = human.bHasSpecialGlyph;
+				nTargetCashGlyphs = human.nCashGlyphCount;
+				nTargetDragonGlyphs = human.nDragonGlyphCount;
+			}
+
+			int nGlyphRankCap = bEndgameMode
+				? cfg.maxGearRank
+				: min(max(max(nBaselineGearRank, (int)ITEMRANK_C), human.nMaxGlyphRank + max(0, cfg.gearQualityOffset)), cfg.maxGearRank);
+			int nGlyphLevelCap = bEndgameMode ? 60 : max(nBotLevel, 10);
+			bool bRollExtraOptions = bEndgameMode || human.bHasPotentials || (nBotLevel >= 10);
 
 			const CBotCatalog& catalog = CBotCatalog::GetInstance();
 			DNTableFileFormat* pItemSox = GetDNTable(CDnTableDB::TITEM);
-			bool bMagicClass = (pSpec->cBaseClass == 3 || pSpec->cBaseClass == 4 || pSpec->cSecondJob == 24 || pSpec->cSecondJob == 30 || pSpec->cSecondJob == 50 || pSpec->cSecondJob == 51 || pSpec->cSecondJob == 55 || pSpec->cSecondJob == 56);
 
 			std::set<int> usedGlyphTypeParams;
 			std::vector<std::pair<int, int>> rankedStatGlyphs;
@@ -1512,11 +1679,18 @@ namespace AIBot
 						continue;
 					if (pItemData->cLevelLimit > nGlyphLevelCap || pItemData->cRank > nGlyphRankCap)
 						continue;
+
 					int nState1 = pItemSox->GetFieldFromLablePtr(nGlyphID, "_State1")->GetInteger();
-					int nScore = pItemData->cLevelLimit * 1000 + pItemData->cRank * 200;
-					if (nState1 == 12 || nState1 == 29 || nState1 == 3 || nState1 == 16) nScore += 80;
-					if (!bMagicClass && (nState1 == 0 || nState1 == 1 || nState1 == 4 || nState1 == 5 || nState1 == 25 || nState1 == 26)) nScore += 120;
-					if (bMagicClass && (nState1 == 2 || nState1 == 6 || nState1 == 7 || nState1 == 27 || nState1 == 28)) nScore += 120;
+					int nClassWeight = ScoreStatForClassSpec(nState1, pSpec);
+					if (nClassWeight < 0)
+						continue; // Never equip wrong attack type (e.g. MAtk on Warrior or PAtk on Sorceress)
+
+					double fStateMin = atof(pItemSox->GetFieldFromLablePtr(nGlyphID, "_State1_Min")->GetString());
+					// Score by class stat priority first, then highest usable level & rank, then stat magnitude
+					int nScore = nClassWeight * 10000
+						+ (int)pItemData->cLevelLimit * 250
+						+ (int)pItemData->cRank * 1200
+						+ (int)(fStateMin * 2.0);
 					rankedStatGlyphs.push_back(std::make_pair(nScore, nGlyphID));
 				}
 				std::sort(rankedStatGlyphs.begin(), rankedStatGlyphs.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
@@ -1534,7 +1708,7 @@ namespace AIBot
 						continue;
 					if (nFamily > 0) usedGlyphTypeParams.insert(nFamily);
 					TItem glyphItem;
-					BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, false, glyphItem);
+					BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, bRollExtraOptions, glyphItem);
 					pBotSession->GetItem()->SetDirectGlyph(nEnhSlot++, glyphItem);
 					++outGlyphCount;
 				}
@@ -1556,9 +1730,19 @@ namespace AIBot
 					if (pItemData->cLevelLimit > nGlyphLevelCap || pItemData->cRank > nGlyphRankCap)
 						continue;
 					TSkillData* pSkData = g_pDataManager->GetSkillData(pGlyphData->nSkillID);
-					int nScore = pItemData->cLevelLimit * 100 + pItemData->cRank * 50;
-					if (pSkData && pSkData->nNeedJobID == pSpec->cSecondJob) nScore += 300;
-					else if (pSkData && pSkData->nNeedJobID == pSpec->cFirstJob) nScore += 150;
+					if (!pSkData)
+						continue;
+
+					// Prioritize signature 2nd Job & 1st Job active skills and core class abilities
+					int nJobTierBonus = 100;
+					if (pSkData->nNeedJobID == pSpec->cSecondJob) nJobTierBonus = 900;
+					else if (pSkData->nNeedJobID == pSpec->cFirstJob) nJobTierBonus = 500;
+
+					int nSkillLvReq = !pSkData->vLevelDataList.empty() ? (int)pSkData->vLevelDataList[0].cLevelLimit : 1;
+					int nScore = nJobTierBonus * 1000
+						+ (int)pItemData->cRank * 4000
+						+ nSkillLvReq * 60
+						+ (int)pItemData->cLevelLimit * 100;
 					rankedSkillGlyphs.push_back(std::make_pair(nScore, nGlyphID));
 				}
 				std::sort(rankedSkillGlyphs.begin(), rankedSkillGlyphs.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
@@ -1653,7 +1837,7 @@ namespace AIBot
 						continue;
 					if (pItemData->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pItemData->nTypeParam[1]);
 					TItem glyphItem;
-					BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, false, glyphItem);
+					BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, bRollExtraOptions, glyphItem);
 					pBotSession->GetItem()->SetDirectGlyph(nCashGlyphSlot++, glyphItem);
 					++outGlyphCount;
 				}
@@ -1676,7 +1860,7 @@ namespace AIBot
 						continue;
 					if (pItemData->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pItemData->nTypeParam[1]);
 					TItem glyphItem;
-					BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, false, glyphItem);
+					BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, bRollExtraOptions, glyphItem);
 					pBotSession->GetItem()->SetDirectGlyph(nDragonSlot++, glyphItem);
 					++outGlyphCount;
 				}
@@ -1684,12 +1868,14 @@ namespace AIBot
 #endif
 
 #if defined(PRE_ADD_TALISMAN_SYSTEM)
-			int nTargetTalismans = (!bEndgameMode && cfg.matchPlayerTalismans) ? human.nTalismanCount : (nBotLevel >= 60 ? 8 : 0);
+			int nTargetTalismans = bUnlockedHeraldryAndTalisman
+				? 8
+				: (cfg.matchPlayerTalismans ? human.nTalismanCount : 0);
 			if (nTargetTalismans > 0)
 			{
-				int nTaliRankCap = (!bEndgameMode && cfg.matchPlayerTalismans)
-					? min(human.nMaxTalismanRank + max(0, cfg.gearQualityOffset), cfg.maxGearRank)
-					: cfg.maxGearRank;
+				int nTaliRankCap = bEndgameMode
+					? cfg.maxGearRank
+					: min(max(max(nBaselineGearRank, (int)ITEMRANK_C), human.nMaxTalismanRank + max(0, cfg.gearQualityOffset)), cfg.maxGearRank);
 
 				const std::vector<int>& taliPool = catalog.GetTalismanPool();
 				std::vector<std::pair<int, int>> rankedTalismans;
@@ -1700,36 +1886,61 @@ namespace AIBot
 					TTalismanData* pTaliData = g_pDataManager->GetTalismanData(nTaliID);
 					if (!pItemData || !pTaliData || !pItemSox || !pItemSox->IsExistItem(nTaliID))
 						continue;
-					if (pItemData->cLevelLimit > nGlyphLevelCap || pItemData->cRank > nTaliRankCap)
+					// Only equip Normal stat talismans (_Type == 0) in combat slots, capped to target grade
+					if (pTaliData->cType != 0 || pItemData->cRank > nTaliRankCap)
 						continue;
+
 					int nState1 = pItemSox->GetFieldFromLablePtr(nTaliID, "_State1")->GetInteger();
-					int nScore = pItemData->cLevelLimit * 100 + pItemData->cRank * 200;
-					if (nState1 == 12 || nState1 == 29 || nState1 == 3 || nState1 == 16) nScore += 80;
-					if (!bMagicClass && (nState1 == 0 || nState1 == 1 || nState1 == 4 || nState1 == 5 || nState1 == 25 || nState1 == 26)) nScore += 120;
-					if (bMagicClass && (nState1 == 2 || nState1 == 6 || nState1 == 7 || nState1 == 27 || nState1 == 28)) nScore += 120;
+					int nClassWeight = ScoreStatForClassSpec(nState1, pSpec);
+					if (nClassWeight < 0)
+						continue; // Never equip wrong attack type for this class
+
+					double fStateMin = atof(pItemSox->GetFieldFromLablePtr(nTaliID, "_State1_Min")->GetString());
+					// Score by class stat priority first (so #1 stat goes to 200% slot, #2 to 200%, #3/#4 to 175%, etc.),
+					// then rank closeness to nTaliRankCap, then highest stat tier within that family!
+					int nScore = nClassWeight * 10000
+						+ (int)pItemData->cRank * 1500
+						+ (int)(fStateMin * 1.5);
 					rankedTalismans.push_back(std::make_pair(nScore, nTaliID));
 				}
 				std::sort(rankedTalismans.begin(), rankedTalismans.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
 					return a.first > b.first;
 				});
 
-				std::set<int> usedTaliIndices;
-				size_t nTaliCursor = 0;
-				// Fill basic slots first (TALISMAN_BASIC_START..TALISMAN_BASIC_END)
-				for (int slot = TALISMAN_BASIC_START; slot <= TALISMAN_BASIC_END && outTalismanCount < nTargetTalismans; ++slot)
+				// Order open basic talisman slots by DESCENDING efficiency:
+				// Slots 4 & 8 (200%) -> Slots 5 & 9 (175%) -> Slots 6 & 10 (125%) -> Slots 7 & 11 (100%)
+				std::vector<std::pair<float, int>> openBasicSlots;
+				for (int slot = TALISMAN_BASIC_START; slot <= TALISMAN_BASIC_END; ++slot)
 				{
 					if (!g_pDataManager->IsTalismanSlotService(slot) || !g_pDataManager->IsTalismanSlotLevel(slot, nBotLevel))
 						continue;
+					openBasicSlots.push_back(std::make_pair(g_pDataManager->GetTalismanSlotEfficiency(slot), slot));
+				}
+				std::stable_sort(openBasicSlots.begin(), openBasicSlots.end(), [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
+					return a.first > b.first;
+				});
+
+				// Deduplicate by Talisman family (_TypeParam2 / nTypeParam[1]) just like CDNUserItem::_FromInvenToTalisman
+				std::set<int> usedTaliFamilies;
+				size_t nTaliCursor = 0;
+				for (size_t s = 0; s < openBasicSlots.size() && outTalismanCount < nTargetTalismans; ++s)
+				{
+					int nSlot = openBasicSlots[s].second;
 					while (nTaliCursor < rankedTalismans.size())
 					{
 						int nTaliID = rankedTalismans[nTaliCursor++].second;
-						TTalismanData* pTD = g_pDataManager->GetTalismanData(nTaliID);
-						if (!pTD || (pTD->nIndex > 0 && usedTaliIndices.count(pTD->nIndex)))
+						const TItemData* pTD = g_pDataManager->GetItemData(nTaliID);
+						if (!pTD)
 							continue;
-						if (pTD->nIndex > 0) usedTaliIndices.insert(pTD->nIndex);
+						int nFamily = pTD->nTypeParam[1];
+						if (nFamily > 0 && usedTaliFamilies.count(nFamily))
+							continue;
+						if (nFamily > 0)
+							usedTaliFamilies.insert(nFamily);
+
 						TItem taliItem;
-						BuildBotItem(nTaliID, --serialSeq, pSpec, 0, false, taliItem);
-						pBotSession->GetItem()->SetDirectTalisman(slot, taliItem);
+						BuildBotItem(nTaliID, --serialSeq, pSpec, 0, bRollExtraOptions, taliItem);
+						pBotSession->GetItem()->SetDirectTalisman(nSlot, taliItem);
 						++outTalismanCount;
 						break;
 					}
