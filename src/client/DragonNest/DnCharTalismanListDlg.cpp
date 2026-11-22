@@ -21,6 +21,8 @@
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
 #endif
 
+const float CDnCharTalismanListDlg::TALISMAN_LIST_TOP_PADDING = 0.0065f;
+
 CDnCharTalismanListDlg::CDnCharTalismanListDlg( UI_DIALOG_TYPE dialogType, CEtUIDialog *pParentDialog, int nID, CEtUICallback *pCallback )
 : CDnCustomDlg( dialogType, pParentDialog, nID, pCallback )
 , m_pParentTalismanDlg( NULL )
@@ -29,6 +31,7 @@ CDnCharTalismanListDlg::CDnCharTalismanListDlg( UI_DIALOG_TYPE dialogType, CEtUI
 , m_pSelectedCover( NULL )
 , m_pSelectedDetachItem( NULL )
 , m_nSelectedDetachSlot( -1 )
+, m_fContentHeight( 0.0f )
 {
 }
 
@@ -44,23 +47,66 @@ void CDnCharTalismanListDlg::Initialize( bool bShow )
 
 void CDnCharTalismanListDlg::InitialUpdate()
 {
+	// Override UI alignment (which defaults to AT_VERT_CENTER / AT_HORI_CENTER) so
+	// SetPosition() positions this list at exact screen coordinates inside the parent listbox.
+	SetAllignType( AT_HORI_LEFT_FIXED, AT_VERT_TOP );
+
 	InitTalismanSlot();
 
 	m_pTooltipTalismanDlg = new CDnTooltipTalismanDlg( UI_TYPE_TOP_MSG );
 	m_pTooltipTalismanDlg->Initialize( false );
 
-	m_pParentTalismanDlg = dynamic_cast<CDnCharTalismanDlg*>( m_pParentDialog );
+	if( !m_pParentTalismanDlg && m_pParentDialog )
+		m_pParentTalismanDlg = dynamic_cast<CDnCharTalismanDlg*>( m_pParentDialog );
 }
 
 void CDnCharTalismanListDlg::InitTalismanSlot()
 {
 	m_vecSlotInfo.clear();
-
-	DNTableFileFormat *pSox = GetDNTable( CDnTableDB::TTALISMANSLOT );
-	if( !pSox ) return;
+	m_fContentHeight = 0.0f;
 
 	char szControlName[64] = {0,};
 	wchar_t wszEff[32] = {0,};
+
+	// First hide all template slots (UI defines 48 slots; table may enable only a subset).
+	for( int i = 0; i < TALISMAN_UI_SLOT_MAX; ++i )
+	{
+		bool bExist = false;
+		sprintf_s( szControlName, _countof(szControlName), "ID_STATIC_SLOT%d", i );
+		CEtUIStatic *pStaticSlot = GetControl<CEtUIStatic>( szControlName, &bExist );
+		if( bExist && pStaticSlot ) pStaticSlot->Show( false );
+
+		bExist = false;
+		sprintf_s( szControlName, _countof(szControlName), "ID_BT_ITEM%d", i );
+		CDnItemSlotButton *pSlotButton = GetControl<CDnItemSlotButton>( szControlName, &bExist );
+		if( bExist && pSlotButton ) pSlotButton->Show( false );
+
+		bExist = false;
+		sprintf_s( szControlName, _countof(szControlName), "ID_TEXT_OPTION%d", i );
+		CEtUIStatic *pStaticEff = GetControl<CEtUIStatic>( szControlName, &bExist );
+		if( bExist && pStaticEff ) pStaticEff->Show( false );
+
+		bExist = false;
+		sprintf_s( szControlName, _countof(szControlName), "ID_STATIC_COVER%d", i );
+		CEtUIStatic *pStaticCover = GetControl<CEtUIStatic>( szControlName, &bExist );
+		if( bExist && pStaticCover ) pStaticCover->Show( false );
+
+		bExist = false;
+		sprintf_s( szControlName, _countof(szControlName), "ID_STATIC_CASHCOVER%d", i );
+		CEtUIStatic *pStaticCashCover = GetControl<CEtUIStatic>( szControlName, &bExist );
+		if( bExist && pStaticCashCover ) pStaticCashCover->Show( false );
+
+		if( i <= TALISMAN_CASH_MAX )
+		{
+			bExist = false;
+			sprintf_s( szControlName, _countof(szControlName), "ID_STATIC_TIME%d", i );
+			CEtUIStatic *pStaticTime = GetControl<CEtUIStatic>( szControlName, &bExist );
+			if( bExist && pStaticTime ) pStaticTime->Show( false );
+		}
+	}
+
+	DNTableFileFormat *pSox = GetDNTable( CDnTableDB::TTALISMANSLOT );
+	if( !pSox ) return;
 
 	int nCount = pSox->GetItemCount();
 	if( nCount > TALISMAN_MAX )
@@ -79,24 +125,40 @@ void CDnCharTalismanListDlg::InitTalismanSlot()
 		info.nDescriptionID = pSox->GetFieldFromLablePtr( info.nTableRowID, "_Description" )->GetInteger();
 		info.nSlotType = pSox->GetFieldFromLablePtr( info.nTableRowID, "_Type" )->GetInteger();
 		info.szTexture = pSox->GetFieldFromLablePtr( info.nTableRowID, "_Texture" )->GetString();
-		info.bOpen = ( info.nSlotType == TALISMAN_BASIC );
+		info.bOpen = ( info.bService && info.nSlotType == TALISMAN_BASIC );
 
+		bool bExist = false;
 		sprintf_s( szControlName, _countof(szControlName), "ID_STATIC_SLOT%d", i );
-		info.pStaticSlot = GetControl<CEtUIStatic>( szControlName );
+		info.pStaticSlot = GetControl<CEtUIStatic>( szControlName, &bExist );
+		if( !bExist ) info.pStaticSlot = NULL;
 		if( info.pStaticSlot )
-			info.pStaticSlot->Show( true );
+		{
+			info.pStaticSlot->Show( info.bService );
+			if( info.bService )
+			{
+				SUICoord slotCoord;
+				info.pStaticSlot->GetUICoord( slotCoord );
+				float fSlotBottom = slotCoord.Bottom() + TALISMAN_LIST_TOP_PADDING;
+				if( fSlotBottom > m_fContentHeight )
+					m_fContentHeight = fSlotBottom;
+			}
+		}
 
+		bExist = false;
 		sprintf_s( szControlName, _countof(szControlName), "ID_BT_ITEM%d", i );
-		info.pSlotButton = GetControl<CDnItemSlotButton>( szControlName );
+		info.pSlotButton = GetControl<CDnItemSlotButton>( szControlName, &bExist );
+		if( !bExist ) info.pSlotButton = NULL;
 		if( info.pSlotButton )
 		{
 			info.pSlotButton->SetSlotIndex( i );
 			info.pSlotButton->SetSlotType( ( i <= TALISMAN_CASH_MAX ) ? ST_TALISMAN_CASH : ST_TALISMAN );
-			info.pSlotButton->Show( true );
+			info.pSlotButton->Show( info.bService );
 		}
 
+		bExist = false;
 		sprintf_s( szControlName, _countof(szControlName), "ID_TEXT_OPTION%d", i );
-		info.pStaticEfficiency = GetControl<CEtUIStatic>( szControlName );
+		info.pStaticEfficiency = GetControl<CEtUIStatic>( szControlName, &bExist );
+		if( !bExist ) info.pStaticEfficiency = NULL;
 		if( info.pStaticEfficiency )
 		{
 			swprintf_s( wszEff, _countof(wszEff), L"%.f%%", info.fEfficiency * 100.0f );
@@ -105,28 +167,34 @@ void CDnCharTalismanListDlg::InitTalismanSlot()
 			info.pStaticEfficiency->Enable( false );
 		}
 
+		bExist = false;
 		sprintf_s( szControlName, _countof(szControlName), "ID_STATIC_COVER%d", i );
-		info.pStaticCover = GetControl<CEtUIStatic>( szControlName );
+		info.pStaticCover = GetControl<CEtUIStatic>( szControlName, &bExist );
+		if( !bExist ) info.pStaticCover = NULL;
 		if( info.pStaticCover )
 		{
-			info.pStaticCover->Show( info.nSlotType == TALISMAN_EXPANSION );
-			info.pStaticCover->Enable( true );
+			info.pStaticCover->Show( info.bService && info.nSlotType == TALISMAN_EXPANSION );
+			info.pStaticCover->Enable( info.pStaticCover->IsShow() );
 			info.pStaticCover->SetID( i );
 		}
 
+		bExist = false;
 		sprintf_s( szControlName, _countof(szControlName), "ID_STATIC_CASHCOVER%d", i );
-		info.pStaticCashCover = GetControl<CEtUIStatic>( szControlName );
+		info.pStaticCashCover = GetControl<CEtUIStatic>( szControlName, &bExist );
+		if( !bExist ) info.pStaticCashCover = NULL;
 		if( info.pStaticCashCover )
 		{
-			info.pStaticCashCover->Show( info.nSlotType == TALISMAN_CASH_EXPANSION );
+			info.pStaticCashCover->Show( info.bService && info.nSlotType == TALISMAN_CASH_EXPANSION );
 			info.pStaticCashCover->Enable( info.pStaticCashCover->IsShow() );
 			info.pStaticCashCover->SetID( i );
 		}
 
 		if( i <= TALISMAN_CASH_MAX )
 		{
+			bExist = false;
 			sprintf_s( szControlName, _countof(szControlName), "ID_STATIC_TIME%d", i );
-			info.pStaticTime = GetControl<CEtUIStatic>( szControlName );
+			info.pStaticTime = GetControl<CEtUIStatic>( szControlName, &bExist );
+			if( !bExist ) info.pStaticTime = NULL;
 			if( info.pStaticTime )
 				info.pStaticTime->Show( false );
 		}
@@ -184,10 +252,14 @@ bool CDnCharTalismanListDlg::MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 		CDnSlotButton *pDragButton = (CDnSlotButton*)drag::GetControl();
 		if( pDragButton == NULL )
 		{
-			float fMouseX = 0.0f, fMouseY = 0.0f;
-			GetScreenMouseMovePoints( fMouseX, fMouseY );
-			float fLocalX = fMouseX - GetXCoord();
-			float fLocalY = fMouseY - GetYCoord();
+			POINT MousePoint;
+			MousePoint.x = short( LOWORD( lParam ) );
+			MousePoint.y = short( HIWORD( lParam ) );
+
+			float fLocalX = 0.0f, fLocalY = 0.0f;
+			PointToFloat( MousePoint, fLocalX, fLocalY );
+			float fMouseX = fLocalX + GetXCoord();
+			float fMouseY = fLocalY + GetYCoord();
 
 			bool bHoveredLocked = false;
 			for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )
@@ -413,6 +485,14 @@ void CDnCharTalismanListDlg::RefreshOpenSlot()
 	for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )
 	{
 		STalismanSlotInfo &slot = m_vecSlotInfo[i];
+		if( !slot.bService )
+		{
+			slot.bOpen = false;
+			if( slot.pStaticCover ) slot.pStaticCover->Show( false );
+			if( slot.pStaticCashCover ) slot.pStaticCashCover->Show( false );
+			continue;
+		}
+
 		slot.bOpen = GetItemTask().IsOpenTalismanSlot( (int)i );
 
 		if( slot.nSlotType == TALISMAN_EXPANSION )
@@ -459,6 +539,9 @@ void CDnCharTalismanListDlg::RefreshCashSlot()
 
 	for( int i = TALISMAN_CASH1; i <= TALISMAN_CASH_MAX && i < (int)m_vecSlotInfo.size(); ++i )
 	{
+		if( !m_vecSlotInfo[i].bService )
+			continue;
+
 		m_vecSlotInfo[i].bOpen = bCashOpen;
 		if( m_vecSlotInfo[i].pStaticCashCover )
 			m_vecSlotInfo[i].pStaticCashCover->Show( !bCashOpen );

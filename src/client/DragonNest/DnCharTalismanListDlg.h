@@ -44,7 +44,11 @@ public:
 	enum {
 		TALISMAN_OPENSLOT_MSG_ID = 8360,
 		TALISMAN_DETACH_MSG_ID   = 8361,
+		TALISMAN_UI_SLOT_MAX     = 48,
 	};
+
+public:
+	static const float TALISMAN_LIST_TOP_PADDING;
 
 public:
 	CDnCharTalismanListDlg( UI_DIALOG_TYPE dialogType = UI_TYPE_FOCUS, CEtUIDialog *pParentDialog = NULL, int nID = -1, CEtUICallback *pCallback = NULL );
@@ -58,10 +62,13 @@ protected:
 	CEtUIStatic *m_pSelectedCover;
 	CDnItem *m_pSelectedDetachItem;
 	int m_nSelectedDetachSlot;
+	float m_fContentHeight;
 
 	void InitTalismanSlot();
 
 public:
+	void SetParentTalismanDlg( CDnCharTalismanDlg *pParentDlg ) { m_pParentTalismanDlg = pParentDlg; }
+	float GetContentHeight() const { return m_fContentHeight; }
 	virtual void Initialize( bool bShow );
 	virtual void InitialUpdate();
 	virtual void Show( bool bShow );

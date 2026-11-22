@@ -34,6 +34,7 @@ public:
 	virtual void Initialize( bool bShow );
 	virtual void InitialUpdate();
 	virtual void Show( bool bShow );
+	virtual void Process( float fElapsedTime );
 	virtual void Render( float fElapsedTime );
 	virtual void ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEtUIControl *pControl, UINT uMsg = 0 );
 	virtual bool MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam );
@@ -54,6 +55,7 @@ protected:
 	CDnInspectTalismanDlg *m_pParentInspectDlg;
 
 public:
+	void SetParentInspectDlg( CDnInspectTalismanDlg *pParentDlg ) { m_pParentInspectDlg = pParentDlg; }
 	virtual void Initialize( bool bShow );
 	virtual void InitialUpdate();
 	virtual void Show( bool bShow );

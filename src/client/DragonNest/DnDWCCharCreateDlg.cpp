@@ -43,8 +43,7 @@ void CDnDWCCharCreateButtonDlg::ProcessCommand( UINT nCommand, bool bTriggeredBy
 	{
 		if( IsCmdControl( "ID_BT_BACK" ) || IsCmdControl( "ID_BT_CANCEL" ) )
 		{
-			if( m_pParentBaseDlg )
-				m_pParentBaseDlg->Show( false );
+			GetInterface().OpenDWCCharCreateDlg( false );
 			return;
 		}
 		else if( IsCmdControl( "ID_BT_OK" ) || IsCmdControl( "ID_BT_CREATE" ) )
@@ -170,6 +169,9 @@ void CDnDWCCharCreateSelectDlg::Show( bool bShow )
 {
 	if( m_bShow == bShow )
 		return;
+
+	if( bShow && m_vecPresets.empty() )
+		LoadPresets();
 
 	if( bShow && !m_vecPresets.empty() )
 	{
@@ -302,12 +304,26 @@ void CDnDWCCharCreateDlg::Show( bool bShow )
 	if( m_bShow == bShow )
 		return;
 
-	if( m_pButtonDlg )
-		m_pButtonDlg->Show( bShow );
-	if( m_pSelectDlg )
-		m_pSelectDlg->Show( bShow );
-
 	CEtUIDialog::Show( bShow );
+
+	if( m_pSelectDlg )
+		ShowChildDialog( m_pSelectDlg, bShow );
+	if( m_pButtonDlg )
+		ShowChildDialog( m_pButtonDlg, bShow );
+}
+
+bool CDnDWCCharCreateDlg::MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
+{
+	if( !IsShow() )
+		return false;
+
+	if( uMsg == WM_KEYDOWN && wParam == VK_ESCAPE )
+	{
+		GetInterface().OpenDWCCharCreateDlg( false );
+		return true;
+	}
+
+	return CEtUIDialog::MsgProc( hWnd, uMsg, wParam, lParam );
 }
 
 void CDnDWCCharCreateDlg::OnSelectPreset( const CDnDWCCharCreateSelectDlg::SDWCClassPreset *pPreset )

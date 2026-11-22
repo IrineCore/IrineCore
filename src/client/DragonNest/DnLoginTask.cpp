@@ -1013,13 +1013,14 @@ void CDnLoginTask::ChangeState( LoginStateEnum State, bool bAutoSendMessage )
 		ResetDWCCharCreateMode();
 #endif // PRE_ADD_DWC
 	
-if( m_State == CharSelect )
+	if( m_State == CharSelect )
 	{
 		m_nSelectClassIndex = -1;
 		m_bStartSelectMove = false;
 		m_bStartCharSelect = false;
 		m_bCompleteCharList = false;
 		LoadWorld( m_nLoginCharMapIndex );
+		ShowCreateCharacter( false );
 		ShowSelectCharacter( false );
 
 		if( m_pWorld )
@@ -1064,7 +1065,7 @@ if( m_State == CharSelect )
 
 		if( m_nCharSlotCount > 0 )
 		{
-			if( m_PrevState == LoginStateEnum::CharCreate_SelectClass || m_PrevState == LoginStateEnum::StartGame 
+			if( m_PrevState == LoginStateEnum::CharCreate_SelectClass || m_PrevState == LoginStateEnum::CharCreate_ChangeParts || m_PrevState == LoginStateEnum::StartGame 
 				)
 			{
 				CDnCharSelectDlg* pCharSelectDlg = GetInterface().GetCharSelectDlg();
@@ -2454,7 +2455,12 @@ void CDnLoginTask::OnUICallbackProc( int nID, UINT nCommand, CEtUIControl *pCont
 					case LoginStateEnum::CharCreate_ChangeParts:
 						{
 							CDnAniCamera* pCamera = (CDnAniCamera *)m_hCamera.GetPointer();
+#if defined( PRE_ADD_DWC )
+							bool bDwcPendingFadeIn = m_bDWCCharCreateMode && ( !GetInterface().GetCharCreateDlg() || !GetInterface().GetCharCreateDlg()->IsShow() );
+							if( bDwcPendingFadeIn || ( pCamera && strstr( pCamera->GetCurrentAction(), "_FadeOut" ) ) )
+#else
 							if( pCamera && strstr( pCamera->GetCurrentAction(), "_FadeOut" ) )
+#endif // PRE_ADD_DWC
 							{
 								ShowSelectCharacter( false );
 								m_fChangePartsFadeInTime = 0.5f;
@@ -2663,6 +2669,12 @@ void CDnLoginTask::StartCharacterChangeParts()
 		}
 		GetInterface().FadeDialog( 0x00000000, 0xFF000000, 0.5f, this );
 	}
+#if defined( PRE_ADD_DWC )
+	else if( m_bDWCCharCreateMode )
+	{
+		GetInterface().FadeDialog( 0x00000000, 0xFF000000, 0.5f, this );
+	}
+#endif // PRE_ADD_DWC
 
 	GetInterface().SetClassHairColor( m_nSelectClassIndex );
 	GetInterface().ShowCharCreatePlayerInfo( false );

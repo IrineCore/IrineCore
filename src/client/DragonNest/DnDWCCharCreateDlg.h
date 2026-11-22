@@ -88,6 +88,7 @@ public:
 	virtual void Initialize( bool bShow );
 	virtual void InitialUpdate();
 	virtual void Show( bool bShow );
+	virtual bool MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam );
 
 	void OnSelectPreset( const CDnDWCCharCreateSelectDlg::SDWCClassPreset *pPreset );
 	CDnDWCCharCreateSelectDlg *GetSelectDlg() const { return m_pSelectDlg; }

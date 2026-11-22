@@ -46,7 +46,8 @@ void CDnInspectTalismanDlg::InitialUpdate()
 	m_pInspectTalismanInfoDlg = new CDnInspectTalismanInfoDlg( UI_TYPE_CHILD, this );
 	m_pInspectTalismanInfoDlg->Initialize( false );
 
-	m_pInspectTalismanSlotDlg = new CDnInspectTalismanSlotDlg( UI_TYPE_CHILD, this );
+	m_pInspectTalismanSlotDlg = new CDnInspectTalismanSlotDlg( UI_TYPE_SELF, NULL );
+	m_pInspectTalismanSlotDlg->SetParentInspectDlg( this );
 	m_pInspectTalismanSlotDlg->Initialize( false );
 
 	CEtUIButton *pComposeBtn = GetControl<CEtUIButton>( "ID_BT_COMPOSE" );
@@ -79,21 +80,38 @@ void CDnInspectTalismanDlg::UpdateListPosition()
 	SUICoord listCoord;
 	m_pListBoxTalisman->GetUICoord( listCoord );
 
+	float fContentHeight = m_pInspectTalismanSlotDlg->GetContentHeight();
+	float fOverflow = fContentHeight - listCoord.fHeight;
 	float fScrollOffset = 0.0f;
-	if( m_pScrollBar && m_nScrollMax > 0 )
+
+	if( m_pScrollBar )
 	{
-		SUICoord childCoord;
-		m_pInspectTalismanSlotDlg->GetDlgCoord( childCoord );
-		float fOverflow = childCoord.fHeight - listCoord.fHeight;
-		if( fOverflow > 0.0f )
+		if( fOverflow > 0.0f && m_nScrollMax > 0 )
 		{
-			int nMaxPos = m_nScrollMax - m_pScrollBar->GetPageSize();
+			int nPageSize = (int)( m_nScrollMax * ( listCoord.fHeight / fContentHeight ) );
+			if( nPageSize < 1 ) nPageSize = 1;
+			if( nPageSize >= m_nScrollMax ) nPageSize = m_nScrollMax - 1;
+
+			m_pScrollBar->Enable( true );
+			m_pScrollBar->SetTrackRange( 0, m_nScrollMax );
+			m_pScrollBar->SetPageSize( nPageSize );
+
+			int nMaxPos = m_nScrollMax - nPageSize;
 			if( nMaxPos > 0 )
 				fScrollOffset = fOverflow * ( (float)m_pScrollBar->GetTrackPos() / (float)nMaxPos );
 		}
+		else
+		{
+			m_pScrollBar->SetTrackRange( 0, 1 );
+			m_pScrollBar->SetPageSize( 1 );
+			m_pScrollBar->SetTrackPos( 0 );
+			m_pScrollBar->Enable( false );
+		}
 	}
 
-	m_pInspectTalismanSlotDlg->SetPosition( GetXCoord() + listCoord.fX, GetYCoord() + listCoord.fY - fScrollOffset );
+	m_pInspectTalismanSlotDlg->SetPosition(
+		GetXCoord() + listCoord.fX,
+		GetYCoord() + listCoord.fY + CDnCharTalismanListDlg::TALISMAN_LIST_TOP_PADDING - fScrollOffset );
 }
 
 void CDnInspectTalismanDlg::Show( bool bShow )
@@ -105,9 +123,10 @@ void CDnInspectTalismanDlg::Show( bool bShow )
 
 	if( m_pInspectTalismanSlotDlg )
 	{
+		m_pInspectTalismanSlotDlg->Show( bShow );
+		UpdateListPosition();
 		if( bShow )
 		{
-			UpdateListPosition();
 			m_pInspectTalismanSlotDlg->SetEfficiencyTextShow( true );
 			RefreshTalisman( m_dwSessionID );
 		}
@@ -117,6 +136,16 @@ void CDnInspectTalismanDlg::Show( bool bShow )
 				m_pInspectTalismanInfoDlg->Show( false );
 			m_pInspectTalismanSlotDlg->HideTooltip();
 		}
+	}
+}
+
+void CDnInspectTalismanDlg::Process( float fElapsedTime )
+{
+	CDnCustomDlg::Process( fElapsedTime );
+	if( IsShow() && m_pInspectTalismanSlotDlg )
+	{
+		UpdateListPosition();
+		m_pInspectTalismanSlotDlg->Process( fElapsedTime );
 	}
 }
 
@@ -136,18 +165,25 @@ void CDnInspectTalismanDlg::Render( float fElapsedTime )
 	SUICoord listCoord;
 	m_pListBoxTalisman->GetUICoord( listCoord );
 
-	ScissorRect.left   = int( ( listCoord.fX + GetXCoord() ) / GetScreenWidthRatio() * GetEtDevice()->Width() );
-	ScissorRect.top    = int( ( listCoord.fY + GetYCoord() ) / GetScreenHeightRatio() * GetEtDevice()->Height() );
-	ScissorRect.right  = ScissorRect.left + int( listCoord.fWidth / GetScreenWidthRatio() * GetEtDevice()->Width() );
-	ScissorRect.bottom = ScissorRect.top  + int( listCoord.fHeight / GetScreenHeightRatio() * GetEtDevice()->Height() );
+	int nDevW = GetEtDevice()->Width();
+	int nDevH = GetEtDevice()->Height();
+	ScissorRect.left   = int( ( listCoord.fX + GetXCoord() ) / GetScreenWidthRatio() * nDevW );
+	ScissorRect.top    = int( ( listCoord.fY + GetYCoord() ) / GetScreenHeightRatio() * nDevH );
+	ScissorRect.right  = ScissorRect.left + int( listCoord.fWidth / GetScreenWidthRatio() * nDevW );
+	ScissorRect.bottom = ScissorRect.top  + int( listCoord.fHeight / GetScreenHeightRatio() * nDevH );
+
+	if( ScissorRect.left < 0 ) ScissorRect.left = 0;
+	if( ScissorRect.top < 0 ) ScissorRect.top = 0;
+	if( ScissorRect.right > nDevW ) ScissorRect.right = nDevW;
+	if( ScissorRect.bottom > nDevH ) ScissorRect.bottom = nDevH;
+	if( ScissorRect.right <= ScissorRect.left || ScissorRect.bottom <= ScissorRect.top )
+		return;
 
 	CEtSprite::GetInstance().Flush();
 	GetEtDevice()->SetRenderState( D3DRS_SCISSORTESTENABLE, TRUE );
 	GetEtDevice()->SetScissorRect( &ScissorRect );
 
-	m_pInspectTalismanSlotDlg->Show( true );
 	m_pInspectTalismanSlotDlg->Render( fElapsedTime );
-	m_pInspectTalismanSlotDlg->Show( false );
 
 	CEtSprite::GetInstance().Flush();
 	GetEtDevice()->SetScissorRect( &OriginalRect );
@@ -159,20 +195,31 @@ bool CDnInspectTalismanDlg::MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 	if( !IsShow() )
 		return false;
 
-	if( uMsg == WM_MOUSEWHEEL && m_pScrollBar )
+	if( uMsg == WM_MOUSEWHEEL && m_pScrollBar && m_pScrollBar->IsEnable() && m_pListBoxTalisman )
 	{
-		int nDelta = GET_WHEEL_DELTA_WPARAM( wParam );
-		if( nDelta != 0 )
+		POINT MousePoint;
+		MousePoint.x = short( LOWORD( lParam ) );
+		MousePoint.y = short( HIWORD( lParam ) );
+		float fMouseX = 0.0f, fMouseY = 0.0f;
+		PointToFloat( MousePoint, fMouseX, fMouseY );
+		SUICoord listCoord;
+		m_pListBoxTalisman->GetUICoord( listCoord );
+		if( listCoord.IsInside( fMouseX, fMouseY ) )
 		{
-			m_pScrollBar->Scroll( ( nDelta > 0 ) ? -3 : 3 );
-			UpdateListPosition();
-			return true;
+			int nDelta = GET_WHEEL_DELTA_WPARAM( wParam );
+			if( nDelta != 0 )
+			{
+				m_pScrollBar->Scroll( ( nDelta > 0 ) ? -3 : 3 );
+				UpdateListPosition();
+				return true;
+			}
 		}
 	}
 
 	if( m_pInspectTalismanSlotDlg )
 	{
 		UpdateListPosition();
+		m_pInspectTalismanSlotDlg->SetHWnd( hWnd );
 		if( m_pInspectTalismanSlotDlg->MsgProc( hWnd, uMsg, wParam, lParam ) )
 			return true;
 	}
@@ -243,8 +290,11 @@ void CDnInspectTalismanSlotDlg::Initialize( bool bShow )
 
 void CDnInspectTalismanSlotDlg::InitialUpdate()
 {
+	SetAllignType( AT_HORI_LEFT_FIXED, AT_VERT_TOP );
+
 	InitTalismanSlot();
-	m_pParentInspectDlg = dynamic_cast<CDnInspectTalismanDlg*>( m_pParentDialog );
+	if( !m_pParentInspectDlg && m_pParentDialog )
+		m_pParentInspectDlg = dynamic_cast<CDnInspectTalismanDlg*>( m_pParentDialog );
 
 	// Inspect slots are read-only view slots
 	for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )

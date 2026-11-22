@@ -153,7 +153,15 @@ void CDnCharCreateDlg::ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEt
 #endif // PRE_MOD_SELECT_CHAR
 		if( IsCmdControl( "ID_BUTTON_BACK" ) ) 
 		{
-				pTask->ChangeState( CDnLoginTask::CharCreate_SelectClass );
+#if defined( PRE_ADD_DWC )
+			if( pTask->IsDWCCharCreateMode() )
+			{
+				pTask->ChangeState( CDnLoginTask::CharSelect );
+				GetInterface().OpenDWCCharCreateDlg( true );
+				return;
+			}
+#endif // PRE_ADD_DWC
+			pTask->ChangeState( CDnLoginTask::CharCreate_SelectClass );
 			return;
 		}
 

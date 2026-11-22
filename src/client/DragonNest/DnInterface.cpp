@@ -921,6 +921,9 @@ void CDnInterface::FinalizeLogin()
 #ifdef PRE_ADD_DOORS
 	SAFE_DELETE( m_pDoorsMobileAuthDlg );
 #endif
+#if defined( PRE_ADD_DWC )
+	SAFE_DELETE( m_pDWCCharCreateDlg );
+#endif
 
 
 	SAFE_DELETE( m_pTooltipDlg ); // ComeBack - display tooltip on login window.
@@ -1272,7 +1275,6 @@ void CDnInterface::InitCommonDlg()
 	m_pDwcDlg = NULL;
 	m_pDwcCreateTeamDlg = NULL;
 	m_pDwcInviteReqDlg = NULL;
-	m_pDWCCharCreateDlg = NULL;
 	m_pPVPDWCTabDlg = NULL;
 	m_pPvPRankListItemDwcDlg = NULL;
 	m_pDWCMarkTooltipDlg = NULL;
@@ -1869,6 +1871,11 @@ void CDnInterface::InitializeLogin( CTask *pTask )
 	m_pCharSelectPreviewCostumeDlg->Initialize( false );
 #endif //PRE_ADD_CHARSELECT_PREVIEW_CASHITEM
 
+#if defined( PRE_ADD_DWC )
+	m_pDWCCharCreateDlg = new CDnDWCCharCreateDlg( UI_TYPE_FOCUS );
+	m_pDWCCharCreateDlg->Initialize( false );
+#endif // PRE_ADD_DWC
+
 
 
 	// ComeBack - display tooltip on login window.
@@ -2456,10 +2463,6 @@ void CDnInterface::InitializeCommon( CTask *pTask )
 	m_pDwcInviteReqDlg = new CDnDwcInviteReqDlg( UI_TYPE_MODAL );
 	m_pDwcInviteReqDlg->Initialize( false );
 	AddCommonDialogList( m_pDwcInviteReqDlg );
-
-	m_pDWCCharCreateDlg = new CDnDWCCharCreateDlg( UI_TYPE_FOCUS );
-	m_pDWCCharCreateDlg->Initialize( false );
-	AddCommonDialogList( m_pDWCCharCreateDlg );
 
 	m_pPVPDWCTabDlg = new CDnPVPDWCTabDlg( UI_TYPE_FOCUS );
 	m_pPVPDWCTabDlg->Initialize( false );
@@ -6266,6 +6269,10 @@ void CDnInterface::ChangeState( CDnLoginTask::LoginStateEnum state, bool bHideOn
 		case CDnLoginTask::CharSelect:
 			m_pCharCreateServerNameDlg->Show( false );
 			m_pCharSelectDlg->Show( false );
+#if defined( PRE_ADD_DWC )
+			if( m_pDWCCharCreateDlg && m_pDWCCharCreateDlg->IsShow() )
+				m_pDWCCharCreateDlg->Show( false );
+#endif // PRE_ADD_DWC
 
 #ifndef PRE_MOD_SELECT_CHAR
 			ShowSlotInfoDlg( false );
@@ -12641,8 +12648,30 @@ void CDnInterface::OpenDwcCreateTeamDlg( bool bShow )
 
 void CDnInterface::OpenDWCCharCreateDlg( bool bShow )
 {
-	if( m_pDWCCharCreateDlg )
-		m_pDWCCharCreateDlg->Show( bShow );
+	if( !m_pDWCCharCreateDlg )
+		return;
+
+	if( bShow )
+	{
+		if( m_pCharSelectDlg ) m_pCharSelectDlg->Show( false );
+		if( m_pCharCreateServerNameDlg ) m_pCharCreateServerNameDlg->Show( false );
+#ifdef PRE_MOD_SELECT_CHAR
+		ShowCharLoginTitleDlg( false );
+#endif // PRE_MOD_SELECT_CHAR
+		m_pDWCCharCreateDlg->Show( true );
+	}
+	else
+	{
+		m_pDWCCharCreateDlg->Show( false );
+		if( m_State == CDnLoginTask::CharSelect )
+		{
+			if( m_pCharCreateServerNameDlg ) m_pCharCreateServerNameDlg->Show( true );
+			if( m_pCharSelectDlg ) m_pCharSelectDlg->Show( true );
+#ifdef PRE_MOD_SELECT_CHAR
+			ShowCharLoginTitleDlg( true, 78 );
+#endif // PRE_MOD_SELECT_CHAR
+		}
+	}
 }
 #endif
 
