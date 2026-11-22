@@ -65,7 +65,7 @@ void CDnActionRenderBase::ChangeAnimation( int nAniIndex, float fFrame, float fB
 	}
 
 	m_nAniIndex = nAniIndex;
-	m_AniTime = m_LocalTime - (LOCAL_TIME)( fFrame / m_fFps * 1000.f );
+	m_AniTime = ( m_fFps > 0.f ) ? ( m_LocalTime - (LOCAL_TIME)( fFrame / m_fFps * 1000.f ) ) : m_LocalTime;
 	if( m_AniTime < 0 ) m_AniTime = 0;
 	m_fFrame = fFrame;
 	m_fPrevFrame = fFrame;

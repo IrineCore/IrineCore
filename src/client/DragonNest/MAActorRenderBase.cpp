@@ -68,7 +68,7 @@ void MAActorRenderBase::ChangeAnimation( int nAniIndex, float fFrame, float fBle
 	}
 
 	m_nAniIndex = nAniIndex;
-	m_AniTime = m_LocalTime - (LOCAL_TIME)( fFrame / m_fFps * 1000.f );
+	m_AniTime = ( m_fFps > 0.f ) ? ( m_LocalTime - (LOCAL_TIME)( fFrame / m_fFps * 1000.f ) ) : m_LocalTime;
 	if( m_AniTime < 0 ) m_AniTime = 0;
 	m_fFrame = fFrame;
 	m_fPrevFrame = fFrame;
@@ -110,7 +110,7 @@ void MAActorRenderBase::AddMixedAnimation( int nBoneIndex, int nMaintenanceBoneI
 	Struct.nMaintenanceBoneIndex = nMaintenanceBoneIndex;
 
 	Struct.nAniIndex = nAniIndex;
-	Struct.AniTime = m_LocalTime - (LOCAL_TIME)( fFrame / m_fFps * 1000.f );
+	Struct.AniTime = ( m_fFps > 0.f ) ? ( m_LocalTime - (LOCAL_TIME)( fFrame / m_fFps * 1000.f ) ) : m_LocalTime;
 	Struct.fFrame = fFrame;
 	Struct.fLastFrame = (float)m_hObject->GetLastFrame( nAniIndex );
 	Struct.fBlendFrame = fBlendFrame;
@@ -415,12 +415,24 @@ void MAActorRenderBase::EnableCastShadow( bool bEnable )
 
 void MAActorRenderBase::SetFPS( float fValue )
 {
-	m_AniTime = m_LocalTime - (LOCAL_TIME)( m_fFrame / fValue * 1000.f );
-	if( m_nMixedBlendAniIndex != -1 ) {
-		m_MixedBlendAniTime = m_LocalTime - (LOCAL_TIME)( m_fMixedFrame / fValue * 1000.f );
+	if( fValue > 0.f ) {
+		m_AniTime = m_LocalTime - (LOCAL_TIME)( m_fFrame / fValue * 1000.f );
+		if( m_AniTime < 0 ) m_AniTime = 0;
+		if( m_nMixedBlendAniIndex != -1 ) {
+			m_MixedBlendAniTime = m_LocalTime - (LOCAL_TIME)( m_fMixedFrame / fValue * 1000.f );
+		}
+		for( DWORD i=0; i<m_VecMixedAni.size(); i++ ) {
+			m_VecMixedAni[i].AniTime = m_LocalTime - (LOCAL_TIME)( m_VecMixedAni[i].fFrame / fValue * 1000.f );
+		}
 	}
-	for( DWORD i=0; i<m_VecMixedAni.size(); i++ ) {
-		m_VecMixedAni[i].AniTime = m_LocalTime - (LOCAL_TIME)( m_VecMixedAni[i].fFrame / fValue * 1000.f );
+	else {
+		m_AniTime = m_LocalTime;
+		if( m_nMixedBlendAniIndex != -1 ) {
+			m_MixedBlendAniTime = m_LocalTime;
+		}
+		for( DWORD i=0; i<m_VecMixedAni.size(); i++ ) {
+			m_VecMixedAni[i].AniTime = m_LocalTime;
+		}
 	}
 	m_fFps = fValue;
 }
@@ -451,7 +463,7 @@ void MAActorRenderBase::ResetMixedAnimation( bool bBlending )
 void MAActorRenderBase::SetFrame( float fValue )
 {
 	m_fFrame = fValue;
-	m_AniTime = m_LocalTime - (LOCAL_TIME)( m_fFrame / m_fFps * 1000.f );
+	m_AniTime = ( m_fFps > 0.f ) ? ( m_LocalTime - (LOCAL_TIME)( m_fFrame / m_fFps * 1000.f ) ) : m_LocalTime;
 	if( m_AniTime < 0 ) m_AniTime = 0;
 }
 

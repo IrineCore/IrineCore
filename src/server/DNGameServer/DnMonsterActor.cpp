@@ -538,6 +538,16 @@ void CDnMonsterActor::OnDie( DnActorHandle hHitter )
 void CDnMonsterActor::ProcessDie( LOCAL_TIME LocalTime, float fDelta )
 {
 	CDnActor::ProcessDie( LocalTime, fDelta );
+	if( !IsDie() || IsDestroy() )
+		return;
+
+	if( CDnActionBase::GetFPS() <= 0.f )
+	{
+		ResetPlaySpeed();
+		if( m_iFrameStopRefCount > 0 )
+			m_iFrameStopRefCount = 0;
+		UpdateFPS();
+	}
 }
 
 void CDnMonsterActor::DropItems()

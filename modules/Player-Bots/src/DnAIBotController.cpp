@@ -3973,6 +3973,9 @@ bool CDnAIBotController::IsHittableEnemy( CDnActor* pActor, DnActorHandle hHitte
 		return false;
 	if( pActor->GetActorType() == CDnActor::NoAggroTrap )
 		return false;
+	const char* pszCurAction = pActor->GetCurrentAction();
+	if( pszCurAction && ( strcmp( pszCurAction, "Summon_On" ) == 0 || strcmp( pszCurAction, "Summon_Off" ) == 0 ) )
+		return false;
 	return true;
 }
 

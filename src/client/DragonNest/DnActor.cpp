@@ -1949,6 +1949,10 @@ void CDnActor::OnDamage( CDnDamageBase *pHitter, SHitParam &HitParam )
 
 void CDnActor::OnDamageActor( DnActorHandle hHitter, SHitParam &HitParam )
 {
+	if( IsDie() && IsMonsterActor() && HitParam.szActionName.empty() && !IsAppliedThisStateBlow( STATE_BLOW::BLOW_137 ) )
+	{
+		GetProperlyDieAction( HitParam.szActionName );
+	}
 	if( !HitParam.szActionName.empty() )
 		SetActionQueue( HitParam.szActionName.c_str(), 0, 3.f, 0.f, false );
 	switch( HitParam.HitType ) {

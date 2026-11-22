@@ -260,7 +260,7 @@ void CDnActionBase::SetAction( const char *szActionName, float fFrame, float fBl
 	m_szAction = szActionName;
 
 	m_fFrame = m_fPrevFrame = (float)fFrame;
-	m_ActionTime = m_LocalTime - (LOCAL_TIME)( fFrame / m_fFps * 1000.f );
+	m_ActionTime = ( m_fFps > 0.f ) ? ( m_LocalTime - (LOCAL_TIME)( fFrame / m_fFps * 1000.f ) ) : m_LocalTime;
 	if( m_ActionTime < 0 ) m_ActionTime = 0;
 
 	if( m_pRender && m_nVecAniIndexList[nIndex] != -1 ) 
@@ -308,7 +308,7 @@ const char *CDnActionBase::GetCurrentAction()
 void CDnActionBase::SetCustomAction( const char *szActionName, float fFrame )
 {
 	m_szCustomAction = szActionName;
-	m_CustomActionTime = m_LocalTime - (LOCAL_TIME)( fFrame / m_fFps * 1000.f );
+	m_CustomActionTime = ( m_fFps > 0.f ) ? ( m_LocalTime - (LOCAL_TIME)( fFrame / m_fFps * 1000.f ) ) : m_LocalTime;
 	m_nCustomActionIndex = GetElementIndex( szActionName );
 	m_fCustomPrevFrame = fFrame - 1.f;
 

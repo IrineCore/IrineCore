@@ -23,7 +23,7 @@ void CEtAniKey::Clear()
 
 void CEtAniKey::CalcPosition( EtVector3 &Position, float fFrame )
 {
-	if( fFrame < 0.f ) fFrame = 0.f;
+	if( !( fFrame >= 0.f ) ) fFrame = 0.f;
 	if( m_vecPositionKey.empty() )
 	{
 		Position = m_DefaultPosition;
@@ -93,7 +93,7 @@ void CEtAniKey::CalcPosition( EtVector3 &Position, float fFrame )
 
 void CEtAniKey::CalcRotation( EtQuat &Rotation, float fFrame )
 {
-	if( fFrame < 0.f ) fFrame = 0.f;
+	if( !( fFrame >= 0.f ) ) fFrame = 0.f;
 	if( m_vecRotationKey.empty() )
 	{
 		Rotation = m_DefaultRotation;
@@ -167,7 +167,7 @@ void CEtAniKey::CalcRotation( EtQuat &Rotation, float fFrame )
 
 void CEtAniKey::CalcScale( EtVector3 &Scale, float fFrame )
 {
-	if( fFrame < 0.f ) fFrame = 0.f;
+	if( !( fFrame >= 0.f ) ) fFrame = 0.f;
 	if( m_vecScaleKey.empty() )
 	{
 		Scale = m_DefaultScale;

@@ -101,6 +101,7 @@ protected:
 	virtual void OnMoveNavi( EtVector3 &vPosition );
 
 	virtual void OnRestorePlaySpeed( float fPrevFPS );
+	virtual void ProcessDie( LOCAL_TIME LocalTime, float fDelta );
 
 	void DropItems();
 	bool IsBalloon( DialogueStruct * pStruct );

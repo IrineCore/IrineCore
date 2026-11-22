@@ -3578,7 +3578,16 @@ void CDnActor::Die( DnActorHandle hHitter )
 		bStateBlowProcessed = m_pStateBlow->OnDie( hHitter );
 
 	if (IsDie())
+	{
+		if( IsMonsterActor() )
+		{
+			ResetPlaySpeed();
+			if( m_iFrameStopRefCount > 0 )
+				m_iFrameStopRefCount = 0;
+			UpdateFPS();
+		}
 		OnDie(hHitter);
+	}
 #else
 	OnDie( hHitter );
 	bool bStateBlowProcessed = m_pStateBlow->OnDie( hHitter );
@@ -5056,7 +5065,8 @@ void CDnActor::UpdateFPS( void )
 				float fFrame = ( ( m_hVecLastHitListByRemainTime[i]->GetDamageRemainTime( GetUniqueID() ) - CDnActionBase::m_LocalTime ) / 1000.f ) * fPrevFPS;
 
 				// Recalculate RemainTime with the newly applied frame speed.
-				m_hVecLastHitListByRemainTime[i]->SetDamageRemainTime( GetUniqueID(), CDnActionBase::m_LocalTime + (LOCAL_TIME)( fFrame / ( CDnActionBase::m_fFPS) * 1000.f ) );
+				if( CDnActionBase::m_fFPS > 0.f )
+					m_hVecLastHitListByRemainTime[i]->SetDamageRemainTime( GetUniqueID(), CDnActionBase::m_LocalTime + (LOCAL_TIME)( fFrame / ( CDnActionBase::m_fFPS) * 1000.f ) );
 			}
 		}
 	}

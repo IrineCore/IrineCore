@@ -2538,7 +2538,28 @@ DnActorHandle CDnGameTask::RequestGenerationMonsterFromActorID( int nMonsterID, 
 	//hMonster->SetAction( "Summon_On", 0.f, 0.f, false );
 
 	if( bRandomFrameSummon )
+	{
+		// SetPlaySpeed(..., 0.f) halts ProcessSignal during the random delay, so apply frame-0
+		// STE_CanHit=false immediately to prevent attacks killing monsters before Summon_On runs.
+		CDnActionBase::ActionElementStruct* pSummonElem = hMonster->GetElement( "Summon_On" );
+		if( pSummonElem )
+		{
+			for( DWORD s = 0; s < pSummonElem->pVecSignalList.size(); ++s )
+			{
+				CEtActionSignal* pSig = pSummonElem->pVecSignalList[s];
+				if( pSig && pSig->GetSignalIndex() == STE_CanHit && pSig->GetStartFrame() <= 0 )
+				{
+					CanHitStruct* pCanHit = (CanHitStruct*)pSig->GetData();
+					if( pCanHit && pCanHit->bHittable == FALSE )
+					{
+						hMonster->SetHittable( false );
+						break;
+					}
+				}
+			}
+		}
 		hMonster->SetPlaySpeed( ( _rand(GetRoom())%20 ) * 100, 0.f );
+	}
 
 #ifdef PRE_MOD_PRELOAD_MONSTER
 	if( nTeamSetting == 3 )

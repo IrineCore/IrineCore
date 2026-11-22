@@ -3990,11 +3990,6 @@ DnActorHandle CDnGameTask::GenerationMonsterFromMonsterID( int nSeed, int nMonst
 		hMonster->GetMatEx()->CopyRotationFromThis( &CrossRotation );
 	}
 
-	hMonster->Show( true );
-	hMonster->SetProcess( true );
-	m_hVecMonsterList.push_back( hMonster );
-
-
 	hMonster->SetVelocity(vVel);
 	hMonster->SetResistance(vResistance);
 	if( nTeam >= 0 ) {
@@ -4002,18 +3997,32 @@ DnActorHandle CDnGameTask::GenerationMonsterFromMonsterID( int nSeed, int nMonst
 	}
 
 	DWORD dwCurTime = timeGetTime();
-	float fFrame = ( 1.f / hMonster->CDnActionBase::GetFPS() ) * ( ( m_LocalTime - CreateTime ) + ( dwCurTime - dwPrevTime ) );
-	if (hMonster->IsExistAction("Summon_On")) {
+	float fFps = hMonster->CDnActionBase::GetFPS();
+	float fFrame = 0.f;
+	if( fFps > 0.f ) {
+		LOCAL_TIME elapsedMs = ( m_LocalTime - CreateTime ) + (LOCAL_TIME)( dwCurTime - dwPrevTime );
+		if( elapsedMs > 0 )
+			fFrame = ( (float)elapsedMs / 1000.f ) * fFps;
+	}
+	if( !hMonster->IsDie() && hMonster->IsExistAction("Summon_On") ) {
+		CDnActionBase::ActionElementStruct* pSummonElem = hMonster->GetElement( "Summon_On" );
+		if( pSummonElem && pSummonElem->dwLength > 0 && fFrame >= (float)pSummonElem->dwLength )
+			fFrame = (float)pSummonElem->dwLength - 1.f;
+		if( fFrame < 0.f )
+			fFrame = 0.f;
+
 		hMonster->SyncClassTime( m_LocalTime );
 		hMonster->SetAction("Summon_On", (bRandomFrameSummon) ? fFrame : 0.f, 0.f, false);
-		
 
 		if (bRandomFrameSummon) {
 			hMonster->SetPlaySpeed( ( _rand()%20 ) * 100, 0.f );
 			hMonster->SetAlphaBlend( 0.f );
 		}
-
 	}
+
+	hMonster->Show( true );
+	hMonster->SetProcess( true );
+	m_hVecMonsterList.push_back( hMonster );
 
 #ifdef PRE_MOD_PRELOAD_MONSTER
 	if (nTeam == 3)

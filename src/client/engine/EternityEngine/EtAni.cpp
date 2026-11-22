@@ -276,7 +276,7 @@ void CEtAni::Reset()
 
 float CEtAni::CalcCorrectFrame( int nAni, float fFrame )
 {
-	if( nAni < 0 || nAni >= m_AniHeader.nAniCount || fFrame < 0.0f )
+	if( nAni < 0 || nAni >= m_AniHeader.nAniCount || !( fFrame >= 0.0f ) )
 	{
 		ASSERT( 0 && "Invalid Ani Frame!!!( CEtAni::CalcCorrectFrame )" );
 		return 0.0f;

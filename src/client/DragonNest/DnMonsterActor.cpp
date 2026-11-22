@@ -326,6 +326,29 @@ void CDnMonsterActor::OnDie( DnActorHandle hHitter )
 	if( !pTask ) return;
 
 	RemoveAllBlow();
+
+	// Immediately unfreeze and restore alpha so death animation and STE_Destroy always execute
+	// even if killed during random spawn delay or a frame-stop state effect.
+	ResetPlaySpeed();
+	if( m_iFrameStopRefCount > 0 )
+		m_iFrameStopRefCount = 0;
+	UpdateFPS();
+	if( m_fAlphaLayers[ AL_NORMAL ] == 0.f )
+		SetAlphaBlend( 1.f );
+
+	if( IsDie() )
+	{
+		const char* szCurAction = GetCurrentAction();
+		if( !szCurAction || ( strstr( szCurAction, "Die" ) == NULL && strstr( szCurAction, "Summon_Off" ) == NULL ) )
+		{
+			std::string strDieAction;
+			GetProperlyDieAction( strDieAction );
+			if( !strDieAction.empty() && IsExistAction( strDieAction.c_str() ) )
+				CDnActor::SetActionQueue( strDieAction.c_str(), 0, 3.f, 0.f, false );
+			else
+				SetDestroy();
+		}
+	}
 	float fDeadDurabilityRevision = CGlobalWeightTable::GetInstance().GetValue( CGlobalWeightTable::MonsterDeadDurabilityRevision );
 	int nPartyCount = pTask->GetPartyCount();
 	int nDeadDurability = (int)( ( GetDeadDurability() * ( 1.f + ( fDeadDurabilityRevision * ( nPartyCount - 1 ) ) ) ) / nPartyCount );
@@ -533,6 +556,12 @@ void CDnMonsterActor::CmdSuicide( bool bDropItem, bool bDropExp )
 	SetHP( 0 );
 	ResetMove();
 	ResetLook();
+	ResetPlaySpeed();
+	if( m_iFrameStopRefCount > 0 )
+		m_iFrameStopRefCount = 0;
+	UpdateFPS();
+	if( m_fAlphaLayers[ AL_NORMAL ] == 0.f )
+		SetAlphaBlend( 1.f );
 
 	if( bDropItem ) DropItems();
 
@@ -1615,6 +1644,35 @@ void CDnMonsterActor::OnRestorePlaySpeed( float fPrevFPS )
 	}
 }
 
+void CDnMonsterActor::ProcessDie( LOCAL_TIME LocalTime, float fDelta )
+{
+	CDnActor::ProcessDie( LocalTime, fDelta );
+	if( !IsDie() || IsDestroy() )
+		return;
+
+	if( CDnActionBase::GetFPS() <= 0.f )
+	{
+		ResetPlaySpeed();
+		if( m_iFrameStopRefCount > 0 )
+			m_iFrameStopRefCount = 0;
+		UpdateFPS();
+		if( m_fAlphaLayers[ AL_NORMAL ] == 0.f )
+			SetAlphaBlend( 1.f );
+	}
+
+	const char* szCurAction = GetCurrentAction();
+	if( szCurAction && szCurAction[0] != '\0' &&
+		strstr( szCurAction, "Die" ) == NULL && strstr( szCurAction, "Summon_Off" ) == NULL )
+	{
+		std::string strDieAction;
+		GetProperlyDieAction( strDieAction );
+		if( !strDieAction.empty() && IsExistAction( strDieAction.c_str() ) )
+			CDnActor::SetActionQueue( strDieAction.c_str(), 0, 3.f, 0.f, false );
+		else
+			SetDestroy();
+	}
+}
+
 void CDnMonsterActor::PreThreadRelease()
 {
 	CDnActor::PreThreadRelease();
@@ -1624,8 +1682,15 @@ void CDnMonsterActor::PreThreadRelease()
 
 bool CDnMonsterActor::SetActionQueue( const char *szActionName, int nLoopCount, float fBlendFrame, float fStartFrame, bool bCheck, bool bCheckStateEffect )
 {
-	if( IsDie() && ( strstr( GetCurrentAction(), "Die" ) || strstr( GetCurrentAction(), "Summon_Off" ) ) )
-		return false;
+	if( IsDie() )
+	{
+		const bool bIncomingDie = ( szActionName && ( strstr( szActionName, "Die" ) || strstr( szActionName, "Summon_Off" ) ) );
+		if( !bIncomingDie )
+			return false;
+		const char* szCur = GetCurrentAction();
+		if( szCur && ( strstr( szCur, "Die" ) || strstr( szCur, "Summon_Off" ) ) )
+			return false;
+	}
 	return CDnActor::SetActionQueue( szActionName, nLoopCount, fBlendFrame, fStartFrame, bCheck, bCheckStateEffect );
 }
 
