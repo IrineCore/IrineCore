@@ -58,6 +58,9 @@
 #endif // #if defined( PRE_ADD_SECONDARY_SKILL )
 #include "DNFarm.h"
 #include "DNLadderSystemManager.h"
+#ifdef IRINE_MOD_MAP_WARP
+#include "DnMapWarpVillage.h"
+#endif
 #include "DNLadderRoom.h"
 #include "DNLadderRoomRepository.h"
 #include "DNTimeEventSystem.h"
@@ -5203,6 +5206,19 @@ int CDNUserSession::OnRecvActorMessage(int nSubCmd, char *pData, int nLen)
 			SendActorMsg( GetSessionID(), SC_CMDESCAPE, Stream.Size(), Stream.GetBuffer(), NULL );
 		}
 		break;
+
+#ifdef IRINE_MOD_MAP_WARP
+	case CS_CMDWARP:
+		{
+			BYTE cTargetType = 0;
+			int nTargetID = 0;
+			Stream.Read(&cTargetType, sizeof(BYTE));
+			Stream.Read(&nTargetID, sizeof(int));
+			Irine::Modules::HandleVillageMapWarp(this, cTargetType, nTargetID);
+			return ERROR_NONE;
+		}
+		break;
+#endif
 
 	case CS_USESKILL:
 		{
@@ -11497,6 +11513,142 @@ void CDNUserSession::ChangePos(int nX, int nY, int nZ, float fLookX, float fLook
 
 	SendActorMsg( GetSessionID(), eActor::SC_CMDWARP, Stream.Tell(), Stream.GetBuffer() );
 }
+
+#ifdef IRINE_MOD_MAP_WARP
+bool CDNUserSession::IsBusyForMapWarp() const
+{
+	// On VillageServer, normal village gameplay is STATE_NONE; non-NONE states
+	// indicate ready-at-gate or channel/village/game/login transitions.
+	if (m_eUserState != STATE_NONE)
+		return true;
+	if (!m_bLoadUserData || m_pField == NULL)
+		return true;
+	if (m_nExchangeTargetSessionID > 0 || m_nExchangeSenderSID > 0 || m_nExchangeReceiverSID > 0)
+		return true;
+	if (m_nChatRoomID > 0)
+		return true;
+	if (m_bIsMove || m_bIsStartGame)
+		return true;
+	if (m_uiPvPIndex > 0 || m_bIsLadderUser)
+		return true;
+	return false;
+}
+
+bool CDNUserSession::SmartWarpInField(const TPosition& NewPos, float fLookX, float fLookZ, float fRotateDeg)
+{
+	if (!m_pField)
+		return false;
+
+	TPosition destPos = NewPos;
+	if (!m_pField->GetFieldBlock(&destPos))
+		return false;
+
+	CDNField* pField = m_pField;
+
+	// Detach cleanly from current field block & notify viewers using LEAVE_MOVE (no logout FX,
+	// and NEVER touch m_bIsChannelCounted since the user remains in the same channel/field).
+	m_cLeaveType = LEAVE_MOVE;
+	pField->SendFieldMessage(this, FM_DESTROY, &m_BaseData, NULL);
+
+	// Drain any straggler view entries outside the old view range so client/server view maps stay synced
+	{
+		std::vector<CDNBaseObject*> remainingUsers;
+		{
+			ScopeLock<CSyncLock> lock(m_UserLock);
+#if defined( PRE_FIX_SOCKETCONTEXT_DANGLINGPTR )
+			for (auto iter = m_UserViewObjects.begin(); iter != m_UserViewObjects.end(); ++iter)
+			{
+				CScopeInterlocked Scope(&iter->second.second->m_lActiveCount);
+				if (!Scope.bIsDelete())
+					remainingUsers.push_back(static_cast<CDNUserSession*>(iter->second.second->GetParam()));
+			}
+#else
+			for (auto iter = m_UserViewObjects.begin(); iter != m_UserViewObjects.end(); ++iter)
+			{
+				if (iter->second)
+					remainingUsers.push_back(iter->second);
+			}
+#endif
+			m_UserViewObjects.clear();
+		}
+		for (size_t i = 0; i < remainingUsers.size(); ++i)
+		{
+			CDNBaseObject* pObj = remainingUsers[i];
+			if (!pObj || pObj == this) continue;
+			TBaseData objData = { 0 };
+			objData.nObjectID = pObj->GetObjectID();
+			this->FieldProcess(pObj, FM_HIDE, &objData, NULL);
+			pObj->FieldProcess(this, FM_HIDE, &m_BaseData, NULL);
+		}
+	}
+	{
+		std::vector<CDNBaseObject*> remainingNpcs;
+		{
+			ScopeLock<CSyncLock> lock(m_NpcLock);
+			for (auto iter = m_NpcViewObjects.begin(); iter != m_NpcViewObjects.end(); ++iter)
+			{
+				if (iter->second)
+					remainingNpcs.push_back(iter->second);
+			}
+			m_NpcViewObjects.clear();
+		}
+		for (size_t i = 0; i < remainingNpcs.size(); ++i)
+		{
+			CDNBaseObject* pObj = remainingNpcs[i];
+			if (!pObj) continue;
+			TBaseData objData = { 0 };
+			objData.nObjectID = pObj->GetObjectID();
+			this->FieldProcess(pObj, FM_HIDE, &objData, NULL);
+			pObj->DelViewObject(this);
+		}
+	}
+
+	// Authoritatively update position, rotation, and persisted status coordinates
+	m_BaseData.CurPos = destPos;
+	m_BaseData.TargetPos = destPos;
+	m_BaseData.MoveDir.nX = 0;
+	m_BaseData.MoveDir.nY = 0;
+	m_BaseData.MoveDir.nZ = 0;
+	m_BaseData.fRotate = fRotateDeg;
+
+	m_UserData.Status.nPosX = destPos.nX;
+	m_UserData.Status.nPosY = destPos.nY;
+	m_UserData.Status.nPosZ = destPos.nZ;
+
+	// Re-enter destination field block and mutually sync visibility with nearby players & NPCs
+	m_pField = pField;
+	if (pField->SendFieldMessage(this, FM_CREATE, &m_BaseData, NULL) == -1)
+	{
+		if (pField->GetFieldData())
+			pField->GetFieldData()->GetStartPosition(0, m_BaseData.CurPos);
+		m_BaseData.TargetPos = m_BaseData.CurPos;
+		m_UserData.Status.nPosX = m_BaseData.CurPos.nX;
+		m_UserData.Status.nPosY = m_BaseData.CurPos.nY;
+		m_UserData.Status.nPosZ = m_BaseData.CurPos.nZ;
+		pField->SendFieldMessage(this, FM_CREATE, &m_BaseData, NULL);
+	}
+
+	EtVector3 vPos(GetCurrentPos().nX / 1000.f, GetCurrentPos().nY / 1000.f, GetCurrentPos().nZ / 1000.f);
+	EtVector2 vLook(fLookX, fLookZ);
+
+	// Sync party minimap position immediately
+	if (GetPartyID() > 0)
+	{
+		CDNParty* pParty = g_pPartyManager->GetParty(GetPartyID());
+		if (pParty)
+			pParty->SendPartyMemberMove(GetSessionID(), vPos);
+	}
+
+	// Deliver authoritative warp packet to the player client
+	BYTE pBuffer[128] = { 0 };
+	CPacketCompressStream Stream(pBuffer, 128);
+	Stream.Write(&vPos, sizeof(EtVector3), CPacketCompressStream::VECTOR3_BIT);
+	Stream.Write(&vLook, sizeof(EtVector2), CPacketCompressStream::VECTOR2_SHORT);
+	SendActorMsg(GetSessionID(), eActor::SC_CMDWARP, Stream.Tell(), Stream.GetBuffer());
+
+	return true;
+}
+#endif
 
 void CDNUserSession::ReconnectLogin(short nRet)
 {

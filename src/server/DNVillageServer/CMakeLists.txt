@@ -170,4 +170,5 @@ target_link_libraries(DNVillageServer PRIVATE
     $<$<BOOL:${WIN32}>:ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32>
     $<$<BOOL:${UNIX}>:odbc pthread dl>
 )
+irine_link_villageserver_modules(DNVillageServer)
 irine_install_server_target(DNVillageServer)

@@ -328,6 +328,7 @@ public:
 	virtual void CmdPassiveSkillAction( int nSkillID, const char *szActionName, int nLoopCount = 0, float fBlendFrame = 3.f, float fStartFrame = 0.0f, bool bChargeKey = false, bool bCheckOverlapAction = true, bool bOnlyCheck = false );
 	virtual void CmdRemoveStateEffect( STATE_BLOW::emBLOW_INDEX emBlowIndex, bool bSendServer );
 	virtual void CmdWarp( EtVector3 &vPos, EtVector2 &vLook );
+	void RequestMapWarp( BYTE cTargetType, int nTargetID );
 	virtual void CmdToggleWeaponViewOrder( int nEquipIndex, bool bShowCash );
 	virtual void CmdTogglePartsViewOrder( int nEquipIndex, bool bShowCash );
 	virtual void CmdToggleHideHelmet( bool bHideHelmet );

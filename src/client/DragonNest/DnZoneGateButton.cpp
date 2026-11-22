@@ -9,7 +9,9 @@ CDnZoneGateButton::CDnZoneGateButton( CEtUIDialog *pParent )
 	: CEtUIButton( pParent )
 	, m_bPushPin(false)
 	, m_bDungeonGate(false)
-	, m_vWorldPos( 0.f, 0.f, 0.f )	
+	, m_vWorldPos( 0.f, 0.f, 0.f )
+	, m_cGateIndex(-1)
+	, m_bPermitEnter(false)
 {
 #ifdef PRE_ADD_QUESTCOUNT_IN_STAGELIST
 #else

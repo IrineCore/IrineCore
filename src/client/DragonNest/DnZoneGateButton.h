@@ -16,6 +16,8 @@ public:
 protected:
 	bool m_bPushPin;
 	EtVector3 m_vWorldPos;
+	char m_cGateIndex;
+	bool m_bPermitEnter;
 	
 public:
 	// Note : Dungeon gate display info
@@ -42,6 +44,10 @@ public:
 
 	void SetWorldPos( EtVector3 &vPos ) { m_vWorldPos = vPos; }
 	EtVector3 *GetWorldPos() { return &m_vWorldPos; }
+	void SetGateIndex( char cGateIndex ) { m_cGateIndex = cGateIndex; }
+	char GetGateIndex() const { return m_cGateIndex; }
+	void SetPermitEnter( bool bPermit ) { m_bPermitEnter = bPermit; }
+	bool IsPermitEnter() const { return m_bPermitEnter; }
 public:
 	virtual bool HandleMouse( UINT uMsg, float fX, float fY, WPARAM wParam, LPARAM lParam );
 	virtual void Render( float fElapsedTime );

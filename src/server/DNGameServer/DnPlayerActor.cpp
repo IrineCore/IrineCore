@@ -56,6 +56,9 @@
 #ifdef IRINE_MOD_PLAYER_BOTS
 #include "DnAIBotController.h"
 #endif
+#ifdef IRINE_MOD_MAP_WARP
+#include "DnMapWarpGame.h"
+#endif
 #include "DnBasicBlow.h"
 #include "DnCreateBlow.h"
 
@@ -2220,6 +2223,19 @@ void CDnPlayerActor::OnDispatchMessage( CDNUserSession *pSession, DWORD dwActorP
 				CmdEscape( vPos );
 			}
 			break;
+
+#ifdef IRINE_MOD_MAP_WARP
+		case eActor::CS_CMDWARP:
+			{
+				CPacketCompressStream Stream( pPacket, 128 );
+				BYTE cTargetType = 0;
+				int nTargetID = 0;
+				Stream.Read( &cTargetType, sizeof(BYTE) );
+				Stream.Read( &nTargetID, sizeof(int) );
+				Irine::Modules::HandleGameMapWarp( this, cTargetType, nTargetID );
+			}
+			break;
+#endif
 
 		case eActor::CS_CANNONPOSSESS_REQ:
 			{
@@ -5751,6 +5767,14 @@ void CDnPlayerActor::CmdShootMode(bool bTrue)
 
 	Send( eActor::SC_CMDSHOOTMODE, &Stream );
 }
+
+#ifdef IRINE_MOD_MAP_WARP
+void CDnPlayerActor::ResetWarpAntiCheatCheckers()
+{
+	if( m_pPlayerSpeedHackChecker ) m_pPlayerSpeedHackChecker->ResetInvalid();
+	if( m_pPlayerDoNotEnterChecker ) m_pPlayerDoNotEnterChecker->ResetInvalid();
+}
+#endif
 
 void CDnPlayerActor::CmdWarp( EtVector3 &vPos, EtVector2 &vLook, CDNUserSession* pGameSession, bool bCheckPlayerFollowSummonedMonster/*=false*/ )
 {

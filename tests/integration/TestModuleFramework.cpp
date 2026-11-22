@@ -8,6 +8,10 @@
 #ifdef IRINE_MOD_PLAYER_BOTS
 #include "PlayerBotsModule.h"
 #endif
+#ifdef IRINE_MOD_MAP_WARP
+#include "MapWarpModule.h"
+#endif
+#include <cmath>
 #include <cstdio>
 
 int RunIntegrationTests(const WCHAR* moduleConfigDirPath)
@@ -110,6 +114,72 @@ int RunIntegrationTests(const WCHAR* moduleConfigDirPath)
     }
 #else
     check(reg.GetModule("Player-Bots") == nullptr, "Player-Bots cleanly excluded when disabled");
+#endif
+
+#ifdef IRINE_MOD_MAP_WARP
+    {
+        using namespace Irine::Modules;
+        auto* mapWarp = dynamic_cast<MapWarpModule*>(reg.GetModule("Map-Warp"));
+        check(mapWarp != nullptr && mapWarp->IsEnabled(), "Map-Warp module registered and enabled");
+        if (mapWarp)
+        {
+            const MapWarpConfig& cfg = MapWarpModule::GetActiveConfig();
+            check(cfg.allowNpcWarp && cfg.allowPortalWarp && cfg.cooldownMs == 1500 && cfg.notifyOnReject,
+                  "Map-Warp [MapWarp] config loaded");
+            check(cfg.allowInVillage && cfg.allowInDungeon && cfg.allowInFarm &&
+                  !cfg.allowInPvP && !cfg.allowInDarkLair &&
+                  cfg.requireOutOfCombatInDungeon && cfg.requireOpenGate,
+                  "Map-Warp [Rules] config loaded");
+            check(std::fabs(cfg.npcFrontDistance - 110.f) < 0.1f &&
+                  std::fabs(cfg.portalFrontDistance - 140.f) < 0.1f &&
+                  std::fabs(cfg.gateSafetyMargin - 90.f) < 0.1f &&
+                  std::fabs(cfg.maxHeightDelta - 150.f) < 0.1f,
+                  "Map-Warp [Positioning] config loaded");
+
+            // Unit-test direction & stand-point geometry helpers
+            float fx = 0.f, fz = 0.f;
+            MapWarpUtil::DirectionFromYawDegrees(90.f, fx, fz);
+            check(std::fabs(fx - 1.f) < 1e-4f && std::fabs(fz) < 1e-4f,
+                  "MapWarpUtil::DirectionFromYawDegrees computes +X for 90 deg yaw");
+
+            float cx = 0.f, cz = 0.f;
+            MapWarpUtil::ComputeCandidatePoint(100.f, 200.f, fx, fz, 110.f, 0.f, cx, cz);
+            check(std::fabs(cx - 210.f) < 1e-3f && std::fabs(cz - 200.f) < 1e-3f,
+                  "MapWarpUtil::ComputeCandidatePoint offsets cleanly in front of target");
+
+            float lx = 0.f, lz = 0.f;
+            MapWarpUtil::ComputeLookToward(cx, cz, 100.f, 200.f, lx, lz);
+            check(std::fabs(lx - (-1.f)) < 1e-4f && std::fabs(lz) < 1e-4f,
+                  "MapWarpUtil::ComputeLookToward faces back toward the NPC/Portal");
+
+            // Unit-test gate trigger box exclusion & margin
+            check(MapWarpUtil::IsPointInsideBox2D(150.f, 150.f, 100.f, 100.f, 200.f, 200.f, 0.f) &&
+                  MapWarpUtil::IsPointInsideBox2D(250.f, 150.f, 100.f, 100.f, 200.f, 200.f, 60.f) &&
+                  !MapWarpUtil::IsPointInsideBox2D(270.f, 150.f, 100.f, 100.f, 200.f, 200.f, 60.f),
+                  "MapWarpUtil::IsPointInsideBox2D enforces gate trigger safety margin");
+
+            // Unit-test smart floor height selection (elevated bridge vs overhead roof)
+            bool valid = false;
+            const float bridgeY = MapWarpUtil::SelectBestFloorHeight(300.f, 100.f, 305.f, true, 150.f, valid);
+            check(valid && std::fabs(bridgeY - 305.f) < 1e-3f,
+                  "MapWarpUtil::SelectBestFloorHeight picks elevated bridge collision over ground");
+
+            const float groundY = MapWarpUtil::SelectBestFloorHeight(100.f, 102.f, 500.f, true, 150.f, valid);
+            check(valid && std::fabs(groundY - 102.f) < 1e-3f,
+                  "MapWarpUtil::SelectBestFloorHeight ignores overhead roof collision");
+
+            MapWarpUtil::SelectBestFloorHeight(100.f, 500.f, 600.f, true, 150.f, valid);
+            check(!valid, "MapWarpUtil::SelectBestFloorHeight rejects cliffs exceeding MaxHeightDelta");
+
+            // Unit-test cooldown guard
+            check(MapWarpUtil::IsCooldownReady(1000, 0, 1500) &&
+                  !MapWarpUtil::IsCooldownReady(2000, 1000, 1500) &&
+                  MapWarpUtil::IsCooldownReady(2500, 1000, 1500),
+                  "MapWarpUtil::IsCooldownReady enforces per-player cooldown cleanly");
+        }
+    }
+#else
+    check(reg.GetModule("Map-Warp") == nullptr, "Map-Warp cleanly excluded when disabled");
 #endif
 
     return failures;

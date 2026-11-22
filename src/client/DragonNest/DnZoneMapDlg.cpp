@@ -9,6 +9,8 @@
 #include "DnWorldDataManager.h"
 #include "DnWorldData.h"
 #include "DnInterface.h"
+#include "DnNpcDlg.h"
+#include "DnChatRoomDlg.h"
 #include "DnVillageTask.h"
 #include "TaskManager.h"
 #include "DnGameTask.h"
@@ -285,6 +287,28 @@ void CDnZoneMapDlg::ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEtUIC
 		{
 			CDnZoneGateButton *pGateButton = (CDnZoneGateButton*)pControl;
 
+			if( uMsg == WM_LBUTTONUP )
+			{
+				if( m_bCurWorld && CDnActor::s_hLocalActor && !CDnActor::s_hLocalActor->IsDie() && pGateButton->GetGateIndex() > 0 )
+				{
+					bool bUiBusy = GetInterface().IsOpenBlind()
+						|| GetInterface().IsOpenPrivateMarketReqDialog()
+						|| GetInterface().IsOpenProgressDialog()
+						|| GetInterface().IsOpenProgressMBox()
+						|| ( GetInterface().GetNpcDialog() && GetInterface().GetNpcDialog()->IsShow() )
+						|| ( GetInterface().GetChatRoomDlg() && GetInterface().GetChatRoomDlg()->IsShow() )
+						|| CDnLocalPlayerActor::IsLockInput();
+
+					if( !bUiBusy )
+					{
+						ResetButtonPin();
+						((CDnLocalPlayerActor*)CDnActor::s_hLocalActor.GetPointer())->RequestMapWarp( 2, (int)pGateButton->GetGateIndex() );
+						this->Show( false );
+					}
+				}
+				return;
+			}
+
 			if( uMsg == WM_RBUTTONUP )
 			{
 				bool bPushPin = pGateButton->IsPushPin();
@@ -317,16 +341,27 @@ void CDnZoneMapDlg::ProcessCommand( UINT nCommand, bool bTriggeredByUser, CEtUIC
 
 		if( strstr( pControl->GetControlName(), "ID_BUTTON_NPC" ) )
 		{
-
-			if (uMsg == WM_LBUTTONUP)
+			if( uMsg == WM_LBUTTONUP )
 			{
 				CDnZoneNPCButton *pNPCButton = (CDnZoneNPCButton*)pControl;
-				EtVector3 vPos = EtVec2toVec3(*pNPCButton->GetWorldPos());
-				vPos.y = CDnWorld::GetInstance().GetHeight(vPos);
-				EtVector2 vDir = *pNPCButton->GetDirection() * (float)(pNPCButton->GetUnitSize() + CDnActor::s_hLocalActor->GetUnitSize());
-				vPos += EtVec2toVec3(vDir);
-				vDir.x = fmod(vDir.x + 1.80f, 3.60f);
-				this->Show(false);
+				if( m_bCurWorld && CDnActor::s_hLocalActor && !CDnActor::s_hLocalActor->IsDie() && pNPCButton->GetNpcID() > 0 )
+				{
+					bool bUiBusy = GetInterface().IsOpenBlind()
+						|| GetInterface().IsOpenPrivateMarketReqDialog()
+						|| GetInterface().IsOpenProgressDialog()
+						|| GetInterface().IsOpenProgressMBox()
+						|| ( GetInterface().GetNpcDialog() && GetInterface().GetNpcDialog()->IsShow() )
+						|| ( GetInterface().GetChatRoomDlg() && GetInterface().GetChatRoomDlg()->IsShow() )
+						|| CDnLocalPlayerActor::IsLockInput();
+
+					if( !bUiBusy )
+					{
+						ResetButtonPin();
+						((CDnLocalPlayerActor*)CDnActor::s_hLocalActor.GetPointer())->RequestMapWarp( 1, pNPCButton->GetNpcID() );
+						this->Show( false );
+					}
+				}
+				return;
 			}
 
 			if( uMsg == WM_RBUTTONUP )
@@ -877,7 +912,15 @@ void CDnZoneMapDlg::CreateNpcControl()
 			for(int i=0;i<(int)vecAvailableQuestName.size();i++)
 				wszToolTip += FormatW(L"\n%s",vecAvailableQuestName[i].c_str()); // List all quests sequentially
 
+			if( m_bCurWorld )
+				wszToolTip += L"\n#g[Left-Click: Warp | Right-Click: Auto-Walk]#d";
+
 			pButton->SetTooltipText(wszToolTip.c_str());
+			pButton->SetNpcID( pNpcActor->GetNpcData().nNpcID );
+			pButton->SetWorldPos( EtVector2( pNpcPos->x, pNpcPos->z ) );
+			pButton->SetUnitSize( pNpcActor->GetUnitSize() );
+			if( pNpcActor->GetMatEx() )
+				pButton->SetDirection( EtVector2( pNpcActor->GetMatEx()->m_vZAxis.x, pNpcActor->GetMatEx()->m_vZAxis.z ) );
 
 			pButton->Show( true );
 
@@ -1007,6 +1050,8 @@ void CDnZoneMapDlg::CreateGateControl()
 		pButton = (CDnZoneGateButton*)CDnCustomDlg::CreateControl( &sUIProperty );
 		pButton->SetPosition( textureCoord.fX + fGateX - (buttonCoord.fWidth/2.0f), textureCoord.fY + fGateY - (buttonCoord.fHeight/2.0f) );
 		pButton->SetWorldPos( vGatePos );
+		pButton->SetGateIndex( pGateStruct->cGateIndex );
+		pButton->SetPermitEnter( pGateStruct->PermitFlag == CDnWorld::PermitEnter );
 
 		// Note : Dungeon gate
 		//
@@ -1086,6 +1131,8 @@ void CDnZoneMapDlg::CreateGateControl()
 		std::wstring wszTitleName = CDnWorld::GetInstance().GetGateTitleName( pGateStruct->cGateIndex );
 		if( wszTitleName.empty() )
 			wszTitleName = pGateStruct->szMapName.c_str();
+		if( m_bCurWorld && pGateStruct->PermitFlag == CDnWorld::PermitEnter )
+			wszTitleName += L"\n#g[Left-Click: Warp | Right-Click: Auto-Walk]#d";
 
 		pButton->SetTooltipText( wszTitleName.c_str() );
 		pButton->Show( true );
@@ -1742,8 +1789,12 @@ void CDnZoneMapDlg::CreateNpcControl( int nMapIndex )
 			for(int i=0;i<(int)vecAvailableQuestName.size();i++)
 				wszToolTip += FormatW(L"\n%s",vecAvailableQuestName[i].c_str()); // List all quests sequentially
 
+			if( m_bCurWorld )
+				wszToolTip += L"\n#g[Left-Click: Warp | Right-Click: Auto-Walk]#d";
+
 			pButton->SetTooltipText(wszToolTip.c_str());
 			
+			pButton->SetNpcID( pNpcData->nNpcID );
 			pButton->SetQuestState( CDnZoneNPCButton::buttonQuestNone );
 			pButton->SetWorldPos( pNpcData->vPos );
 			pButton->SetUnitSize( pNpcData->nUnitSize );

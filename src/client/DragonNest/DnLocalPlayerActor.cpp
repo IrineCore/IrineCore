@@ -2853,6 +2853,7 @@ void CDnLocalPlayerActor::CmdRemoveStateEffectByServerBlowID( int nServerBlowID 
 
 void CDnLocalPlayerActor::CmdWarp( EtVector3 &vPos, EtVector2 &vLook )
 {
+	ResetAutoRun();
 	m_nWarpLazyCount = 2; // To be called one frame later.	
 	m_WarpPos = vPos;
 	m_WarpLook = vLook;
@@ -2863,6 +2864,29 @@ void CDnLocalPlayerActor::CmdWarp( EtVector3 &vPos, EtVector2 &vLook )
 			CDnWorld::GetInstance().GetEnvironment()->GetTransitionFilter()->Capture();
 		//blondy end
 	}
+}
+
+void CDnLocalPlayerActor::RequestMapWarp( BYTE cTargetType, int nTargetID )
+{
+	if( IsDie() || IsLockInput() || IsCannonMode() || IsFollowObserver() )
+		return;
+	if( cTargetType == 0 || nTargetID <= 0 )
+		return;
+
+	static DWORD s_dwLastMapWarpReqTick = 0;
+	const DWORD dwNow = timeGetTime();
+	if( s_dwLastMapWarpReqTick != 0 && ( dwNow - s_dwLastMapWarpReqTick ) < 400 )
+		return;
+	s_dwLastMapWarpReqTick = dwNow;
+
+	ResetAutoRun();
+
+	BYTE pBuffer[128] = { 0 };
+	CPacketCompressStream Stream( pBuffer, 128 );
+	Stream.Write( &cTargetType, sizeof(BYTE) );
+	Stream.Write( &nTargetID, sizeof(int) );
+
+	Send( eActor::CS_CMDWARP, &Stream );
 }
 
 void CDnLocalPlayerActor::CmdToggleWeaponViewOrder( int nEquipIndex, bool bShowCash )

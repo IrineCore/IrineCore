@@ -340,6 +340,12 @@ CDNNpcObject* CDNField::GetNpcObjectByNpcObjID(UINT nNpcObjID)
 	return (CDNNpcObject*)m_pNpcObjectManager->FindObject(nNpcObjID);
 }
 
+CDNNpcObject* CDNField::FindNpcObjectByNpcID(int nNpcID)
+{
+	if (!m_pNpcObjectManager) return NULL;
+	return m_pNpcObjectManager->FindNpcByNpcID(nNpcID);
+}
+
 void CDNField::SendFieldNotice(int cLen, const WCHAR *pwszChatMsg, int nShowSec)
 {
 	if (m_FieldBlocks.empty()) return;

@@ -13,6 +13,7 @@ CDnZoneNPCButton::CDnZoneNPCButton( CEtUIDialog *pParent )
 	, m_vWorldPos( 0.f, 0.f )
 	, m_nUnitSize(0)
 	, m_vDirection( 0.f, 0.f )
+	, m_nNpcID(0)
 {
 }
 

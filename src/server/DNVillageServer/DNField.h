@@ -63,6 +63,7 @@ public:
 
 	bool AddNpcObject(CDNNpcObject *pNpcObj);
 	CDNNpcObject* GetNpcObjectByNpcObjID(UINT nNpcObjID);
+	CDNNpcObject* FindNpcObjectByNpcID(int nNpcID);
 
 	void SendFieldNotice(int cLen, const WCHAR *pwszChatMsg, int nShowSec);
 	void SendChannelChat(int cLen, const WCHAR *pwszCharacterName, const WCHAR *pwszChatMsg, int nRet = ERROR_NONE);

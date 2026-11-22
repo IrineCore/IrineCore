@@ -65,6 +65,8 @@ void Addmod_mod_my_featureScripts()
 Drop `modules/mod-my-feature/` into `modules/` and re-run CMake — no core file edits required.
 
 ## Built-in Modules
+- **`modules/Map-Warp`** (`IRINE_MODULE_MAP_WARP`, `IRINE_MOD_MAP_WARP`):
+  Smart Zone-Map NPC & Portal warping (`MapWarpModule.{h,cpp}`, `DnMapWarpVillage.{h,cpp}`, `DnMapWarpGame.{h,cpp}`). Lets players Left-Click any NPC or Portal icon on the current Zone Map (`M`) to warp safely in front of that target while preserving Right-Click auto-walk push-pins, with full server-authoritative collision, navmesh/height, gate-trigger exclusion, combat, and anti-cheat checks.
 - **`modules/Player-Bots`** (`IRINE_MODULE_PLAYER_BOTS`, `IRINE_MOD_PLAYER_BOTS`):
   Autonomous AI party companion bots (`DnAIBotBuildData.{h,cpp}`, `DnAIBotController.{h,cpp}`, `PlayerBotsModule.{h,cpp}`). Summons and controls AI party members on Hard, Master, and Abyss dungeons and Nests while excluding Easy and Normal stages.
 - **`modules/examples`** (`IRINE_MODULE_EXAMPLES`, `IRINE_MOD_EXAMPLES`):

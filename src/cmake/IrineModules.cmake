@@ -20,6 +20,7 @@ set(DISABLED_IRINE_MODULES "" CACHE STRING
 # Global properties populated during irine_discover_modules()
 set_property(GLOBAL PROPERTY IRINE_ENABLED_MODULES "")
 set_property(GLOBAL PROPERTY IRINE_ENABLED_COMMON_MODULE_TARGETS "")
+set_property(GLOBAL PROPERTY IRINE_ENABLED_VILLAGESERVER_MODULE_TARGETS "")
 set_property(GLOBAL PROPERTY IRINE_ENABLED_GAMESERVER_MODULE_TARGETS "")
 set_property(GLOBAL PROPERTY IRINE_ENABLED_MODULE_DEFINES "")
 set_property(GLOBAL PROPERTY IRINE_ENABLED_MODULE_INCLUDES "")
@@ -72,6 +73,7 @@ endfunction()
 #       NAME "Player-Bots"
 #       [LOADER_FUNC "Addmod_Player_BotsScripts"]
 #       [COMMON_SOURCES src/PlayerBotsModule.cpp ...]
+#       [VILLAGESERVER_SOURCES src/DnMapWarpVillage.cpp ...]
 #       [GAMESERVER_SOURCES src/DnAIBotController.cpp ...]
 #       [INCLUDE_DIRS ...]
 #       [COMPILE_DEFINITIONS ...]
@@ -81,7 +83,7 @@ endfunction()
 function(irine_register_module)
     set(_flags NO_CONFIG_INSTALL)
     set(_one NAME LOADER_FUNC)
-    set(_multi COMMON_SOURCES GAMESERVER_SOURCES INCLUDE_DIRS COMPILE_DEFINITIONS LINK_LIBRARIES)
+    set(_multi COMMON_SOURCES VILLAGESERVER_SOURCES GAMESERVER_SOURCES INCLUDE_DIRS COMPILE_DEFINITIONS LINK_LIBRARIES)
     cmake_parse_arguments(MOD "${_flags}" "${_one}" "${_multi}" ${ARGN})
 
     if(NOT MOD_NAME)
@@ -96,6 +98,7 @@ function(irine_register_module)
     endif()
 
     set(_common_target "mod_${_lower}")
+    set(_vs_target "mod_${_lower}_villageserver")
     set(_gs_target "mod_${_lower}_gameserver")
     set(_mod_define "IRINE_MOD_${_upper}=1")
     set(_src_inc "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -118,6 +121,33 @@ function(irine_register_module)
             ${MOD_LINK_LIBRARIES}
         )
         set_property(GLOBAL APPEND PROPERTY IRINE_ENABLED_COMMON_MODULE_TARGETS "${_common_target}")
+    endif()
+
+    # Optional VillageServer-specific library (for modules that hook DNVillageServer internals)
+    if(MOD_VILLAGESERVER_SOURCES)
+        add_library(${_vs_target} STATIC ${MOD_VILLAGESERVER_SOURCES})
+        target_include_directories(${_vs_target} PUBLIC
+            "${_src_inc}"
+            ${MOD_INCLUDE_DIRS}
+        )
+        target_include_directories(${_vs_target} PRIVATE
+            "${CMAKE_SOURCE_DIR}/src/server/DNVillageServer"
+            ${IRINE_COMMON_INCLUDES}
+        )
+        target_compile_definitions(${_vs_target} PRIVATE
+            WIN64 NDEBUG _CONSOLE _VILLAGESERVER _FINAL_BUILD UNICODE _UNICODE
+            "${_mod_define}"
+            ${MOD_COMPILE_DEFINITIONS}
+        )
+        target_compile_definitions(${_vs_target} PUBLIC "${_mod_define}")
+        target_link_libraries(${_vs_target} PUBLIC
+            irine_platform
+            ${MOD_LINK_LIBRARIES}
+        )
+        if(TARGET ${_common_target})
+            target_link_libraries(${_vs_target} PUBLIC ${_common_target})
+        endif()
+        set_property(GLOBAL APPEND PROPERTY IRINE_ENABLED_VILLAGESERVER_MODULE_TARGETS "${_vs_target}")
     endif()
 
     # Optional GameServer-specific library (for modules that hook DNGameServer internals)
@@ -167,6 +197,7 @@ function(irine_discover_modules MODULES_ROOT)
     # Reset global properties for clean re-configure
     set_property(GLOBAL PROPERTY IRINE_ENABLED_MODULES "")
     set_property(GLOBAL PROPERTY IRINE_ENABLED_COMMON_MODULE_TARGETS "")
+    set_property(GLOBAL PROPERTY IRINE_ENABLED_VILLAGESERVER_MODULE_TARGETS "")
     set_property(GLOBAL PROPERTY IRINE_ENABLED_GAMESERVER_MODULE_TARGETS "")
     set_property(GLOBAL PROPERTY IRINE_ENABLED_MODULE_DEFINES "")
     set_property(GLOBAL PROPERTY IRINE_ENABLED_MODULE_INCLUDES "")
@@ -269,6 +300,13 @@ function(irine_generate_module_loader TEMPLATE_PATH OUTPUT_PATH)
     set(_manifest_out "${CMAKE_BINARY_DIR}/generated/modules.manifest")
     file(WRITE "${_manifest_out}" "${_manifest_content}")
     install(FILES "${_manifest_out}" DESTINATION "${CMAKE_INSTALL_PREFIX}/module")
+endfunction()
+
+function(irine_link_villageserver_modules TARGET_NAME)
+    get_property(_vs_targets GLOBAL PROPERTY IRINE_ENABLED_VILLAGESERVER_MODULE_TARGETS)
+    if(_vs_targets)
+        target_link_libraries(${TARGET_NAME} PRIVATE ${_vs_targets})
+    endif()
 endfunction()
 
 function(irine_link_gameserver_modules TARGET_NAME)

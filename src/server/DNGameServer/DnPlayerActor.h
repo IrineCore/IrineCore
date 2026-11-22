@@ -435,6 +435,9 @@ public:
 	void AddNowMaxProjectileCount( int nAddCount ) { m_iNowMaxProjectileCount += nAddCount; };
 
 	IDnPlayerChecker* GetPlayerSpeedHackChecker( void ) { return m_pPlayerSpeedHackChecker; };
+#ifdef IRINE_MOD_MAP_WARP
+	void ResetWarpAntiCheatCheckers();
+#endif
 	bool IsInvalidPlayerChecker();
 	virtual void OnInvalidPlayerChecker( int nValue );
 

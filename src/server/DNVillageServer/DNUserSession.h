@@ -325,6 +325,10 @@ public:
 	void ChangeMap(BYTE cVillageID, BYTE cTargetGateNo, int nTargetChannelID, int nTargetMapIndex, char *pIp, USHORT nPort);
 	void ChangeMap(BYTE cVillageID, int nTargetChannelID, int nTargetMapIndex, char *pIp, USHORT nPort, bool bPartyinto = false);	// For cheat
 	void ChangePos(int nX, int nY, int nZ, float fLookX, float fLookZ);
+#ifdef IRINE_MOD_MAP_WARP
+	bool IsBusyForMapWarp() const;
+	bool SmartWarpInField(const TPosition& NewPos, float fLookX, float fLookZ, float fRotateDeg);
+#endif
 
 	void ReconnectLogin(short nRet);
 	void QueryGetMasterSystemCountInfo( bool bClientSend );

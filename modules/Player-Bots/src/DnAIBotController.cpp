@@ -876,9 +876,8 @@ void CDnAIBotController::Process( LOCAL_TIME LocalTime, float fDelta )
 	UpdateGateReadiness( fDelta );
 
 	// 4. Maintain Battle / Peace stance cleanly (sheathe weapons out of combat when human is peaceful)
-	bool bNeedCombatStance = ( !m_LastScan.bHumanInGate && ( m_LastScan.bHasAnyEnemy || (bool)m_LastScan.hBreakableProp ) )
-		|| (bool)m_LastScan.hBlockingBreakableProp
-		|| (bool)m_hPathBlockingBreakable;
+	bool bNeedCombatStance = ( !m_LastScan.bHumanInGate && m_LastScan.bHasAnyEnemy )
+		|| ( HasCombatStrategy( Irine::Modules::CS_BREAK_PROPS ) && ( (bool)m_LastScan.hBlockingBreakableProp || (bool)m_hPathBlockingBreakable ) );
 
 	if( m_bWasInCombatLastTick && !bNeedCombatStance && !m_LastScan.bHumanInGate )
 	{
@@ -1214,7 +1213,8 @@ void CDnAIBotController::ScanArenaAndParty( LOCAL_TIME LocalTime )
 			nBestScore = nScore;
 			res.hBestEnemy = hAct;
 			bBestHasLOS = bHasLOS;
-			hBestBlockingBreakable = bBlockedByBreakable ? losObs.hProp : CDnWorldProp::Identity();
+			// Only treat a breakable prop as a blocking barricade when there is NO navmesh route around it
+			hBestBlockingBreakable = ( bBlockedByBreakable && !bNavReachable ) ? losObs.hProp : CDnWorldProp::Identity();
 		}
 
 		// Track Boss / Nest Boss state & live telegraphs
@@ -1391,12 +1391,15 @@ void CDnAIBotController::ScanArenaAndParty( LOCAL_TIME LocalTime )
 				}
 			}
 
-			if( pProp->IsBrokenType() )
+			// Only target destructible props when a Boss is invulnerable (Nest mechanic totems/crystals).
+			// Never waste time hunting decorative crates, barrels, boxes, or pots around the dungeon.
+			if( res.bBossInvulnerable && res.hPriorityBoss && pProp->IsBrokenType() )
 			{
 				CDnWorldBrokenProp* pBroken = static_cast<CDnWorldBrokenProp*>( pProp );
-				if( !pBroken->IsBroken() && pBroken->IsHittable( m_pActor->GetActorHandle(), LocalTime ) )
+				if( !pBroken->IsBroken() && pBroken->GetDurability() > 0 && pBroken->IsHittable( m_pActor->GetActorHandle(), LocalTime ) )
 				{
-					if( fDistSq < fBestBreakDistSq )
+					float fBossPropDistSq = XZDistSq( *res.hPriorityBoss->GetPosition(), vPropPos );
+					if( fBossPropDistSq <= ( 1000.f * 1000.f ) && fDistSq < fBestBreakDistSq )
 					{
 						fBestBreakDistSq = fDistSq;
 						res.hBreakableProp = pProp->GetMySmartPtr();
@@ -2432,14 +2435,14 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 		}
 	}
 
-	// Priority 0b: A destructible prop is directly blocking our path - step right up to smash it open
-	if( !bHasGoal && ( m_hPathBlockingBreakable || m_LastScan.hBlockingBreakableProp ) )
+	// Priority 0b: A destructible barricade genuinely seals off our path (no clear steering around it)
+	if( !bHasGoal && HasCombatStrategy( CS_BREAK_PROPS ) && ( m_hPathBlockingBreakable || m_LastScan.hBlockingBreakableProp ) )
 	{
 		DnPropHandle hBlocker = m_hPathBlockingBreakable ? m_hPathBlockingBreakable : m_LastScan.hBlockingBreakableProp;
 		if( hBlocker && hBlocker->IsShow() && hBlocker->IsBrokenType() )
 		{
 			CDnWorldBrokenProp* pBroken = static_cast<CDnWorldBrokenProp*>( hBlocker.GetPointer() );
-			if( !pBroken->IsBroken() )
+			if( !pBroken->IsBroken() && pBroken->GetDurability() > 0 )
 			{
 				vDesiredPos = hBlocker->GetMatEx()->m_vPosition;
 				fStopDist = HasRangedBasicAttack() ? 290.f : 120.f;
@@ -2484,7 +2487,7 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 	}
 
 	// Priority 2b: Invulnerable boss + active breakable mechanic prop (totem/crystal) -> go break it!
-	if( !bHasGoal && m_LastScan.bBossInvulnerable && m_LastScan.hBreakableProp && m_LastScan.hBreakableProp->IsShow() )
+	if( !bHasGoal && !HasNonCombatStrategy( NCS_PASSIVE ) && HasCombatStrategy( CS_BREAK_PROPS ) && m_LastScan.bBossInvulnerable && m_LastScan.hBreakableProp && m_LastScan.hBreakableProp->IsShow() )
 	{
 		vDesiredPos = m_LastScan.hBreakableProp->GetMatEx()->m_vPosition;
 		fStopDist = HasRangedBasicAttack() ? 310.f : 125.f;
@@ -2619,15 +2622,7 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 		bHasGoal = true;
 	}
 
-	// Priority 5: Destructible dungeon prop when no active monsters
-	if( !bHasGoal && !HasNonCombatStrategy( NCS_PASSIVE ) && HasCombatStrategy( CS_BREAK_PROPS ) && m_LastScan.hBreakableProp && m_LastScan.hBreakableProp->IsShow() )
-	{
-		vDesiredPos = m_LastScan.hBreakableProp->GetMatEx()->m_vPosition;
-		fStopDist = HasRangedBasicAttack() ? 300.f : 120.f;
-		bHasGoal = true;
-	}
-
-	// Priority 5b: Non-combat STAY strategy (hold assigned anchor point until commanded to follow/attack)
+	// Priority 5: Non-combat STAY strategy (hold assigned anchor point until commanded to follow/attack)
 	if( !bHasGoal && HasNonCombatStrategy( NCS_STAY ) )
 	{
 		if( !m_bHasStayAnchor )
@@ -2769,7 +2764,17 @@ void CDnAIBotController::SteerToward( const EtVector3& vDest, float fStopDist, f
 		EtVector2 vClearDir = vDesiredDir;
 		bool bFoundClear = ChooseClearSteeringDir( vMyPos, vDesiredDir, fProbeDist, m_bBlockedByObstacle, m_pActor->GetLocalTime(), vClearDir, frontObs );
 
-		if( frontObs.eType == Obstacle_BreakableProp && frontObs.hProp )
+		bool bShouldSmashBlocker = false;
+		if( frontObs.eType == Obstacle_BreakableProp && frontObs.hProp && !bFoundClear && m_bBlockedByObstacle &&
+			HasCombatStrategy( Irine::Modules::CS_BREAK_PROPS ) && !HasNonCombatStrategy( Irine::Modules::NCS_PASSIVE ) )
+		{
+			// Only break a prop in our path when EVERY steering direction around it is blocked (sealed barricade/gate)
+			CDnWorldBrokenProp* pBroken = static_cast<CDnWorldBrokenProp*>( frontObs.hProp.GetPointer() );
+			if( pBroken && !pBroken->IsBroken() && pBroken->GetDurability() > 0 )
+				bShouldSmashBlocker = true;
+		}
+
+		if( bShouldSmashBlocker )
 		{
 			m_hPathBlockingBreakable = frontObs.hProp;
 			if( frontObs.fHitDist <= ( HasRangedBasicAttack() ? 300.f : 140.f ) )
@@ -3432,7 +3437,7 @@ void CDnAIBotController::UpdateCombatDecision( LOCAL_TIME LocalTime, float fDelt
 		if( hBlockerProp && hBlockerProp->IsShow() && hBlockerProp->IsBrokenType() )
 		{
 			CDnWorldBrokenProp* pBroken = static_cast<CDnWorldBrokenProp*>( hBlockerProp.GetPointer() );
-			if( !pBroken->IsBroken() && pBroken->IsHittable( m_pActor->GetActorHandle(), LocalTime ) )
+			if( !pBroken->IsBroken() && pBroken->GetDurability() > 0 && pBroken->IsHittable( m_pActor->GetActorHandle(), LocalTime ) )
 			{
 				if( TryBreakPropSkillOrAttack( hBlockerProp->GetMatEx()->m_vPosition ) )
 					return;
@@ -3502,10 +3507,6 @@ void CDnAIBotController::UpdateCombatDecision( LOCAL_TIME LocalTime, float fDelt
 		}
 		return;
 	}
-
-	// 3. Destructible Dungeon Prop (gates/barricades/chests/crystals)
-	if( HasCombatStrategy( CS_BREAK_PROPS ) && m_LastScan.hBreakableProp && m_LastScan.hBreakableProp->IsShow() )
-		TryBreakPropSkillOrAttack( m_LastScan.hBreakableProp->GetMatEx()->m_vPosition );
 }
 
 bool CDnAIBotController::TryCastSupportOrHeal( bool bNeedHeal, bool bNeedCure, bool bWantBuff, float fAllyDist )
@@ -4092,27 +4093,31 @@ bool CDnAIBotController::TryBreakPropSkillOrAttack( const EtVector3& vPropPos )
 	m_vAimPos.y += 50.f;
 	FacePosition( vPropPos );
 
-	// Use a quick low-cooldown offensive skill in exact range to smash barricades/crystals faster
-	for( DWORD i = 0; i < m_pActor->GetSkillCount(); ++i )
+	// Only spend a quick low-cooldown offensive skill on boss mechanic crystals/totems;
+	// for sealed barricades use basic attacks to preserve skill cooldowns & mana.
+	if( m_LastScan.bBossInvulnerable )
 	{
-		DnSkillHandle hSkill = m_pActor->GetSkillFromIndex( i );
-		if( !hSkill ) continue;
-		CDnSkill* pSkill = hSkill.GetPointer();
-		if( !IsOffensiveActiveSkill( pSkill ) ) continue;
-		if( pSkill->bIsExtremitySkill() || pSkill->GetDelayTime() > 11.f ) continue;
-		if( pSkill->CanExecute() != CDnSkill::UsingResult::Success ) continue;
-
-		const SkillProfile& prof = GetOrAnalyzeSkillProfile( pSkill );
-		if( !prof.bHasHitSignal && !prof.bHasProjectile ) continue;
-		if( fDist > GetEffectiveSkillMaxRange( prof ) ) continue;
-
-		if( m_pActor->UseSkill( pSkill->GetClassID(), true ) == CDnSkill::UsingResult::Success )
+		for( DWORD i = 0; i < m_pActor->GetSkillCount(); ++i )
 		{
-			SendUseSkillPacket( pSkill );
-			m_fSkillDelayTimer = 0.36f;
-			return true;
+			DnSkillHandle hSkill = m_pActor->GetSkillFromIndex( i );
+			if( !hSkill ) continue;
+			CDnSkill* pSkill = hSkill.GetPointer();
+			if( !IsOffensiveActiveSkill( pSkill ) ) continue;
+			if( pSkill->bIsExtremitySkill() || pSkill->GetDelayTime() > 11.f ) continue;
+			if( pSkill->CanExecute() != CDnSkill::UsingResult::Success ) continue;
+
+			const SkillProfile& prof = GetOrAnalyzeSkillProfile( pSkill );
+			if( !prof.bHasHitSignal && !prof.bHasProjectile ) continue;
+			if( fDist > GetEffectiveSkillMaxRange( prof ) ) continue;
+
+			if( m_pActor->UseSkill( pSkill->GetClassID(), true ) == CDnSkill::UsingResult::Success )
+			{
+				SendUseSkillPacket( pSkill );
+				m_fSkillDelayTimer = 0.36f;
+				return true;
+			}
+			break;
 		}
-		break;
 	}
 
 	m_pActor->CmdAction( szAction, 0, 3.f );

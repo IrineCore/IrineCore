@@ -18,6 +18,7 @@
 CDNFieldData::CDNFieldData(void)
 {
 	m_nMapIndex = 0;
+	m_bHasCollisionHeight = false;
 	m_VecGateList.clear();
 	m_VecStartPositionList.clear();
 }
@@ -37,7 +38,8 @@ bool CDNFieldData::Init(char *pszMapName, int nMapIndex)
 	if (!m_World.Initialize(CEtResourceMng::GetInstance().GetFullPath("MapData").c_str(), pszMapName)) return false;
 
 	int nLoadSectorEnum = CEtWorldSector::LSE_Terrain | CEtWorldSector::LSE_Control | CEtWorldSector::LSE_Prop;
-	if( MapType == EWorldEnum::MapTypeVillage ) nLoadSectorEnum |= CEtWorldSector::LSE_GenCollisionHeight;
+	m_bHasCollisionHeight = (MapType == EWorldEnum::MapTypeVillage);
+	if( m_bHasCollisionHeight ) nLoadSectorEnum |= CEtWorldSector::LSE_GenCollisionHeight;
 
 	m_World.ForceInitialize( nLoadSectorEnum );
 
@@ -259,6 +261,11 @@ float CDNFieldData::GetCollisionHeight(float fX, float fZ)
 	return m_World.GetCollisionHeight(fX, fZ);
 }
 
+float CDNFieldData::GetTerrainHeight(float fX, float fZ)
+{
+	return m_World.GetHeight(fX, fZ);
+}
+
 DWORD CDNFieldData::GetCurrentTileSize()
 {
 	return m_World.GetCurrentTileSize();
@@ -273,4 +280,70 @@ int CDNFieldData::GetGateType(TPosition &Position)
 	}
 
 	return -1;
+}
+
+bool CDNFieldData::GetGateAreaBounds(int nGateIndex, float& outMinX, float& outMinZ, float& outMaxX, float& outMaxZ, float& outAngle) const
+{
+	for (size_t i = 0; i < m_VecGateList.size(); ++i)
+	{
+		if (m_VecGateList[i].nIndex == nGateIndex)
+		{
+			// Strip the +/-100 world unit (100000 thousandths) CheckGateArea padding when reporting raw bounds
+			float minX = static_cast<float>(m_VecGateList[i].Min.nX + 100000) / 1000.f;
+			float maxX = static_cast<float>(m_VecGateList[i].Max.nX - 100000) / 1000.f;
+			float minZ = static_cast<float>(m_VecGateList[i].Min.nZ + 100000) / 1000.f;
+			float maxZ = static_cast<float>(m_VecGateList[i].Max.nZ - 100000) / 1000.f;
+			if (minX > maxX)
+			{
+				const float midX = static_cast<float>(m_VecGateList[i].Min.nX + m_VecGateList[i].Max.nX) * 0.5f / 1000.f;
+				minX = midX - 50.f;
+				maxX = midX + 50.f;
+			}
+			if (minZ > maxZ)
+			{
+				const float midZ = static_cast<float>(m_VecGateList[i].Min.nZ + m_VecGateList[i].Max.nZ) * 0.5f / 1000.f;
+				minZ = midZ - 50.f;
+				maxZ = midZ + 50.f;
+			}
+			outMinX = minX;
+			outMaxX = maxX;
+			outMinZ = minZ;
+			outMaxZ = maxZ;
+			outAngle = m_VecGateList[i].fAngle;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool CDNFieldData::GetStartPositionCenter(int nGateIndex, float& outX, float& outY, float& outZ, float& outAngle)
+{
+	for (size_t i = 0; i < m_VecStartPositionList.size(); ++i)
+	{
+		if (m_VecStartPositionList[i].nIndex == nGateIndex)
+		{
+			outX = static_cast<float>(m_VecStartPositionList[i].Min.nX + m_VecStartPositionList[i].Max.nX) * 0.5f / 1000.f;
+			outZ = static_cast<float>(m_VecStartPositionList[i].Min.nZ + m_VecStartPositionList[i].Max.nZ) * 0.5f / 1000.f;
+			const float baseY = static_cast<float>(m_VecStartPositionList[i].Min.nY + m_VecStartPositionList[i].Max.nY) * 0.5f / 1000.f;
+			outY = baseY + m_World.GetHeight(outX, outZ);
+			outAngle = m_VecStartPositionList[i].fAngle;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool CDNFieldData::IsInsideAnyGateTrigger(float fX, float fZ, float fExtraMargin) const
+{
+	const float margin = (fExtraMargin > 0.f) ? fExtraMargin : 0.f;
+	for (size_t i = 0; i < m_VecGateList.size(); ++i)
+	{
+		const float minX = static_cast<float>(m_VecGateList[i].Min.nX) / 1000.f - margin;
+		const float maxX = static_cast<float>(m_VecGateList[i].Max.nX) / 1000.f + margin;
+		const float minZ = static_cast<float>(m_VecGateList[i].Min.nZ) / 1000.f - margin;
+		const float maxZ = static_cast<float>(m_VecGateList[i].Max.nZ) / 1000.f + margin;
+		if (fX >= minX && fX <= maxX && fZ >= minZ && fZ <= maxZ)
+			return true;
+	}
+	return false;
 }

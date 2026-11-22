@@ -19,6 +19,7 @@ private:
 	};
 	std::vector<AreaInfo> m_VecGateList;
 	std::vector<AreaInfo> m_VecStartPositionList;
+	bool m_bHasCollisionHeight;
 
 protected:
 	void CalcGatePosition();
@@ -40,9 +41,14 @@ public:
 	void LoadCreateNpc(CDNField *pField);
 
 	float GetCollisionHeight(float fX, float fZ);
+	float GetTerrainHeight(float fX, float fZ);
+	inline bool HasCollisionHeight() const { return m_bHasCollisionHeight; }
 	DWORD GetCurrentTileSize();
 
 	int GetGateType(TPosition &Position);
+	bool GetGateAreaBounds(int nGateIndex, float& outMinX, float& outMinZ, float& outMaxX, float& outMaxZ, float& outAngle) const;
+	bool GetStartPositionCenter(int nGateIndex, float& outX, float& outY, float& outZ, float& outAngle);
+	bool IsInsideAnyGateTrigger(float fX, float fZ, float fExtraMargin) const;
 
 	inline int GetGridX() { return m_World.GetGridX(); }
 	inline int GetGridY() { return m_World.GetGridY(); }

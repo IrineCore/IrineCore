@@ -48,6 +48,7 @@ protected:
 	EtVector2 m_vWorldPos;
 	int m_nUnitSize;
 	EtVector2 m_vDirection;
+	int m_nNpcID;
 
 public:
 	bool IsPushPin() { return m_bPushPin; }
@@ -62,6 +63,8 @@ public:
 	int GetUnitSize() { return m_nUnitSize; }
 	void SetDirection( EtVector2 &vDir ) { m_vDirection = vDir; }
 	EtVector2 *GetDirection() { return &m_vDirection; }
+	void SetNpcID( int nNpcID ) { m_nNpcID = nNpcID; }
+	int GetNpcID() const { return m_nNpcID; }
 
 public:
 	virtual bool HandleMouse( UINT uMsg, float fX, float fY, WPARAM wParam, LPARAM lParam );

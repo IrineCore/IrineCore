@@ -39,3 +39,13 @@ target_link_libraries(irine_modules PUBLIC
     irine_platform
     ${_common_mod_targets}
 )
+
+# Propagate all enabled IRINE_MOD_* feature macros to server-specific module targets
+# so shared server headers (e.g. DnPlayerActor.h, DNUserSession.h) preserve strict ODR.
+get_property(_vs_mod_targets GLOBAL PROPERTY IRINE_ENABLED_VILLAGESERVER_MODULE_TARGETS)
+get_property(_gs_mod_targets GLOBAL PROPERTY IRINE_ENABLED_GAMESERVER_MODULE_TARGETS)
+foreach(_srv_mod_target IN LISTS _vs_mod_targets _gs_mod_targets)
+    if(_mod_defines)
+        target_compile_definitions(${_srv_mod_target} PRIVATE ${_mod_defines})
+    endif()
+endforeach()
