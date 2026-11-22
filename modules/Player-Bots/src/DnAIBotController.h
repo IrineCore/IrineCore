@@ -282,7 +282,10 @@ private:
 	float m_fReactionJitter;
 	float m_fDefensiveBias;
 	float m_fPostCombatPauseTimer;
+	float m_fOutOfCombatTimer;
 	bool m_bWasInCombatLastTick;
+	bool m_bIsSprintDashing;
+	int m_nSprintSpeedBlowID;
 
 	// Exact skill profile cache & live hit/whiff learning tracker
 	std::map<int, SkillProfile> m_mapSkillProfiles;
@@ -350,7 +353,14 @@ private:
 	void SendStopPacket( bool bResetStop = false );
 	void SendLookPacket( const EtVector2& vDir2 );
 	void SendActionPacket( const char* szActionName, int nLoopCount = 0, float fBlendFrame = 3.f, bool bSkillChain = false );
+	void SendPassiveSkillActionPacket( int nSkillID, BYTE cLevel, const char* szActionName, int nLoopCount, float fBlendFrame, float fStartFrame, const EtVector2& vZVec, const EtVector2& vLook, char cFlag, bool bChargeKey, bool bOnlyCheck = false );
 	void SendUseSkillPacket( CDnSkill* pSkill );
+
+	bool IsHumanLeaderDashing() const;
+	bool IsActiveWarriorDash() const;
+	bool CanUseWarriorDash() const;
+	bool CanUseLevel10SprintPassive() const;
+	void CancelSprintPassiveIfActive( bool bResetActionToStand = false );
 
 	bool TryCastSupportOrHeal( bool bNeedHeal, bool bNeedCure, bool bWantBuff, float fAllyDist );
 	bool TryCastCombatSkill( float fDistToTargetBox, float fVerticalDelta, bool bBossInvuln );

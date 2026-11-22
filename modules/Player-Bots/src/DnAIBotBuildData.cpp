@@ -1538,6 +1538,23 @@ namespace AIBot
 				}
 			}
 
+			// Guarantee Warrior's Level 10 Dash sprint passive (SkillID 18) is always learned at Lv 10+
+			if (pSpec->cBaseClass == 1 && nSkillLevelCap >= 10)
+			{
+				TSkillData* pDashSkill = g_pDataManager->GetSkillData(18);
+				if (pDashSkill)
+				{
+					int nDashLv = 1;
+					for (size_t l = 0; l < pDashSkill->vLevelDataList.size(); ++l)
+					{
+						const TSkillLevelData& lvData = pDashSkill->vLevelDataList[l];
+						if (lvData.cLevelLimit <= nSkillLevelCap && lvData.cSkillLevel <= pDashSkill->nMaxLevel && lvData.cSkillLevel > nDashLv)
+							nDashLv = lvData.cSkillLevel;
+					}
+					mapCandidateLevel[18] = (BYTE)nDashLv;
+				}
+			}
+
 			// Enforce skill tree parent prerequisites so low-level bots never have impossible skills
 			if (cfg.respectSkillPrerequisites)
 			{

@@ -758,13 +758,13 @@ void CDNRUDPGameServer::StoredProcess()
 								
 								TGuildRewardItem *RewardItemInfo = pGuild->GetGuildRewardItem();
 								
-								std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+								std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 								pGuild->GetMemberList (aList);
 
 								if (aList.empty())
 									break;
 
-								std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+								std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 
 								for (; iter != aList.end (); iter++)
 								{
@@ -1247,13 +1247,13 @@ void CDNRUDPGameServer::StoredProcess()
 						if (FALSE == pGuild->IsEnable()) break;
 #endif
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 						pGuild->GetMemberList (aList);
 
 						if (aList.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 
 						for (; iter != aList.end (); iter++)
 						{
@@ -1280,13 +1280,13 @@ void CDNRUDPGameServer::StoredProcess()
 						if (FALSE == pGuild->IsEnable()) break;
 #endif
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 						pGuild->GetMemberList (aList);
 
 						if (aList.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 
 						for (; iter != aList.end (); iter++) 
 						{
@@ -1340,13 +1340,13 @@ void CDNRUDPGameServer::StoredProcess()
 #endif
 
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 						pGuild->GetMemberList (aList);
 
 						if (aList.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 
 						for (; iter != aList.end (); iter++)
 						{
@@ -1375,13 +1375,13 @@ void CDNRUDPGameServer::StoredProcess()
 #endif
 
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 						pGuild->GetMemberList (aList);
 
 						if (aList.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 
 						for (; iter != aList.end (); iter++)
 						{
@@ -1453,13 +1453,13 @@ void CDNRUDPGameServer::StoredProcess()
 						}
 						else
 						{
-							std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+							std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 							pGuild->GetMemberList (aList);
 
 							if (aList.empty())
 								break;
 
-							std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+							std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 
 							for (; iter != aList.end (); iter++)
 							{
@@ -1492,13 +1492,13 @@ void CDNRUDPGameServer::StoredProcess()
 #endif
 
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 						pGuild->GetMemberList (aList);
 
 						if (aList.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 
 						for (; iter != aList.end (); iter++)
 						{
@@ -1532,13 +1532,13 @@ void CDNRUDPGameServer::StoredProcess()
 
 						if (pGuild->IsMemberExist(pPacket->nCharacterDBID, NULL))
 						{
-							std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+							std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 							pGuild->GetMemberList (aList);
 
 							if (aList.empty())
 								break;
 
-							std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+							std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 
 							for (; iter != aList.end (); iter++)
 							{
@@ -1570,13 +1570,13 @@ void CDNRUDPGameServer::StoredProcess()
 #endif
 
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 						pGuild->GetMemberList (aList);
 
 						if (aList.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 
 						for (; iter != aList.end (); iter++)
 						{
@@ -1606,13 +1606,13 @@ void CDNRUDPGameServer::StoredProcess()
 #endif
 
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 						pGuild->GetMemberList (aList);
 
 						if (aList.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 
 						for (; iter != aList.end (); iter++)
 						{
@@ -1642,13 +1642,13 @@ void CDNRUDPGameServer::StoredProcess()
 						if (FALSE == pGuild->IsEnable()) break;
 #endif
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 						pGuild->GetMemberList (aList);
 
 						if (aList.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 						for (; iter != aList.end (); iter++)
 						{
 							CDNUserSession *pSession = GetSessionByADBID (iter->first);
@@ -1676,13 +1676,13 @@ void CDNRUDPGameServer::StoredProcess()
 #endif
 
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> aList;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> aList;
 						pGuild->GetMemberList (aList);
 
 						if (aList.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = aList.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = aList.begin ();
 						for (; iter != aList.end (); iter++)
 						{
 							CDNUserSession *pSession = GetSessionByADBID (iter->first);
@@ -1718,13 +1718,13 @@ void CDNRUDPGameServer::StoredProcess()
 #endif
 
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> vGuildMember;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> vGuildMember;
 						pGuild->GetMemberList (vGuildMember);
 
 						if (vGuildMember.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = vGuildMember.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = vGuildMember.begin ();
 
 						for (; iter != vGuildMember.end (); iter++)
 						{
@@ -1774,13 +1774,13 @@ void CDNRUDPGameServer::StoredProcess()
 #endif
 
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> vGuildMember;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> vGuildMember;
 						pGuild->GetMemberList (vGuildMember);
 
 						if (vGuildMember.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = vGuildMember.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = vGuildMember.begin ();
 
 						for (; iter != vGuildMember.end (); iter++)
 						{
@@ -1854,13 +1854,13 @@ void CDNRUDPGameServer::StoredProcess()
 						memset( &RewardItemInfo, 0, sizeof(RewardItemInfo) );
 						pGuild->AddGuildRewardItem( pPacket->nItemID, pPacket->m_tExpireDate, RewardItemInfo );
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> vGuildMember;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> vGuildMember;
 						pGuild->GetMemberList (vGuildMember);
 
 						if (vGuildMember.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = vGuildMember.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = vGuildMember.begin ();
 
 						for (; iter != vGuildMember.end (); iter++)
 						{
@@ -1888,13 +1888,13 @@ void CDNRUDPGameServer::StoredProcess()
 
 						pGuild->SetInfo()->wGuildSize = pPacket->nGuildSize;
 						
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> vGuildMember;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> vGuildMember;
 						pGuild->GetMemberList (vGuildMember);
 
 						if (vGuildMember.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = vGuildMember.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = vGuildMember.begin ();
 
 						for (; iter != vGuildMember.end (); iter++)
 						{
@@ -1932,13 +1932,13 @@ void CDNRUDPGameServer::StoredProcess()
 						if (FALSE == pGuild->IsEnable()) break;
 #endif
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 						pGuild->GetMemberList (List);
 
 						if (List.empty())
 							break;
 
-						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+						std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 						for (; iter != List.end (); iter++)
 						{
 							CDNUserSession *pSession = GetSessionByADBID (iter->first);

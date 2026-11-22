@@ -51,13 +51,13 @@ bool CDNGuildVillage::IsValiadMember(CDNUserSession *pUserObj, INT64 nCharacterD
 // Broadcast to all logged-in guild members
 void CDNGuildVillage::SendGuildMemberLoginList(SCGuildMemberLoginList* pPacket)
 {
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -95,13 +95,13 @@ void CDNGuildVillage::SendAddGuildMember(UINT nAccountDBID, INT64 nCharacterDBID
 	DN_ASSERT(IsOpen(),		"Not Opened!");
 	DN_ASSERT(IsAttach(),	"Not Attached!");
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -119,13 +119,13 @@ void CDNGuildVillage::SendDelGuildMember(UINT nAccountDBID, INT64 nCharacterDBID
 	DN_ASSERT(IsAttach(),	"Not Attached!");
 	DN_ASSERT(!IsLock(),	"Already Locked!");
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -158,13 +158,13 @@ void CDNGuildVillage::SendChangeGuildInfo(UINT nAccountDBID, INT64 nCharacterDBI
 	DN_ASSERT(IsAttach(),	"Not Attached!");
 	DN_ASSERT(!IsLock(),	"Already Locked!");
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -182,13 +182,13 @@ void CDNGuildVillage::SendChangeGuildMemberInfo(UINT nReqAccountDBID, INT64 nReq
 	DN_ASSERT(IsAttach(),	"Not Attached!");
 	DN_ASSERT(!IsLock(),	"Already Locked!");
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -233,13 +233,13 @@ void CDNGuildVillage::SendGuildChat(UINT nAccountDBID, INT64 nCharacterDBID, LPC
 	DN_ASSERT(IsAttach(),	"Not Attached!");
 	DN_ASSERT(!IsLock(),	"Already Locked!");
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList(List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -258,13 +258,13 @@ void CDNGuildVillage::SendDoorsGuildChat(INT64 nCharacterDBID, LPCWSTR lpwszChat
 	DN_ASSERT(IsAttach(),	"Not Attached!");
 	DN_ASSERT(!IsLock(),	"Already Locked!");
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList(List);
 
 	if (List.empty())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 	for (; iter != List.end (); iter++)
 	{
 		CDNUserSession *pUserObj = g_pUserSessionManager->FindUserSessionByAccountDBID(iter->first);
@@ -282,13 +282,13 @@ void CDNGuildVillage::SendChangeGuildName(const wchar_t* wszGuildName)
 	DN_ASSERT(IsAttach(),	"Not Attached!");
 	DN_ASSERT(!IsLock(),	"Already Locked!");
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -308,13 +308,13 @@ void CDNGuildVillage::SendChangeGuildMark(const MAGuildChangeMark *pPacket)
 	DN_ASSERT(IsAttach(),	"Not Attached!");
 	DN_ASSERT(!IsLock(),	"Already Locked!");
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -332,13 +332,13 @@ void CDNGuildVillage::SendChangeGuildMark(const MAGuildChangeMark *pPacket)
 
 void CDNGuildVillage::SendExtendGuildWare(short wTotalSize)
 {
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -352,13 +352,13 @@ void CDNGuildVillage::SendExtendGuildWare(short wTotalSize)
 
 void CDNGuildVillage::SendGuildLevelUp (int nLevel)
 {
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -372,13 +372,13 @@ void CDNGuildVillage::SendGuildLevelUp (int nLevel)
 
 void CDNGuildVillage::SendUpdateGuildExp(BYTE cPointType, int nPointValue, int nGuildExp, INT64 biCharacterDBID, int nMissionID)
 {
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -454,13 +454,13 @@ void CDNGuildVillage::SendRefreshGuildCoin(INT64 biTotalCoin, CDNUserSession* pS
 	DN_ASSERT(IsOpen(),		"Not Opened!");
 	DN_ASSERT(IsAttach(),	"Not Attached!");
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -822,13 +822,13 @@ void CDNGuildVillage::UpdateWareSize(CDNUserBase* pUserObject, short wSize)
 
 void CDNGuildVillage::SendGuildRewardItem( TGuildRewardItem* GuildRewardItem )
 {
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -841,13 +841,13 @@ void CDNGuildVillage::SendGuildRewardItem( TGuildRewardItem* GuildRewardItem )
 }
 void CDNGuildVillage::SendAddGuildRewardItem( TGuildRewardItem GuildRewardItem )
 {
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{
@@ -860,13 +860,13 @@ void CDNGuildVillage::SendAddGuildRewardItem( TGuildRewardItem GuildRewardItem )
 }
 void CDNGuildVillage::SendExtendGuildSize(short nGuildSize)
 {
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>> List;
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>> List;
 	GetMemberList (List);
 
 	if (List.empty ())
 		return;
 
-	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>::iterator iter = List.begin ();
+	std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>::iterator iter = List.begin ();
 
 	for (; iter != List.end (); iter++)
 	{

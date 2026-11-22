@@ -395,7 +395,10 @@ CDnAIBotController::CDnAIBotController( CDnPlayerActor* pActor )
 	, m_fReactionJitter( 0.06f )
 	, m_fDefensiveBias( 0.f )
 	, m_fPostCombatPauseTimer( 0.f )
+	, m_fOutOfCombatTimer( 0.f )
 	, m_bWasInCombatLastTick( false )
+	, m_bIsSprintDashing( false )
+	, m_nSprintSpeedBlowID( -1 )
 	, m_nPendingCastSkillID( 0 )
 	, m_fPendingCastDist( 0.f )
 	, m_fPendingCastTimer( 0.f )
@@ -447,7 +450,9 @@ void CDnAIBotController::OnStageStart()
 	m_fComboChainTimer = 0.f;
 	m_fBuffCheckTimer = 0.6f + (float)( m_nBotSlotIndex % 3 ) * 0.3f;
 	m_fPostCombatPauseTimer = 0.f;
+	m_fOutOfCombatTimer = 0.f;
 	m_bWasInCombatLastTick = false;
+	CancelSprintPassiveIfActive( false );
 	m_bLoggedStageSummary = false;
 	m_bLoggedFirstCombat = false;
 	m_bLoggedFirstAction = false;
@@ -775,7 +780,10 @@ void CDnAIBotController::Process( LOCAL_TIME LocalTime, float fDelta )
 	if( !m_pActor || !m_pActor->GetUserSession() || !m_pActor->GetGameRoom() )
 		return;
 	if( m_pActor->IsDie() )
+	{
+		CancelSprintPassiveIfActive( false );
 		return;
+	}
 
 	CDNGameRoom* pRoom = m_pActor->GetGameRoom();
 	if( pRoom->GetRoomState() != _GAME_STATE_PLAY )
@@ -852,6 +860,7 @@ void CDnAIBotController::Process( LOCAL_TIME LocalTime, float fDelta )
 	// 1. Human-like Air / Knockdown recovery (Aerial Evasion & Wake-Up) runs immediately even while hit!
 	if( m_pActor->IsAir() || m_pActor->IsDown() )
 	{
+		CancelSprintPassiveIfActive( false );
 		if( m_fRecoveryCooldown <= 0.f && TryHandleHitRecovery() )
 		{
 			m_fRecoveryCooldown = 0.65f;
@@ -862,7 +871,10 @@ void CDnAIBotController::Process( LOCAL_TIME LocalTime, float fDelta )
 
 	// 2. If currently stunned or flinching (grounded hitstun), wait out hitstun naturally
 	if( m_pActor->IsStun() || m_pActor->IsHit() )
+	{
+		CancelSprintPassiveIfActive( false );
 		return;
+	}
 
 	// 3. Periodic battlefield, boss telegraph, ally & portal perception (faster during Nests/active boss fights!)
 	if( m_fScanTimer <= 0.f )
@@ -886,18 +898,37 @@ void CDnAIBotController::Process( LOCAL_TIME LocalTime, float fDelta )
 	}
 	m_bWasInCombatLastTick = bNeedCombatStance;
 
+	if( bNeedCombatStance )
+		m_fOutOfCombatTimer = 0.f;
+	else
+		m_fOutOfCombatTimer += fDelta;
+
+	// Strict combat safety: NEVER dash/sprint when any enemy is alive!
+	if( m_LastScan.bHasAnyEnemy && ( m_bIsSprintDashing || m_nSprintSpeedBlowID != -1 || IsActiveWarriorDash() ) )
+	{
+		CancelSprintPassiveIfActive( false );
+	}
+
 	if( bNeedCombatStance && !m_pActor->IsBattleMode() )
 	{
 		ToggleBattleState( true );
 	}
-	else if( !bNeedCombatStance && m_pActor->IsBattleMode() && m_pActor->IsStay() &&
-		( m_LastScan.hHumanLeader && !static_cast<CDnPlayerActor*>( m_LastScan.hHumanLeader.GetPointer() )->IsBattleMode() && XZDist( *m_pActor->GetPosition(), *m_LastScan.hHumanLeader->GetPosition() ) < 450.f ) )
+	else if( !bNeedCombatStance && m_pActor->IsBattleMode() && !m_bIsSprintDashing && !( CanUseWarriorDash() && IsHumanLeaderDashing() ) )
 	{
-		ToggleBattleState( false );
+		// Sheathe weapons cleanly out of combat so all classes jog at authentic 1.4x Peace speed
+		bool bLeaderFarOrPortal = m_LastScan.bHumanInGate || m_LastScan.bHumanApproachingGate ||
+			( m_LastScan.hHumanLeader && XZDist( *m_pActor->GetPosition(), *m_LastScan.hHumanLeader->GetPosition() ) > 320.f );
+		bool bLeaderPeacefulNear = m_pActor->IsStay() && m_LastScan.hHumanLeader &&
+			!static_cast<CDnPlayerActor*>( m_LastScan.hHumanLeader.GetPointer() )->IsBattleMode() &&
+			XZDist( *m_pActor->GetPosition(), *m_LastScan.hHumanLeader->GetPosition() ) < 450.f;
+
+		if( m_fOutOfCombatTimer >= 0.70f || bLeaderFarOrPortal || bLeaderPeacefulNear )
+			ToggleBattleState( false );
 	}
 
 	// 5. While mid-skill animation: allow lethal boss dodge-cancel (CS_DODGE_CANCEL) & human-like skill chains!
-	if( m_pActor->IsProcessSkill() )
+	// Note: Warrior Dash (SkillID 18) runs with m_hProcessSkill active while sprinting, so let steering & combat run!
+	if( m_pActor->IsProcessSkill() && !IsActiveWarriorDash() )
 	{
 		if( !m_LastScan.bHumanInGate &&
 			HasCombatStrategy( Irine::Modules::CS_AVOID_AOE ) &&
@@ -970,7 +1001,7 @@ void CDnAIBotController::Process( LOCAL_TIME LocalTime, float fDelta )
 	{
 		m_fDecisionTimer = 0.08f + m_fReactionJitter;
 		UpdateCombatDecision( LocalTime, fDelta );
-		if( m_pActor->IsProcessSkill() || m_pActor->IsAttack() )
+		if( ( m_pActor->IsProcessSkill() && !IsActiveWarriorDash() ) || m_pActor->IsAttack() )
 			return;
 	}
 
@@ -979,6 +1010,8 @@ void CDnAIBotController::Process( LOCAL_TIME LocalTime, float fDelta )
 	{
 		if( m_eMoveState == MoveState_Moving )
 			SendStopPacket();
+		else
+			CancelSprintPassiveIfActive( false );
 		return;
 	}
 
@@ -2224,6 +2257,8 @@ bool CDnAIBotController::TryReactToBossThreat()
 bool CDnAIBotController::TryCastIFrameSkill( const EtVector3& vEscapeDir )
 {
 	if( !m_pActor ) return false;
+	if( IsActiveWarriorDash() )
+		CancelSprintPassiveIfActive( false );
 
 	for( DWORD i = 0; i < m_pActor->GetSkillCount(); ++i )
 	{
@@ -2238,6 +2273,8 @@ bool CDnAIBotController::TryCastIFrameSkill( const EtVector3& vEscapeDir )
 
 		if( m_eMoveState == MoveState_Moving )
 			SendStopPacket();
+		else
+			CancelSprintPassiveIfActive( false );
 
 		if( EtVec3LengthSq( &vEscapeDir ) > 0.01f )
 		{
@@ -2640,7 +2677,7 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 	{
 		EtVector3 vLeaderPos = *m_LastScan.hHumanLeader->GetPosition();
 		float fLeaderDist = XZDist( vMyPos, vLeaderPos );
-		if( fLeaderDist > 560.f && m_fDashGapCooldown <= 0.f && m_fDodgeCooldown <= 0.f && !m_bBlockedByObstacle )
+		if( fLeaderDist > 780.f && !m_bIsSprintDashing && !IsHumanLeaderDashing() && m_fDashGapCooldown <= 0.f && m_fDodgeCooldown <= 0.f && !m_bBlockedByObstacle )
 		{
 			EtVector3 vToLead = vLeaderPos - vMyPos;
 			vToLead.y = 0.f;
@@ -2704,6 +2741,8 @@ void CDnAIBotController::SteerToward( const EtVector3& vDest, float fStopDist, f
 		m_fAvoidHoldTimer = 0.f;
 		if( m_eMoveState == MoveState_Moving )
 			SendStopPacket();
+		else
+			CancelSprintPassiveIfActive( false );
 		// When stopped in combat, naturally keep looking toward our enemy!
 		if( pCombatFaceTarget )
 		{
@@ -2723,6 +2762,8 @@ void CDnAIBotController::SteerToward( const EtVector3& vDest, float fStopDist, f
 	{
 		if( m_eMoveState == MoveState_Moving )
 			SendStopPacket();
+		else
+			CancelSprintPassiveIfActive( false );
 		return;
 	}
 
@@ -2858,6 +2899,96 @@ void CDnAIBotController::SteerToward( const EtVector3& vDest, float fStopDist, f
 		}
 	}
 
+	// Out-of-Combat Dash / Sprint Mirroring (Level 10+):
+	//  - NEVER dash/sprint in combat (m_LastScan.bHasAnyEnemy must be false).
+	//  - ONLY dash/sprint when there are NO enemies AND the human player is actively using a dash skill to run.
+	//  - Speed is strictly matched to the human player (no BLOW_075 stacking, no Peace 1.4x double-boost, no overshoot).
+	bool bJustStartedWarriorDash = false;
+	bool bCurrentlySprinting = ( m_bIsSprintDashing || m_nSprintSpeedBlowID != -1 );
+	const float fSprintStartDist = bCurrentlySprinting ? ( fStopDist + 65.f ) : 190.f;
+	bool bAllowOutOfCombatDash = !m_LastScan.bHasAnyEnemy &&
+		CanUseLevel10SprintPassive() &&
+		IsHumanLeaderDashing();
+	bool bMovingForwardClear = ( cMoveFlag == 0x04 ) && ( strcmp( szMoveAction, "Move_Front" ) == 0 ) &&
+		!m_bBlockedByObstacle && ( fDirectDist > fSprintStartDist );
+
+	if( bAllowOutOfCombatDash && bMovingForwardClear )
+	{
+		CDnPlayerActor* pLeader = ( m_LastScan.hHumanLeader && !m_LastScan.hHumanLeader->IsDie() )
+			? static_cast<CDnPlayerActor*>( m_LastScan.hHumanLeader.GetPointer() )
+			: NULL;
+		int nLeaderSpeed = pLeader ? pLeader->GetMoveSpeed() : 420;
+		if( nLeaderSpeed < 400 ) nLeaderSpeed = 400;
+		if( nLeaderSpeed > 480 ) nLeaderSpeed = 480;
+
+		int nCurSP = m_pActor->GetSP();
+		int nMaxSP = m_pActor->GetMaxSP();
+		float fSpRatio = ( nMaxSP > 0 ) ? ( (float)nCurSP / (float)nMaxSP ) : 1.0f;
+
+		if( CanUseWarriorDash() )
+		{
+			bool bSpOk = m_bIsSprintDashing ? ( fSpRatio >= 0.12f ) : ( fSpRatio >= 0.18f );
+			if( bSpOk )
+			{
+				if( !m_pActor->IsBattleMode() )
+					ToggleBattleState( true );
+
+				if( !m_bIsSprintDashing || !IsActiveWarriorDash() )
+				{
+					DnSkillHandle hDash = m_pActor->FindSkill( 18 );
+					if( hDash )
+					{
+						if( m_pActor->IsAppliedThisStateBlow( STATE_BLOW::BLOW_075 ) )
+							m_pActor->CmdRemoveStateEffect( STATE_BLOW::BLOW_075 );
+
+						EtVector3 vDashX;
+						EtVec3Cross( &vDashX, &EtVector3( 0.f, 1.f, 0.f ), &EtVec2toVec3( vZVec ) );
+						m_pActor->SetMoveVectorX( vDashX );
+						m_pActor->SetMoveVectorZ( EtVec2toVec3( vZVec ) );
+						m_pActor->Look( vLook, true );
+
+						// Server executes Skill 18 (applies one BLOW_075 and sends SC_CMDADDSTATEEFFECT);
+						// Client receives bOnlyCheck=true so it plays "Skill_Dash" without double-executing Skill 18.
+						m_pActor->CmdPassiveSkillAction( 18, "Skill_Dash", -1, 3.f, 0.f, true, false, false );
+						SendPassiveSkillActionPacket( 18, (BYTE)hDash->GetLevel(), "Skill_Dash", -1, 3.f, 0.f, vZVec, vLook, 0x04, true, true );
+						m_bIsSprintDashing = true;
+						bJustStartedWarriorDash = true;
+					}
+				}
+				if( m_bIsSprintDashing )
+					szMoveAction = "Skill_Dash";
+			}
+			else if( m_bIsSprintDashing )
+			{
+				CancelSprintPassiveIfActive( false );
+			}
+		}
+		else
+		{
+			if( m_nSprintSpeedBlowID == -1 && !m_pActor->IsAppliedThisStateBlow( STATE_BLOW::BLOW_075 ) )
+			{
+				int nCurSpeed = m_pActor->GetMoveSpeed();
+				if( nCurSpeed < nLeaderSpeed )
+				{
+					int nDelta = nLeaderSpeed - nCurSpeed;
+					int nRawBonus = m_pActor->IsBattleMode() ? nDelta : (int)( (float)nDelta / 1.4f + 0.5f );
+					int nMaxBonus = m_pActor->IsBattleMode() ? 140 : 60;
+					if( nRawBonus > nMaxBonus ) nRawBonus = nMaxBonus;
+					if( nRawBonus >= 10 )
+					{
+						char szBonus[16] = { 0 };
+						sprintf_s( szBonus, "%d", nRawBonus );
+						m_nSprintSpeedBlowID = m_pActor->CmdAddStateEffect( NULL, STATE_BLOW::BLOW_075, -1, szBonus, false, false );
+					}
+				}
+			}
+		}
+	}
+	else if( m_bIsSprintDashing || m_nSprintSpeedBlowID != -1 || IsActiveWarriorDash() )
+	{
+		CancelSprintPassiveIfActive( false );
+	}
+
 	EtVector3 vXVec;
 	EtVec3Cross( &vXVec, &EtVector3( 0.f, 1.f, 0.f ), &EtVec2toVec3( vZVec ) );
 	m_pActor->SetMoveVectorX( vXVec );
@@ -2866,7 +2997,8 @@ void CDnAIBotController::SteerToward( const EtVector3& vDest, float fStopDist, f
 
 	EtVector3 vDir3 = EtVec2toVec3( vDir2 );
 	EtVector3 vFarTarget = vMyPos + ( vDir3 * 100000.f );
-	bool bNeedMovePacket = ( m_eMoveState != MoveState_Moving ) ||
+	bool bNeedMovePacket = bJustStartedWarriorDash ||
+		( m_eMoveState != MoveState_Moving ) ||
 		( m_fMoveSyncTimer <= 0.f ) ||
 		( cMoveFlag != m_cLastMoveFlag ) ||
 		( m_strLastMoveAction != szMoveAction );
@@ -2878,15 +3010,19 @@ void CDnAIBotController::SteerToward( const EtVector3& vDest, float fStopDist, f
 			bNeedMovePacket = true;
 	}
 
-	if( bNeedMovePacket || !m_pActor->IsMove() )
+	bool bActivelyMoving = m_pActor->IsMove() || ( m_bIsSprintDashing && strcmp( szMoveAction, "Skill_Dash" ) == 0 );
+	if( bNeedMovePacket || !bActivelyMoving )
 	{
-		m_pActor->CmdMove( vFarTarget, szMoveAction, -1, 8.f );
+		if( m_bIsSprintDashing && strcmp( szMoveAction, "Skill_Dash" ) == 0 )
+			m_pActor->MovePos( vFarTarget, false );
+		else
+			m_pActor->CmdMove( vFarTarget, szMoveAction, -1, 8.f );
 		SendDirectionalMovePacket( szMoveAction, cMoveFlag, vZVec, vLook );
 		m_vLastMoveDir = vDir3;
 		m_vLastLookDir = vLook;
 		m_cLastMoveFlag = cMoveFlag;
 		m_strLastMoveAction = szMoveAction;
-		m_fMoveSyncTimer = 0.20f;
+		m_fMoveSyncTimer = ( m_bIsSprintDashing && strcmp( szMoveAction, "Skill_Dash" ) == 0 ) ? 0.30f : 0.20f;
 		m_eMoveState = MoveState_Moving;
 	}
 }
@@ -3416,6 +3552,14 @@ void CDnAIBotController::UpdateCombatDecision( LOCAL_TIME LocalTime, float fDelt
 	float fAllyDist = ( m_LastScan.hLowestHpAlly && !m_LastScan.hLowestHpAlly->IsDie() )
 		? XZDist( *m_pActor->GetPosition(), *m_LastScan.hLowestHpAlly->GetPosition() )
 		: 0.f;
+
+	// Cancel active out-of-combat dash/sprint immediately if any enemy exists or support/heal/buff is needed
+	if( m_bIsSprintDashing || m_nSprintSpeedBlowID != -1 || IsActiveWarriorDash() )
+	{
+		bool bCancelForSupport = bNeedHeal || bNeedCure || bWantBuff;
+		if( m_LastScan.bHasAnyEnemy || bCancelForSupport )
+			CancelSprintPassiveIfActive( false );
+	}
 
 	// 1. Heal / Cure / Party Buff triage comes first (including out-of-combat pre-buffing when NCS_BUFF is enabled)
 	if( bNeedHeal || bNeedCure || ( bWantBuff && !( HasNonCombatStrategy( NCS_GATHER_GATE ) && m_LastScan.bHumanInGate ) ) )
@@ -4185,8 +4329,95 @@ void CDnAIBotController::FacePosition( const EtVector3& vTargetPos )
 
 void CDnAIBotController::ToggleBattleState( bool bBattle )
 {
+	if( !bBattle || m_nSprintSpeedBlowID != -1 )
+		CancelSprintPassiveIfActive( false );
 	m_pActor->CmdToggleBattle( bBattle );
 	m_pActor->OnBattleToggle( bBattle );
+}
+
+bool CDnAIBotController::IsHumanLeaderDashing() const
+{
+	DnActorHandle hLeader = m_LastScan.hHumanLeader;
+	if( !hLeader || hLeader->IsDie() )
+		return false;
+
+	CDnPlayerActor* pLeader = static_cast<CDnPlayerActor*>( hLeader.GetPointer() );
+	if( !pLeader )
+		return false;
+
+	// Warrior Dash passive skill (SkillID 18)
+	if( pLeader->IsProcessSkill() )
+	{
+		DnSkillHandle hLeaderSkill = pLeader->GetProcessSkill();
+		if( hLeaderSkill && hLeaderSkill->GetClassID() == 18 )
+			return true;
+	}
+
+	// Any active Dash movement action (e.g. "Skill_Dash")
+	const char* szLeaderAct = pLeader->GetCurrentAction();
+	if( szLeaderAct && strstr( szLeaderAct, "Dash" ) != NULL )
+		return true;
+
+	// Direct Dash MoveSpeed blow (BLOW_075)
+	if( pLeader->IsAppliedThisStateBlow( STATE_BLOW::BLOW_075 ) )
+		return true;
+
+	// Positive speed-boost skill while moving (e.g. Spirit Boost / Wax / Sylph's Aid; ignores slows)
+	if( pLeader->IsMove() && pLeader->IsAppliedThisStateBlow( STATE_BLOW::BLOW_076 ) && pLeader->GetMoveSpeed() > 380 )
+		return true;
+
+	return false;
+}
+
+bool CDnAIBotController::IsActiveWarriorDash() const
+{
+	if( !m_pActor || !m_pActor->IsProcessSkill() )
+		return false;
+	DnSkillHandle hProc = m_pActor->GetProcessSkill();
+	return ( hProc && hProc->GetClassID() == 18 );
+}
+
+bool CDnAIBotController::CanUseWarriorDash() const
+{
+	if( !m_pActor || m_pActor->GetLevel() < 10 )
+		return false;
+	if( !m_pActor->FindSkill( 18 ) )
+		return false;
+	return ( m_pActor->GetElementIndex( "Skill_Dash" ) != -1 );
+}
+
+bool CDnAIBotController::CanUseLevel10SprintPassive() const
+{
+	return ( m_pActor && m_pActor->GetLevel() >= 10 );
+}
+
+void CDnAIBotController::CancelSprintPassiveIfActive( bool bResetActionToStand )
+{
+	if( !m_pActor )
+	{
+		m_bIsSprintDashing = false;
+		m_nSprintSpeedBlowID = -1;
+		return;
+	}
+
+	bool bWasDashing = m_bIsSprintDashing || IsActiveWarriorDash();
+	if( bWasDashing )
+	{
+		if( IsActiveWarriorDash() )
+			m_pActor->CancelUsingSkill();
+		if( m_pActor->IsAppliedThisStateBlow( STATE_BLOW::BLOW_075 ) )
+			m_pActor->CmdRemoveStateEffect( STATE_BLOW::BLOW_075 );
+		m_bIsSprintDashing = false;
+		m_strLastMoveAction.clear();
+		if( bResetActionToStand )
+			m_pActor->CmdStop( "Stand" );
+	}
+
+	if( m_nSprintSpeedBlowID != -1 )
+	{
+		m_pActor->CmdRemoveStateEffectFromID( m_nSprintSpeedBlowID );
+		m_nSprintSpeedBlowID = -1;
+	}
 }
 
 void CDnAIBotController::SendMovePacket( const EtVector2& vDir2 )
@@ -4226,6 +4457,7 @@ void CDnAIBotController::SendDirectionalMovePacket( const char* szMoveAction, ch
 
 void CDnAIBotController::SendStopPacket( bool bResetStop )
 {
+	CancelSprintPassiveIfActive( false );
 	m_pActor->CmdStop( "Stand" );
 	m_eMoveState = MoveState_Stopped;
 
@@ -4256,6 +4488,7 @@ void CDnAIBotController::SendLookPacket( const EtVector2& vDir2 )
 
 void CDnAIBotController::SendActionPacket( const char* szActionName, int nLoopCount, float fBlendFrame, bool bSkillChain )
 {
+	CancelSprintPassiveIfActive( false );
 	int nActionIndex = m_pActor->GetElementIndex( szActionName );
 	if( nActionIndex == -1 ) return;
 
@@ -4282,9 +4515,38 @@ void CDnAIBotController::SendActionPacket( const char* szActionName, int nLoopCo
 	m_pActor->Send( eActor::SC_CMDACTION, &Stream );
 }
 
+void CDnAIBotController::SendPassiveSkillActionPacket( int nSkillID, BYTE cLevel, const char* szActionName, int nLoopCount, float fBlendFrame, float fStartFrame, const EtVector2& vZVec, const EtVector2& vLook, char cFlag, bool bChargeKey, bool bOnlyCheck )
+{
+	int nActionIndex = m_pActor->GetElementIndex( szActionName );
+	if( nActionIndex == -1 ) return;
+
+	BYTE pBuffer[128] = { 0 };
+	CPacketCompressStream Stream( pBuffer, 128 );
+	EtVector3 vPos = *m_pActor->GetPosition();
+	EtVector2 vZ = vZVec;
+	EtVector2 vL = vLook;
+
+	Stream.Write( &nSkillID, sizeof(int) );
+	Stream.Write( &cLevel, sizeof(char) );
+	Stream.Write( &nActionIndex, sizeof(int), CPacketCompressStream::INTEGER_SHORT );
+	Stream.Write( &nLoopCount, sizeof(int), CPacketCompressStream::INTEGER_CHAR );
+	Stream.Write( &fBlendFrame, sizeof(float), CPacketCompressStream::FLOAT_SHORT, 10.f );
+	Stream.Write( &fStartFrame, sizeof(float), CPacketCompressStream::FLOAT_SHORT, 10.0f );
+	Stream.Write( &vPos, sizeof(EtVector3), CPacketCompressStream::VECTOR3_BIT );
+	Stream.Write( &vZ, sizeof(EtVector2), CPacketCompressStream::VECTOR2_SHORT );
+	Stream.Write( &vL, sizeof(EtVector2), CPacketCompressStream::VECTOR2_SHORT );
+	Stream.Write( &cFlag, sizeof(char) );
+	Stream.Write( &bChargeKey, sizeof(bool) );
+	Stream.Write( &bOnlyCheck, sizeof(bool) );
+
+	m_pActor->Send( eActor::SC_CMDPASSIVESKILLACTION, &Stream );
+}
+
 void CDnAIBotController::SendUseSkillPacket( CDnSkill* pSkill )
 {
 	if( !pSkill ) return;
+	if( pSkill->GetClassID() != 18 )
+		CancelSprintPassiveIfActive( false );
 
 	BYTE pBuffer[128];
 	CPacketCompressStream Stream( pBuffer, 128 );

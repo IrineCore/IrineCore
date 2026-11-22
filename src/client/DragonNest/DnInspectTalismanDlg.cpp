@@ -355,6 +355,8 @@ void CDnInspectTalismanSlotDlg::RefreshInspectTalisman( CDnPlayerActor *pActor )
 		else
 			m_vecSlotInfo[i].pSlotButton->ResetSlot();
 		m_vecSlotInfo[i].pSlotButton->OnRefreshTooltip();
+		if( m_vecSlotInfo[i].pStaticEfficiency )
+			m_vecSlotInfo[i].pStaticEfficiency->Show( !hTalisman );
 	}
 }
 

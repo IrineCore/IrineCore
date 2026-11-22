@@ -198,6 +198,29 @@ void CDnCharTalismanListDlg::InitTalismanSlot()
 
 		m_vecSlotInfo.push_back( info );
 	}
+
+	// Fix control Z-order: in CharTalismanListDlg.ui / PlayerTalismanListDlg.ui,
+	// ID_TEXT_OPTION* sits AFTER ID_BT_ITEM* and overlaps ~80% of the slot button.
+	// CEtUIDialog::GetControlAtPoint() checks IsShow() in reverse order (ignoring IsEnable()),
+	// so ID_TEXT_OPTION* intercepted hover/mouse events and prevented equipped talisman tooltips.
+	// Order bottom-to-top: slot frame -> efficiency label -> item slot button -> locked covers -> cash time badge.
+	for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )
+	{
+		if( m_vecSlotInfo[i].pSlotButton )
+			MoveToTail( m_vecSlotInfo[i].pSlotButton );
+	}
+	for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )
+	{
+		if( m_vecSlotInfo[i].pStaticCover )
+			MoveToTail( m_vecSlotInfo[i].pStaticCover );
+		if( m_vecSlotInfo[i].pStaticCashCover )
+			MoveToTail( m_vecSlotInfo[i].pStaticCashCover );
+	}
+	for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )
+	{
+		if( m_vecSlotInfo[i].pStaticTime )
+			MoveToTail( m_vecSlotInfo[i].pStaticTime );
+	}
 }
 
 void CDnCharTalismanListDlg::Show( bool bShow )
@@ -476,6 +499,8 @@ void CDnCharTalismanListDlg::SetTalismanItem( int nSlotIndex, CDnItem *pItem )
 
 	m_vecSlotInfo[nSlotIndex].pSlotButton->SetItem( pItem, CDnSlotButton::ITEM_ORIGINAL_COUNT );
 	m_vecSlotInfo[nSlotIndex].pSlotButton->OnRefreshTooltip();
+	if( m_vecSlotInfo[nSlotIndex].pStaticEfficiency )
+		m_vecSlotInfo[nSlotIndex].pStaticEfficiency->Show( pItem == NULL );
 }
 
 void CDnCharTalismanListDlg::ResetTalismanSlot( int nSlotIndex )
@@ -487,6 +512,8 @@ void CDnCharTalismanListDlg::ResetTalismanSlot( int nSlotIndex )
 
 	m_vecSlotInfo[nSlotIndex].pSlotButton->ResetSlot();
 	m_vecSlotInfo[nSlotIndex].pSlotButton->OnRefreshTooltip();
+	if( m_vecSlotInfo[nSlotIndex].pStaticEfficiency )
+		m_vecSlotInfo[nSlotIndex].pStaticEfficiency->Show( true );
 }
 
 void CDnCharTalismanListDlg::RefreshTalisman()
@@ -605,7 +632,10 @@ void CDnCharTalismanListDlg::SetEfficiencyTextShow( bool bShow )
 	for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )
 	{
 		if( m_vecSlotInfo[i].pStaticEfficiency )
-			m_vecSlotInfo[i].pStaticEfficiency->Show( bShow );
+		{
+			bool bOccupied = ( m_vecSlotInfo[i].pSlotButton && !m_vecSlotInfo[i].pSlotButton->IsEmptySlot() );
+			m_vecSlotInfo[i].pStaticEfficiency->Show( bShow && !bOccupied );
+		}
 	}
 }
 

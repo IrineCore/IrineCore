@@ -283,7 +283,7 @@ void CDNGuildSystem::DoUpdate (DWORD CurTick)
 	m_TickDoUpdate = CurTick;
 
 	// Make a copy
-	std::vector <std::pair<TGuildUID, class CDNGuildBase*>, boost::pool_allocator<TGuildUID>> aList;
+	std::vector <std::pair<TGuildUID, class CDNGuildBase*>, boost::pool_allocator<std::pair<TGuildUID, class CDNGuildBase*>>> aList;
 
 	{
 		ScopeLock <CSyncLock>	AutoLock (GetLock());
@@ -296,7 +296,7 @@ void CDNGuildSystem::DoUpdate (DWORD CurTick)
 
 
 	// Update for guild event
-	std::vector <std::pair<TGuildUID, class CDNGuildBase*>, boost::pool_allocator<TGuildUID>>::iterator iter = aList.begin ();
+	std::vector <std::pair<TGuildUID, class CDNGuildBase*>, boost::pool_allocator<std::pair<TGuildUID, class CDNGuildBase*>>>::iterator iter = aList.begin ();
 
 	for (; iter != aList.end(); iter++)
 	{

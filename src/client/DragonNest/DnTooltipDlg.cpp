@@ -874,6 +874,9 @@ void CDnTooltipDlg::ShowTooltip( CDnSlotButton *pControl, float fX, float fY, bo
 	if( m_hSlotButton->GetSlotType() == ST_QUICKSLOT)	return;
 	if( m_hSlotButton->GetSlotType() == ST_CHARSTATUS )	return;
 	if( m_hSlotButton->GetSlotType() == ST_SKILL)		return;
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	if( m_hSlotButton->GetSlotType() == ST_TALISMAN || m_hSlotButton->GetSlotType() == ST_TALISMAN_CASH ) return;
+#endif
 #ifdef PRE_ADD_NOTIFY_ITEM_COMPOUND
 	if( m_hSlotButton->GetSlotType() == ST_ITEM_NOTIFY_COMPOUND ) return;
 #endif

@@ -858,7 +858,7 @@ bool CDNGuildBase::CheckGuildResource(TGuildMember* pGuildMemeber)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Returns the member list
-void CDNGuildBase::GetMemberList(std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>& pList) const
+void CDNGuildBase::GetMemberList(std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>& pList) const
 {
 	DN_ASSERT(IsOpen(),		"Not Opened!");
 	DN_ASSERT(IsAttach(),	"Not Attached!");

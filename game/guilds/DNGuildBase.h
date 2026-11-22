@@ -115,7 +115,7 @@ public:
 	
 	int					GetMemberCount() const;
 
-	void				GetMemberList(std::vector <std::pair<UINT, INT64>, boost::pool_allocator<UINT>>& pList) const;
+	void				GetMemberList(std::vector <std::pair<UINT, INT64>, boost::pool_allocator<std::pair<UINT, INT64>>>& pList) const;
 	void				SetMemberList(TGuildMember *GuildMember);
 
 	TGuildMember*		GetMemberInfo(INT64 nCharacterDBID);
