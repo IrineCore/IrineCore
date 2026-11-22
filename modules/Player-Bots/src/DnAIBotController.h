@@ -23,10 +23,22 @@ public:
 	void Process( LOCAL_TIME LocalTime, float fDelta );
 	void OnStageStart();
 
-	// Live combat & learning feedback hooks from CDnPlayerActor
+	// Live combat & learning feedback hooks from CDnPlayerActor / CDnGameTask
 	void OnDamaged( DnActorHandle hHitter, INT64 nDamage );
 	void OnAttackHitTarget( DnActorHandle hTarget, bool bFromProjectile );
 	static void ObserveBossHitOnActor( CDnActor* pHitter, CDnActor* pVictim, INT64 nDamage );
+	static void ObserveHumanAttackTarget( CDNGameRoom* pRoom, DnActorHandle hTarget );
+	static bool HandlePartyChatCommand( CDNGameRoom* pRoom, CDNUserSession* pSender, const WCHAR* wszMsg );
+
+	// Strategy engine accessors (composable combat & non-combat flags)
+	uint32_t GetCombatStrategies() const { return m_uCombatStrategies; }
+	uint32_t GetNonCombatStrategies() const { return m_uNonCombatStrategies; }
+	void SetCombatStrategies( uint32_t uMask ) { m_uCombatStrategies = uMask; }
+	void SetNonCombatStrategies( uint32_t uMask ) { m_uNonCombatStrategies = uMask; }
+	void ResetStrategiesToDefaults();
+	void RequestImmediateBuff() { m_fBuffCheckTimer = 0.f; }
+	void RequestImmediateHeal() { m_fDecisionTimer = 0.f; m_fSkillDelayTimer = 0.f; }
+	void RequestAssistEngage( DnActorHandle hTarget );
 
 	DnActorHandle GetTargetActor() const { return m_hTargetActor; }
 	const EtVector3& GetAimPosition() const { return m_vAimPos; }
@@ -158,14 +170,20 @@ private:
 	{
 		DnActorHandle hBestEnemy;
 		DnActorHandle hPriorityBoss;
+		DnActorHandle hEnemyAttackingHuman;
+		DnActorHandle hEnemyAttackingHealer;
+		DnActorHandle hHumanTarget;
 		DnActorHandle hLowestHpAlly;
 		float fLowestHpRatio;
+		float fMyHpRatio;
+		float fMyManaRatio;
 		DnActorHandle hDebuffedAlly;
 		DnActorHandle hHumanLeader;
 		DnPropHandle hSafeBuffProp;
 		DnPropHandle hBreakableProp;
 		DnPropHandle hBlockingBreakableProp;
 		EtVector3 vDangerAvoidVec;
+		EtVector3 vAllyRepulsionVec;
 		EtVector3 vGateTargetPos;
 		int nActiveGateIndex;
 		int nEnemiesNearTarget;
@@ -181,11 +199,17 @@ private:
 		bool bIsNestEncounter;
 		bool bBurstWindowActive;
 		bool bHumanInDanger;
+		bool bBotHasBossAggro;
+		bool bHasLiveTankAlly;
+		bool bSelfInCriticalHp;
 		BossThreatInfo BossThreat;
 
 		ArenaScanResult()
 			: fLowestHpRatio( 1.0f )
+			, fMyHpRatio( 1.0f )
+			, fMyManaRatio( 1.0f )
 			, vDangerAvoidVec( 0.f, 0.f, 0.f )
+			, vAllyRepulsionVec( 0.f, 0.f, 0.f )
 			, vGateTargetPos( 0.f, 0.f, 0.f )
 			, nActiveGateIndex( -1 )
 			, nEnemiesNearTarget( 0 )
@@ -201,6 +225,9 @@ private:
 			, bIsNestEncounter( false )
 			, bBurstWindowActive( false )
 			, bHumanInDanger( false )
+			, bBotHasBossAggro( false )
+			, bHasLiveTankAlly( false )
+			, bSelfInCriticalHp( false )
 		{}
 	};
 
@@ -209,9 +236,16 @@ private:
 	int m_nBotSlotIndex;
 	bool m_bRoleInitialized;
 	EncounterMode m_eEncounterMode;
+	uint32_t m_uCombatStrategies;
+	uint32_t m_uNonCombatStrategies;
+	bool m_bStrategiesInitialized;
 
 	DnActorHandle m_hTargetActor;
+	DnActorHandle m_hForcedAssistTarget;
+	float m_fForcedAssistTimer;
 	EtVector3 m_vAimPos;
+	EtVector3 m_vStayAnchorPos;
+	bool m_bHasStayAnchor;
 
 	std::vector<EtVector3> m_vecWaypoints;
 	size_t m_nCurWaypoint;
@@ -273,6 +307,11 @@ private:
 	ArenaScanResult m_LastScan;
 
 	void EnsureRoleInitialized();
+	void InitializeDefaultStrategies();
+	bool HasCombatStrategy( uint32_t uFlag ) const { return ( m_uCombatStrategies & uFlag ) != 0; }
+	bool HasNonCombatStrategy( uint32_t uFlag ) const { return ( m_uNonCombatStrategies & uFlag ) != 0; }
+	bool IsBuffAlreadyActiveOnTarget( CDnSkill* pSkill, CDnPlayerActor* pTarget ) const;
+	bool IsDebuffAlreadyActiveOnTarget( CDnSkill* pSkill, CDnActor* pTarget ) const;
 	EncounterMode DetectEncounterMode() const;
 	void ScanArenaAndParty( LOCAL_TIME LocalTime );
 	void UpdateMovementAndPositioning( float fDelta, bool& bOutWantsToMove );
@@ -334,5 +373,5 @@ private:
 	static bool IsThreatSkill( CDnSkill* pSkill );
 	static bool IsOffensiveActiveSkill( CDnSkill* pSkill );
 	static bool IsHittableEnemy( CDnActor* pActor, DnActorHandle hHitter, int nBotTeam, LOCAL_TIME LocalTime );
-	static int ScoreEnemyPriority( CDnMonsterActor* pMon, AIBot::RoleType role, float fDistSq, CDnPlayerActor* pHumanLeader, EncounterMode eMode );
+	static int ScoreEnemyPriority( CDnMonsterActor* pMon, AIBot::RoleType role, float fDistSq, CDnPlayerActor* pHumanLeader, EncounterMode eMode, uint32_t uCombatStrategies, DnActorHandle hHumanTarget, CDnPlayerActor* pSelfBot );
 };

@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "DnAIBotController.h"
+#include "PlayerBotsModule.h"
 #include "DnPlayerActor.h"
 #include "DnProjectile.h"
 #include "EtActionSignal.h"
@@ -292,7 +293,46 @@ namespace
 			return true;
 		}
 
+		// Party-wide heal coordination: prevents multiple healers blowing heals on the same ally simultaneously
+		bool TryReserveRoomHeal( unsigned int uiRoomID, DWORD dwTargetUID, DWORD dwNowTick, DWORD dwLockMs )
+		{
+			std::lock_guard<std::mutex> lock( m_Mutex );
+			unsigned __int64 key = ( (unsigned __int64)uiRoomID << 32 ) | (unsigned __int64)dwTargetUID;
+			DWORD& dwLast = m_RoomHealReserveTick[key];
+			if( dwLast != 0 && ( dwNowTick - dwLast ) < dwLockMs )
+				return false;
+			dwLast = dwNowTick;
+			return true;
+		}
+
+		// Track human leader's active engaged target per room for CS_ASSIST coordination
+		void SetRoomHumanTarget( unsigned int uiRoomID, DWORD dwTargetUID, DWORD dwNowTick )
+		{
+			std::lock_guard<std::mutex> lock( m_Mutex );
+			RoomHumanTargetEntry& e = m_RoomHumanTargets[uiRoomID];
+			e.dwTargetUID = dwTargetUID;
+			e.dwLastHitTick = dwNowTick;
+		}
+
+		DWORD GetRoomHumanTarget( unsigned int uiRoomID, DWORD dwNowTick, DWORD dwMaxAgeMs ) const
+		{
+			std::lock_guard<std::mutex> lock( m_Mutex );
+			std::unordered_map<unsigned int, RoomHumanTargetEntry>::const_iterator it = m_RoomHumanTargets.find( uiRoomID );
+			if( it == m_RoomHumanTargets.end() )
+				return 0;
+			if( ( dwNowTick - it->second.dwLastHitTick ) > dwMaxAgeMs )
+				return 0;
+			return it->second.dwTargetUID;
+		}
+
 	private:
+		struct RoomHumanTargetEntry
+		{
+			DWORD dwTargetUID;
+			DWORD dwLastHitTick;
+			RoomHumanTargetEntry() : dwTargetUID( 0 ), dwLastHitTick( 0 ) {}
+		};
+
 		static unsigned __int64 MakeSkillKey( int nJobID, int nSkillID )
 		{
 			return ( (unsigned __int64)(DWORD)nJobID << 32 ) | (unsigned __int64)(DWORD)nSkillID;
@@ -307,6 +347,8 @@ namespace
 		std::unordered_map<unsigned __int64, SkillLearnEntry> m_SkillMap;
 		std::unordered_map<unsigned __int64, BossActionLearnEntry> m_BossMap;
 		std::unordered_map<unsigned int, DWORD> m_RoomLastCalloutTick;
+		std::unordered_map<unsigned __int64, DWORD> m_RoomHealReserveTick;
+		std::unordered_map<unsigned int, RoomHumanTargetEntry> m_RoomHumanTargets;
 	};
 }
 
@@ -316,7 +358,13 @@ CDnAIBotController::CDnAIBotController( CDnPlayerActor* pActor )
 	, m_nBotSlotIndex( 0 )
 	, m_bRoleInitialized( false )
 	, m_eEncounterMode( Mode_Dungeon )
+	, m_uCombatStrategies( Irine::Modules::CS_NONE )
+	, m_uNonCombatStrategies( Irine::Modules::NCS_NONE )
+	, m_bStrategiesInitialized( false )
+	, m_fForcedAssistTimer( 0.f )
 	, m_vAimPos( 0.f, 0.f, 0.f )
+	, m_vStayAnchorPos( 0.f, 0.f, 0.f )
+	, m_bHasStayAnchor( false )
 	, m_nCurWaypoint( 0 )
 	, m_vLastPathGoal( 0.f, 0.f, 0.f )
 	, m_fRepathTimer( 0.f )
@@ -375,6 +423,9 @@ void CDnAIBotController::OnStageStart()
 	FinalizePendingSkillOutcome( true );
 
 	m_hTargetActor.Identity();
+	m_hForcedAssistTarget.Identity();
+	m_fForcedAssistTimer = 0.f;
+	m_bHasStayAnchor = false;
 	m_hPendingCastTarget.Identity();
 	m_vecWaypoints.clear();
 	m_nCurWaypoint = 0;
@@ -449,9 +500,116 @@ void CDnAIBotController::EnsureRoleInitialized()
 
 	m_fAvoidSideSign = ( ( m_nBotSlotIndex % 2 ) == 0 ) ? 1.f : -1.f;
 	m_fStrafeSign = ( ( m_nBotSlotIndex % 2 ) == 0 ) ? 1.f : -1.f;
-	m_fReactionJitter = 0.04f + (float)( m_nBotSlotIndex % 5 ) * 0.024f;
+	const Irine::Modules::PlayerBotsConfig& cfg = Irine::Modules::PlayerBotsModule::GetActiveConfig();
+	float fJitterBase = (float)cfg.reactionJitterMs / 1000.f;
+	m_fReactionJitter = ClampF( fJitterBase * ( 0.6f + (float)( m_nBotSlotIndex % 5 ) * 0.25f ), 0.f, 0.30f );
 	m_fStrafeSwitchTimer = 2.5f + (float)( m_nBotSlotIndex % 4 ) * 0.65f;
 	m_eEncounterMode = DetectEncounterMode();
+	if( !m_bStrategiesInitialized )
+		InitializeDefaultStrategies();
+}
+
+void CDnAIBotController::InitializeDefaultStrategies()
+{
+	using namespace Irine::Modules;
+	const PlayerBotsConfig& cfg = PlayerBotsModule::GetActiveConfig();
+
+	uint32_t uCombat = CS_NONE;
+	switch( m_Role )
+	{
+		case AIBot::RoleType::Tank:       uCombat = CS_TANK | CS_THREAT; break;
+		case AIBot::RoleType::Healer:     uCombat = CS_HEALER | CS_SUPPORT | CS_SAVE_MANA; break;
+		case AIBot::RoleType::IceStacker: uCombat = CS_ICESTACK | CS_DPS; break;
+		case AIBot::RoleType::Support:    uCombat = CS_SUPPORT | CS_DPS; break;
+		default:                          uCombat = CS_DPS; break;
+	}
+
+	uCombat = BotStrategyUtil::ApplyCombatStrategyModifiers( uCombat, cfg.defaultCombatStrategies );
+	if( cfg.assistHumanLeader )
+		uCombat |= CS_ASSIST;
+
+	uint32_t uNonCombat = NCS_FOLLOW | NCS_BUFF | NCS_GATHER_GATE;
+	uNonCombat = BotStrategyUtil::ApplyNonCombatStrategyModifiers( uNonCombat, cfg.defaultNonCombatStrategies );
+
+	// Instance-aware strategy presets (just like modular raid/instance strategy profiles)
+	if( cfg.applyInstanceStrategies && ( m_eEncounterMode == Mode_Nest || m_eEncounterMode == Mode_DragonNest ) )
+	{
+		uCombat |= ( CS_AVOID_AOE | CS_DODGE_CANCEL | CS_SAVE_MANA | CS_THREAT );
+	}
+
+	m_uCombatStrategies = uCombat;
+	m_uNonCombatStrategies = uNonCombat;
+	m_bStrategiesInitialized = true;
+}
+
+void CDnAIBotController::ResetStrategiesToDefaults()
+{
+	m_bStrategiesInitialized = false;
+	m_bHasStayAnchor = false;
+	InitializeDefaultStrategies();
+}
+
+void CDnAIBotController::RequestAssistEngage( DnActorHandle hTarget )
+{
+	m_uNonCombatStrategies &= ~( Irine::Modules::NCS_PASSIVE | Irine::Modules::NCS_STAY );
+	m_uNonCombatStrategies |= Irine::Modules::NCS_FOLLOW;
+	m_bHasStayAnchor = false;
+	if( hTarget && !hTarget->IsDie() )
+	{
+		m_hForcedAssistTarget = hTarget;
+		m_fForcedAssistTimer = 10.f;
+		m_hTargetActor = hTarget;
+	}
+	m_fScanTimer = 0.f;
+	m_fDecisionTimer = 0.f;
+}
+
+void CDnAIBotController::ObserveHumanAttackTarget( CDNGameRoom* pRoom, DnActorHandle hTarget )
+{
+	if( !pRoom || !hTarget || hTarget->IsDie() || !hTarget->IsMonsterActor() )
+		return;
+	CTacticalLearningMemory::Get().SetRoomHumanTarget( pRoom->GetRoomID(), hTarget->GetUniqueID(), timeGetTime() );
+}
+
+bool CDnAIBotController::IsBuffAlreadyActiveOnTarget( CDnSkill* pSkill, CDnPlayerActor* pTarget ) const
+{
+	if( !pSkill || !pTarget )
+		return false;
+
+	DWORD dwCnt = pSkill->GetStateEffectCount();
+	if( dwCnt == 0 )
+		return false;
+
+	int nCheckableBuffs = 0;
+	int nAlreadyPresent = 0;
+	for( DWORD i = 0; i < dwCnt; ++i )
+	{
+		CDnSkill::StateEffectStruct* pSE = pSkill->GetStateEffectFromIndex( i );
+		if( !pSE || pSE->nID <= 0 )
+			continue;
+		if( pSE->nDurationTime <= 0 )
+			continue; // instant effect (not a lingering buff)
+		++nCheckableBuffs;
+		if( pTarget->IsAppliedThisStateBlow( (STATE_BLOW::emBLOW_INDEX)pSE->nID ) )
+			++nAlreadyPresent;
+	}
+	return ( nCheckableBuffs > 0 && nAlreadyPresent == nCheckableBuffs );
+}
+
+bool CDnAIBotController::IsDebuffAlreadyActiveOnTarget( CDnSkill* pSkill, CDnActor* pTarget ) const
+{
+	if( !pSkill || !pTarget )
+		return false;
+	static const STATE_BLOW::emBLOW_INDEX kTrackedDebuffs[] = {
+		STATE_BLOW::BLOW_029, STATE_BLOW::BLOW_030, STATE_BLOW::BLOW_041,
+		STATE_BLOW::BLOW_055, STATE_BLOW::BLOW_060, STATE_BLOW::BLOW_144
+	};
+	for( size_t i = 0; i < _countof( kTrackedDebuffs ); ++i )
+	{
+		if( HasSkillBlow( pSkill, kTrackedDebuffs[i] ) && pTarget->IsAppliedThisStateBlow( kTrackedDebuffs[i] ) )
+			return true;
+	}
+	return false;
 }
 
 CDnAIBotController::EncounterMode CDnAIBotController::DetectEncounterMode() const
@@ -665,6 +823,12 @@ void CDnAIBotController::Process( LOCAL_TIME LocalTime, float fDelta )
 	m_fObstacleProbeTimer = ( m_fObstacleProbeTimer > fDelta ) ? ( m_fObstacleProbeTimer - fDelta ) : 0.f;
 	m_fAvoidHoldTimer = ( m_fAvoidHoldTimer > fDelta ) ? ( m_fAvoidHoldTimer - fDelta ) : 0.f;
 	m_fPostCombatPauseTimer = ( m_fPostCombatPauseTimer > fDelta ) ? ( m_fPostCombatPauseTimer - fDelta ) : 0.f;
+	if( m_fForcedAssistTimer > 0.f )
+	{
+		m_fForcedAssistTimer = ( m_fForcedAssistTimer > fDelta ) ? ( m_fForcedAssistTimer - fDelta ) : 0.f;
+		if( m_fForcedAssistTimer <= 0.f || !m_hForcedAssistTarget || m_hForcedAssistTarget->IsDie() )
+			m_hForcedAssistTarget.Identity();
+	}
 
 	// Smoothly decay adaptive defensive bias over long safe stretches
 	if( m_fDefensiveBias > 0.f )
@@ -733,10 +897,22 @@ void CDnAIBotController::Process( LOCAL_TIME LocalTime, float fDelta )
 		ToggleBattleState( false );
 	}
 
-	// 5. While mid-skill animation: check human-like follow-up skill chains (LMB/RMB chain) & allow emergency boss cancel/dodge!
+	// 5. While mid-skill animation: allow lethal boss dodge-cancel (CS_DODGE_CANCEL) & human-like skill chains!
 	if( m_pActor->IsProcessSkill() )
 	{
-		if( m_fComboChainTimer <= 0.f && TrySkillChainFollowUp() )
+		if( !m_LastScan.bHumanInGate &&
+			HasCombatStrategy( Irine::Modules::CS_AVOID_AOE ) &&
+			HasCombatStrategy( Irine::Modules::CS_DODGE_CANCEL ) &&
+			m_LastScan.BossThreat.bBotCurrentlyInDanger )
+		{
+			const BossThreatInfo& T = m_LastScan.BossThreat;
+			bool bLethalUrgent = ( T.eKind == Threat_RoomWipe || T.eKind == Threat_StompJump ||
+				( T.fThreatDamageRatio >= 0.28f && T.fTimeToImpact <= 0.30f ) ||
+				( m_LastScan.bSelfInCriticalHp && T.fTimeToImpact <= 0.34f ) );
+			if( bLethalUrgent && TryReactToBossThreat() )
+				return;
+		}
+		if( !HasNonCombatStrategy( Irine::Modules::NCS_PASSIVE ) && m_fComboChainTimer <= 0.f && TrySkillChainFollowUp() )
 		{
 			m_fComboChainTimer = 0.22f;
 			return;
@@ -751,7 +927,7 @@ void CDnAIBotController::Process( LOCAL_TIME LocalTime, float fDelta )
 		return;
 
 	// 6. Emergency Boss Telegraph & Trap Reaction (Stomp Jump, I-Frame Skill, Directional Tumble Dodge)
-	if( !m_LastScan.bHumanInGate )
+	if( !m_LastScan.bHumanInGate && HasCombatStrategy( Irine::Modules::CS_AVOID_AOE ) )
 	{
 		if( m_LastScan.BossThreat.bBotCurrentlyInDanger && TryReactToBossThreat() )
 			return;
@@ -842,6 +1018,9 @@ void CDnAIBotController::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnAIBotController::ScanArenaAndParty( LOCAL_TIME LocalTime )
 {
+	using namespace Irine::Modules;
+	const PlayerBotsConfig& cfg = PlayerBotsModule::GetActiveConfig();
+
 	ArenaScanResult res;
 	EtVector3 vMyPos = *m_pActor->GetPosition();
 	int nMyTeam = m_pActor->GetTeam();
@@ -850,8 +1029,17 @@ void CDnAIBotController::ScanArenaAndParty( LOCAL_TIME LocalTime )
 	m_eEncounterMode = DetectEncounterMode();
 	res.bIsNestEncounter = ( m_eEncounterMode == Mode_Nest || m_eEncounterMode == Mode_DragonNest );
 
-	// 1. Scan Party Members (Human Leader, Heals, Cures, Raid Burst Buff Detection)
+	// Self vitals (HP & SP/MP ratios for self-preservation & mana-conservation multipliers)
+	INT64 nMyMaxHP = m_pActor->GetMaxHP();
+	res.fMyHpRatio = ( nMyMaxHP > 0 ) ? ClampF( (float)m_pActor->GetHP() / (float)nMyMaxHP, 0.f, 1.f ) : 1.f;
+	int nMyMaxSP = m_pActor->GetMaxSP();
+	res.fMyManaRatio = ( nMyMaxSP > 0 ) ? ClampF( (float)m_pActor->GetSP() / (float)nMyMaxSP, 0.f, 1.f ) : 1.f;
+	res.bSelfInCriticalHp = ( res.fMyHpRatio < ( (float)cfg.selfDefensiveHpThreshold / 100.f ) );
+
+	// 1. Scan Party Members (Human Leader, Heals, Cures, Tank Presence, Raid Burst Buffs, Soft Ally Separation)
 	bool bAnyPartyBurstBuff = false;
+	float fSpreadRad = (float)cfg.allySpreadRadius;
+	EtVector3 vRepulseAccum( 0.f, 0.f, 0.f );
 	if( pRoom )
 	{
 		for( UINT i = 0; i < pRoom->GetUserCount(); ++i )
@@ -863,6 +1051,33 @@ void CDnAIBotController::ScanArenaAndParty( LOCAL_TIME LocalTime )
 
 			if( !pSess->bIsAIBot() && !res.hHumanLeader )
 				res.hHumanLeader = pMate->GetActorHandle();
+
+			if( pMate != m_pActor )
+			{
+				AIBot::RoleType mateRole = AIBot::GetJobRole( (BYTE)pMate->GetJobClassID() );
+				if( mateRole == AIBot::RoleType::Tank )
+					res.bHasLiveTankAlly = true;
+
+				// Soft separation away from nearby allied bots so party spreads cleanly instead of clumping
+				if( fSpreadRad > 10.f && pSess->bIsAIBot() )
+				{
+					EtVector3 vDiff = vMyPos - *pMate->GetPosition();
+					vDiff.y = 0.f;
+					float fDist = sqrtf( vDiff.x * vDiff.x + vDiff.z * vDiff.z );
+					if( fDist < fSpreadRad )
+					{
+						if( fDist < 4.f )
+						{
+							float fAng = EtToRadian( (float)( ( m_nBotSlotIndex * 97 ) % 360 ) );
+							vDiff = EtVector3( cosf( fAng ), 0.f, sinf( fAng ) );
+							fDist = 1.f;
+						}
+						float fWeight = ( fSpreadRad - fDist ) / fSpreadRad;
+						vRepulseAccum.x += ( vDiff.x / fDist ) * fWeight;
+						vRepulseAccum.z += ( vDiff.z / fDist ) * fWeight;
+					}
+				}
+			}
 
 			INT64 nMaxHP = pMate->GetMaxHP();
 			float fHpRatio = ( nMaxHP > 0 ) ? ( (float)pMate->GetHP() / (float)nMaxHP ) : 1.0f;
@@ -895,16 +1110,38 @@ void CDnAIBotController::ScanArenaAndParty( LOCAL_TIME LocalTime )
 			}
 		}
 	}
+	res.vAllyRepulsionVec = vRepulseAccum;
 
-	// 2. Scan Enemies (Exact Reachability, Boss Mechanics, Live Telegraph Reading, Cluster Density)
+	// Resolve Human Leader's active engaged target (from direct attacks or explicit 'attack' chat command)
+	DWORD dwHumanTargetUID = 0;
+	if( m_hForcedAssistTarget && !m_hForcedAssistTarget->IsDie() )
+	{
+		res.hHumanTarget = m_hForcedAssistTarget;
+		dwHumanTargetUID = m_hForcedAssistTarget->GetUniqueID();
+	}
+	else if( pRoom )
+	{
+		dwHumanTargetUID = CTacticalLearningMemory::Get().GetRoomHumanTarget( pRoom->GetRoomID(), timeGetTime(), 6500 );
+	}
+
+	// 2. Scan Enemies (Config-driven AggroRange, Real Aggro Monitoring, Reachability, Boss Telegraphs)
+	float fScanRange = (float)cfg.aggroRange;
+	if( res.bIsNestEncounter || m_eEncounterMode == Mode_DarkLair )
+		fScanRange = ( fScanRange < 2400.f ) ? 2400.f : fScanRange;
+	else if( fScanRange < 1200.f )
+		fScanRange = 1200.f;
+
 	DNVector(DnActorHandle) vecActors;
-	CDnActor::ScanActor( m_pActor->GetRoom(), vMyPos, 2800.f, vecActors );
+	CDnActor::ScanActor( m_pActor->GetRoom(), vMyPos, fScanRange, vecActors );
 
 	int nBestScore = -999999;
 	bool bBestHasLOS = true;
 	DnPropHandle hBestBlockingBreakable;
 	int nNavCheckBudget = 6;
 	CDnPlayerActor* pLeaderPtr = res.hHumanLeader ? static_cast<CDnPlayerActor*>( res.hHumanLeader.GetPointer() ) : NULL;
+	bool bRespectAssistPull = ( !res.bIsNestEncounter && m_eEncounterMode == Mode_Dungeon &&
+		HasCombatStrategy( CS_ASSIST ) && cfg.assistHumanLeader && pLeaderPtr && !pLeaderPtr->IsDie() &&
+		!m_hForcedAssistTarget );
 	std::vector<EtVector3> vecEnemyPositions;
 	vecEnemyPositions.reserve( 16 );
 
@@ -915,10 +1152,39 @@ void CDnAIBotController::ScanArenaAndParty( LOCAL_TIME LocalTime )
 			continue;
 
 		CDnMonsterActor* pMon = static_cast<CDnMonsterActor*>( hAct.GetPointer() );
+		if( dwHumanTargetUID != 0 && hAct->GetUniqueID() == dwHumanTargetUID )
+			res.hHumanTarget = hAct;
+
+		EtVector3 vMonPos = *pMon->GetPosition();
+		DnActorHandle hMonAggro = pMon->GetAggroTarget();
+
+		// Idle-pack pull discipline: in regular dungeons with CS_ASSIST, don't sprint far ahead to pull
+		// un-aggroed idle packs while the human player is far behind looting or talking to NPCs!
+		if( bRespectAssistPull && !hMonAggro && hAct != res.hHumanTarget && hAct != m_hTargetActor )
+		{
+			float fDistFromHuman = XZDist( *pLeaderPtr->GetPosition(), vMonPos );
+			if( fDistFromHuman > 720.f )
+				continue;
+		}
+
 		res.bHasAnyEnemy = true;
 		++res.nAliveEnemyCount;
 
-		EtVector3 vMonPos = *pMon->GetPosition();
+		// Real aggro tracking: detect enemies attacking Human, Healer, or this bot!
+		if( hMonAggro && !hMonAggro->IsDie() )
+		{
+			if( hMonAggro == res.hHumanLeader && !res.hEnemyAttackingHuman )
+				res.hEnemyAttackingHuman = hAct;
+			else if( hMonAggro->IsPlayerActor() )
+			{
+				AIBot::RoleType aggroRole = AIBot::GetJobRole( (BYTE)static_cast<CDnPlayerActor*>( hMonAggro.GetPointer() )->GetJobClassID() );
+				if( aggroRole == AIBot::RoleType::Healer && !res.hEnemyAttackingHealer )
+					res.hEnemyAttackingHealer = hAct;
+			}
+			if( hMonAggro.GetPointer() == m_pActor && pMon->GetGrade() >= CDnMonsterState::Boss )
+				res.bBotHasBossAggro = true;
+		}
+
 		vecEnemyPositions.push_back( vMonPos );
 		float fDistSq = XZDistSq( vMyPos, vMonPos );
 
@@ -933,7 +1199,7 @@ void CDnAIBotController::ScanArenaAndParty( LOCAL_TIME LocalTime )
 		if( fDistSq > ( 350.f * 350.f ) && ( bBlockedByObj || fDistSq > ( 950.f * 950.f ) ) )
 			bNavReachable = HasNavMeshConnectivity( vMyPos, vMonPos, nNavCheckBudget );
 
-		int nScore = ScoreEnemyPriority( pMon, m_Role, fDistSq, pLeaderPtr, m_eEncounterMode );
+		int nScore = ScoreEnemyPriority( pMon, m_Role, fDistSq, pLeaderPtr, m_eEncounterMode, m_uCombatStrategies, res.hHumanTarget, m_pActor );
 		if( !bNavReachable )
 			nScore -= 1400;
 		else if( bBlockedByObj && !bBlockedByBreakable )
@@ -941,7 +1207,7 @@ void CDnAIBotController::ScanArenaAndParty( LOCAL_TIME LocalTime )
 
 		// Sticky target bonus prevents erratic target ping-ponging like a robot
 		if( hAct == m_hTargetActor )
-			nScore += 160;
+			nScore += 150;
 
 		if( nScore > nBestScore )
 		{
@@ -2070,6 +2336,8 @@ bool CDnAIBotController::TryDirectionalTumble( const EtVector3& vEscapeDir, cons
 
 void CDnAIBotController::MaybeSendTacticalCallout( const WCHAR* wszMsg, float fRoomCooldownSec )
 {
+	if( !Irine::Modules::PlayerBotsModule::GetActiveConfig().enableTacticalCallouts )
+		return;
 	if( !wszMsg || !wszMsg[0] || !m_pActor || !m_pActor->GetGameRoom() )
 		return;
 
@@ -2091,6 +2359,9 @@ void CDnAIBotController::MaybeSendTacticalCallout( const WCHAR* wszMsg, float fR
 
 void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutWantsToMove )
 {
+	using namespace Irine::Modules;
+	const PlayerBotsConfig& cfg = PlayerBotsModule::GetActiveConfig();
+
 	EtVector3 vMyPos = *m_pActor->GetPosition();
 	EtVector3 vDesiredPos = vMyPos;
 	float fStopDist = 110.f;
@@ -2100,7 +2371,7 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 	const EtVector3* pCombatFace = NULL;
 
 	// Priority 0: Human leader entered a stage portal - sprint directly inside the portal box to flag ready!
-	if( m_LastScan.bHumanInGate && m_LastScan.nActiveGateIndex != -1 )
+	if( HasNonCombatStrategy( NCS_GATHER_GATE ) && m_LastScan.bHumanInGate && m_LastScan.nActiveGateIndex != -1 )
 	{
 		if( m_nSyncedGateIndex == m_LastScan.nActiveGateIndex )
 		{
@@ -2115,7 +2386,7 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 	}
 
 	// Priority 0a: Active Boss Mechanic / Room-Wipe Threat positioning!
-	if( !bHasGoal && m_LastScan.BossThreat.bBotCurrentlyInDanger )
+	if( !bHasGoal && HasCombatStrategy( CS_AVOID_AOE ) && m_LastScan.BossThreat.bBotCurrentlyInDanger )
 	{
 		BossThreatInfo& T = m_LastScan.BossThreat;
 		if( T.eKind == Threat_RoomWipe && m_LastScan.hSafeBuffProp && m_LastScan.hSafeBuffProp->IsShow() )
@@ -2186,8 +2457,10 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 	}
 
 	// Priority 1: Healer moves toward a wounded ally out of heal range
-	float fHealMoveThresh = ( m_eEncounterMode == Mode_Nest || m_eEncounterMode == Mode_DragonNest ) ? 0.80f : 0.72f;
-	if( !bHasGoal && m_Role == AIBot::RoleType::Healer && m_LastScan.hLowestHpAlly && !m_LastScan.hLowestHpAlly->IsDie() && m_LastScan.fLowestHpRatio < fHealMoveThresh )
+	float fHealMoveThresh = ( m_eEncounterMode == Mode_Nest || m_eEncounterMode == Mode_DragonNest )
+		? ( (float)cfg.healThresholdNest / 100.f )
+		: ( (float)cfg.healThresholdDungeon / 100.f );
+	if( !bHasGoal && HasCombatStrategy( CS_HEALER ) && m_LastScan.hLowestHpAlly && !m_LastScan.hLowestHpAlly->IsDie() && m_LastScan.fLowestHpRatio < fHealMoveThresh )
 	{
 		float fAllyDist = XZDist( vMyPos, *m_LastScan.hLowestHpAlly->GetPosition() );
 		if( fAllyDist > 480.f )
@@ -2218,14 +2491,22 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 		bHasGoal = true;
 	}
 
-	// Priority 3: Tactical Human-Like Combat Positioning (matched to actual READY skill distances + rear flanking + strafe!)
-	if( !bHasGoal && m_hTargetActor && !m_hTargetActor->IsDie() )
+	// Priority 3: Tactical Human-Like Combat Positioning (matched to actual READY skill distances + rear flanking + soft ally spread!)
+	if( !bHasGoal && !HasNonCombatStrategy( NCS_PASSIVE ) && m_hTargetActor && !m_hTargetActor->IsDie() )
 	{
 		EtVector3 vTargetPos = *m_hTargetActor->GetPosition();
 		bool bRangedBasic = HasRangedBasicAttack();
 		float fMyRadius = GetActorEffectiveRadius( m_pActor );
 		float fTargetRadius = GetActorEffectiveRadius( m_hTargetActor.GetPointer() );
 		float fEngageRange = GetDesiredCombatRange( fTargetRadius, fMyRadius );
+
+		// Defensive posture / low-HP self-preservation / non-tank boss aggro kite-back: widen spacing!
+		if( HasCombatStrategy( CS_DEFENSIVE ) || m_LastScan.bSelfInCriticalHp ||
+			( HasCombatStrategy( CS_THREAT ) && !HasCombatStrategy( CS_TANK ) && m_LastScan.bBotHasBossAggro && m_LastScan.bHasLiveTankAlly ) )
+		{
+			fEngageRange = ClampF( fEngageRange + ( bRangedBasic ? 110.f : 65.f ), 85.f, 520.f );
+		}
+
 		float fCurCenterDist = XZDist( vMyPos, vTargetPos );
 		float fCurDistToBox = ( fCurCenterDist > fTargetRadius ) ? ( fCurCenterDist - fTargetRadius ) : 0.f;
 
@@ -2240,7 +2521,7 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 			fStopDist = fTargetRadius + fMyRadius + 135.f;
 			bAllowCombatStrafe = false;
 		}
-		else if( m_Role == AIBot::RoleType::Tank )
+		else if( HasCombatStrategy( CS_TANK ) )
 		{
 			// Tank stands on the opposite side of the boss from the Human Player so cleaves & breaths face AWAY from party!
 			float fStandDist = fTargetRadius + fMyRadius + fEngageRange;
@@ -2278,16 +2559,24 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 			float fDesiredCenterDist = fTargetRadius + fEngageRange;
 			vDesiredPos = vTargetPos + vFlankDir * fDesiredCenterDist;
 
-			// If we are already comfortably inside effective combat range AND not standing right in front of a Boss,
-			// don't needlessly twitch-walk back and forth; hold crisp human attack stance!
+			// Blend soft ally separation so bots spread out instead of clumping on a single cleave target
+			if( EtVec3LengthSq( &m_LastScan.vAllyRepulsionVec ) > 0.04f )
+			{
+				vDesiredPos.x += m_LastScan.vAllyRepulsionVec.x * 75.f;
+				vDesiredPos.z += m_LastScan.vAllyRepulsionVec.z * 75.f;
+			}
+
+			// If we are already comfortably inside effective combat range AND not standing right in front of a Boss
+			// AND not stacked on top of another bot, hold crisp human attack stance!
 			bool bInFrontOfBoss = false;
 			if( m_hTargetActor == m_LastScan.hPriorityBoss )
 			{
 				EtVector2 vToMe = SafeDir2( vTargetPos, vMyPos );
 				bInFrontOfBoss = ( ComputeAngleDiffDeg( EtVector2( vTargetForward.x, vTargetForward.z ), vToMe ) < 62.f );
 			}
+			bool bTooClumped = ( EtVec3LengthSq( &m_LastScan.vAllyRepulsionVec ) > 0.45f );
 
-			if( !bInFrontOfBoss && fCurDistToBox <= fEngageRange + 45.f && ( !bRangedBasic || fCurDistToBox >= fEngageRange * 0.42f ) )
+			if( !bInFrontOfBoss && !bTooClumped && fCurDistToBox <= fEngageRange + 45.f && ( !bRangedBasic || fCurDistToBox >= fEngageRange * 0.42f ) )
 			{
 				fStopDist = fDesiredCenterDist + 80.f; // stay planted & cast smoothly
 			}
@@ -2323,7 +2612,7 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 	}
 
 	// Priority 4: Proactively walk into an active portal when human leader is approaching it out of combat
-	if( !bHasGoal && m_LastScan.bHumanApproachingGate && m_LastScan.nActiveGateIndex != -1 )
+	if( !bHasGoal && HasNonCombatStrategy( NCS_GATHER_GATE ) && m_LastScan.bHumanApproachingGate && m_LastScan.nActiveGateIndex != -1 )
 	{
 		vDesiredPos = m_LastScan.vGateTargetPos;
 		fStopDist = 45.f;
@@ -2331,15 +2620,28 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 	}
 
 	// Priority 5: Destructible dungeon prop when no active monsters
-	if( !bHasGoal && m_LastScan.hBreakableProp && m_LastScan.hBreakableProp->IsShow() )
+	if( !bHasGoal && !HasNonCombatStrategy( NCS_PASSIVE ) && HasCombatStrategy( CS_BREAK_PROPS ) && m_LastScan.hBreakableProp && m_LastScan.hBreakableProp->IsShow() )
 	{
 		vDesiredPos = m_LastScan.hBreakableProp->GetMatEx()->m_vPosition;
 		fStopDist = HasRangedBasicAttack() ? 300.f : 120.f;
 		bHasGoal = true;
 	}
 
-	// Priority 6: Natural out-of-combat formation around Human Party Leader (plus occasional sprint-tumble if far behind!)
-	if( !bHasGoal && m_LastScan.hHumanLeader && !m_LastScan.hHumanLeader->IsDie() )
+	// Priority 5b: Non-combat STAY strategy (hold assigned anchor point until commanded to follow/attack)
+	if( !bHasGoal && HasNonCombatStrategy( NCS_STAY ) )
+	{
+		if( !m_bHasStayAnchor )
+		{
+			m_vStayAnchorPos = vMyPos;
+			m_bHasStayAnchor = true;
+		}
+		vDesiredPos = m_vStayAnchorPos;
+		fStopDist = 55.f;
+		bHasGoal = true;
+	}
+
+	// Priority 6: Natural out-of-combat formation around Human Party Leader (respecting FollowDistance & AllySpreadRadius!)
+	if( !bHasGoal && HasNonCombatStrategy( NCS_FOLLOW ) && m_LastScan.hHumanLeader && !m_LastScan.hHumanLeader->IsDie() )
 	{
 		EtVector3 vLeaderPos = *m_LastScan.hHumanLeader->GetPosition();
 		float fLeaderDist = XZDist( vMyPos, vLeaderPos );
@@ -2370,15 +2672,21 @@ void CDnAIBotController::UpdateMovementAndPositioning( float fDelta, bool& bOutW
 			vBack = EtVector3( 0.f, 0.f, -1.f );
 		EtVec3Normalize( &vBack, &vBack );
 
-		float fSpreadDeg = -60.f + (float)( ( m_nBotSlotIndex % 7 ) * 20.f );
+		float fSpreadDeg = -65.f + (float)( ( m_nBotSlotIndex % 7 ) * 22.f );
 		float fRad = EtToRadian( fSpreadDeg );
 		float c = cosf( fRad );
 		float s = sinf( fRad );
 		EtVector3 vOffsetDir( vBack.x * c - vBack.z * s, 0.f, vBack.x * s + vBack.z * c );
 
-		float fRing = 90.f + (float)( ( m_nBotSlotIndex % 2 ) * 40.f );
+		float fBaseFollow = ClampF( (float)cfg.followDistance * 0.50f, 95.f, 360.f );
+		float fRing = fBaseFollow + (float)( ( m_nBotSlotIndex % 2 ) * 55.f );
 		vDesiredPos = vLeaderPos + vOffsetDir * fRing;
-		fStopDist = 60.f;
+		if( EtVec3LengthSq( &m_LastScan.vAllyRepulsionVec ) > 0.04f )
+		{
+			vDesiredPos.x += m_LastScan.vAllyRepulsionVec.x * 55.f;
+			vDesiredPos.z += m_LastScan.vAllyRepulsionVec.z * 55.f;
+		}
+		fStopDist = 65.f;
 		bHasGoal = true;
 	}
 
@@ -3084,52 +3392,64 @@ bool CDnAIBotController::ChooseClearSteeringDir( const EtVector3& vFrom, const E
 
 void CDnAIBotController::UpdateCombatDecision( LOCAL_TIME LocalTime, float fDelta )
 {
+	using namespace Irine::Modules;
 	if( !m_pActor->IsStay() && !m_pActor->IsMove() )
 		return;
 
+	const PlayerBotsConfig& cfg = PlayerBotsModule::GetActiveConfig();
 	bool bIsNest = ( m_eEncounterMode == Mode_Nest || m_eEncounterMode == Mode_DragonNest );
-	float fHealThreshold = bIsNest ? ( 0.80f + m_fDefensiveBias * 0.08f ) : 0.75f;
-	if( fHealThreshold > 0.88f ) fHealThreshold = 0.88f;
+	float fBaseHealThresh = bIsNest
+		? ( (float)cfg.healThresholdNest / 100.f + m_fDefensiveBias * 0.06f )
+		: ( (float)cfg.healThresholdDungeon / 100.f );
+	float fHealThreshold = ClampF( fBaseHealThresh, 0.35f, 0.92f );
 
-	bool bWantBuff = ( m_fBuffCheckTimer <= 0.f );
-	bool bNeedHeal = ( m_LastScan.hLowestHpAlly && !m_LastScan.hLowestHpAlly->IsDie() && m_LastScan.fLowestHpRatio < fHealThreshold );
+	bool bWantBuff = HasNonCombatStrategy( NCS_BUFF ) && ( m_fBuffCheckTimer <= 0.f );
+	bool bNeedHeal = ( m_LastScan.hLowestHpAlly && !m_LastScan.hLowestHpAlly->IsDie() &&
+		( m_LastScan.fLowestHpRatio < fHealThreshold || m_LastScan.bSelfInCriticalHp ) );
 	bool bNeedCure = ( m_LastScan.hDebuffedAlly && !m_LastScan.hDebuffedAlly->IsDie() );
 
 	float fAllyDist = ( m_LastScan.hLowestHpAlly && !m_LastScan.hLowestHpAlly->IsDie() )
 		? XZDist( *m_pActor->GetPosition(), *m_LastScan.hLowestHpAlly->GetPosition() )
 		: 0.f;
 
-	// 1. Heal / Cure / Party Buff triage comes first (especially for Healers/Supports)
-	if( bNeedHeal || bNeedCure || ( bWantBuff && ( m_LastScan.bHasAnyEnemy || m_LastScan.bIsNestEncounter ) ) )
+	// 1. Heal / Cure / Party Buff triage comes first (including out-of-combat pre-buffing when NCS_BUFF is enabled)
+	if( bNeedHeal || bNeedCure || ( bWantBuff && !( HasNonCombatStrategy( NCS_GATHER_GATE ) && m_LastScan.bHumanInGate ) ) )
 	{
 		if( bWantBuff )
-			m_fBuffCheckTimer = 3.8f;
+			m_fBuffCheckTimer = 4.2f;
 		if( TryCastSupportOrHeal( bNeedHeal, bNeedCure, bWantBuff, fAllyDist ) )
 			return;
 	}
 
+	// Passive mode: never initiate attacks on enemies or props (heals/cures/buffs above still work)
+	if( HasNonCombatStrategy( NCS_PASSIVE ) )
+		return;
+
 	// 1b. If a destructible object is directly blocking our path (even while heading to portal/enemy), smash it open!
-	DnPropHandle hBlockerProp = m_hPathBlockingBreakable ? m_hPathBlockingBreakable : m_LastScan.hBlockingBreakableProp;
-	if( hBlockerProp && hBlockerProp->IsShow() && hBlockerProp->IsBrokenType() )
+	if( HasCombatStrategy( CS_BREAK_PROPS ) )
 	{
-		CDnWorldBrokenProp* pBroken = static_cast<CDnWorldBrokenProp*>( hBlockerProp.GetPointer() );
-		if( !pBroken->IsBroken() && pBroken->IsHittable( m_pActor->GetActorHandle(), LocalTime ) )
+		DnPropHandle hBlockerProp = m_hPathBlockingBreakable ? m_hPathBlockingBreakable : m_LastScan.hBlockingBreakableProp;
+		if( hBlockerProp && hBlockerProp->IsShow() && hBlockerProp->IsBrokenType() )
 		{
-			if( TryBreakPropSkillOrAttack( hBlockerProp->GetMatEx()->m_vPosition ) )
-				return;
+			CDnWorldBrokenProp* pBroken = static_cast<CDnWorldBrokenProp*>( hBlockerProp.GetPointer() );
+			if( !pBroken->IsBroken() && pBroken->IsHittable( m_pActor->GetActorHandle(), LocalTime ) )
+			{
+				if( TryBreakPropSkillOrAttack( hBlockerProp->GetMatEx()->m_vPosition ) )
+					return;
+			}
+			else if( pBroken->IsBroken() && hBlockerProp == m_hPathBlockingBreakable )
+			{
+				m_hPathBlockingBreakable.Identity();
+			}
 		}
-		else if( pBroken->IsBroken() && hBlockerProp == m_hPathBlockingBreakable )
+		else if( hBlockerProp == m_hPathBlockingBreakable )
 		{
 			m_hPathBlockingBreakable.Identity();
 		}
 	}
-	else if( hBlockerProp == m_hPathBlockingBreakable )
-	{
-		m_hPathBlockingBreakable.Identity();
-	}
 
 	// Do not get distracted by combat when human leader is waiting inside an active stage portal
-	if( m_LastScan.bHumanInGate )
+	if( HasNonCombatStrategy( NCS_GATHER_GATE ) && m_LastScan.bHumanInGate )
 		return;
 
 	// 2. Combat against active Enemy Target - STRICT distance, vertical reach & LOS enforcement!
@@ -3157,7 +3477,7 @@ void CDnAIBotController::UpdateCombatDecision( LOCAL_TIME LocalTime, float fDelt
 		}
 
 		// If primary enemy is invulnerable and there is a hittable destructible prop (crystal/totem), break it!
-		if( bTargetInvuln && m_LastScan.hBreakableProp && m_LastScan.hBreakableProp->IsShow() )
+		if( bTargetInvuln && HasCombatStrategy( CS_BREAK_PROPS ) && m_LastScan.hBreakableProp && m_LastScan.hBreakableProp->IsShow() )
 		{
 			if( TryBreakPropSkillOrAttack( m_LastScan.hBreakableProp->GetMatEx()->m_vPosition ) )
 				return;
@@ -3184,18 +3504,24 @@ void CDnAIBotController::UpdateCombatDecision( LOCAL_TIME LocalTime, float fDelt
 	}
 
 	// 3. Destructible Dungeon Prop (gates/barricades/chests/crystals)
-	if( m_LastScan.hBreakableProp && m_LastScan.hBreakableProp->IsShow() )
+	if( HasCombatStrategy( CS_BREAK_PROPS ) && m_LastScan.hBreakableProp && m_LastScan.hBreakableProp->IsShow() )
 		TryBreakPropSkillOrAttack( m_LastScan.hBreakableProp->GetMatEx()->m_vPosition );
 }
 
 bool CDnAIBotController::TryCastSupportOrHeal( bool bNeedHeal, bool bNeedCure, bool bWantBuff, float fAllyDist )
 {
+	using namespace Irine::Modules;
+	const PlayerBotsConfig& cfg = PlayerBotsModule::GetActiveConfig();
+
 	CDnSkill* pChosen = NULL;
 	int nBestPriority = -1;
 	bool bChosenIsBurstBuff = false;
 	bool bChosenIsHeal = false;
 
 	bool bReadyForRaidBurst = ( m_LastScan.hPriorityBoss && !m_LastScan.hPriorityBoss->IsDie() && !m_LastScan.bBossInvulnerable && !m_LastScan.BossThreat.bBotCurrentlyInDanger );
+	bool bCriticalAlly = ( m_LastScan.fLowestHpRatio < (float)cfg.criticalHealThreshold / 100.f );
+	CDnPlayerActor* pHumanActor = ( m_LastScan.hHumanLeader && !m_LastScan.hHumanLeader->IsDie() )
+		? static_cast<CDnPlayerActor*>( m_LastScan.hHumanLeader.GetPointer() ) : NULL;
 
 	for( DWORD i = 0; i < m_pActor->GetSkillCount(); ++i )
 	{
@@ -3218,19 +3544,66 @@ bool CDnAIBotController::TryCastSupportOrHeal( bool bNeedHeal, bool bNeedCure, b
 		bool bIsRaidBurst = IsRaidBurstBuffSkill( pSkill );
 		bool bIsBuff = IsPartyOrSelfBuffSkill( pSkill );
 
-		// Don't blow major raid burst cooldowns (Spirit Boost / Beyond Time / Genie) on trash mobs or invuln bosses!
-		if( bIsRaidBurst && ( m_eEncounterMode == Mode_Nest || m_eEncounterMode == Mode_DragonNest ) && !bReadyForRaidBurst )
-			continue;
+		// Strategy gate for major raid burst cooldowns (Spirit Boost / Beyond Time / Genie)
+		if( bIsRaidBurst )
+		{
+			if( !HasCombatStrategy( CS_BURST ) || !m_LastScan.bHasAnyEnemy )
+				continue;
+			if( ( m_eEncounterMode == Mode_Nest || m_eEncounterMode == Mode_DragonNest ) && !bReadyForRaidBurst )
+				continue;
+		}
+
+		// Redundant buff suppression: skip lingering buffs already active on self (and human leader for party buffs)
+		if( bWantBuff && bIsBuff && !bIsHeal && !bIsCure && !bIsRaidBurst )
+		{
+			bool bSelfHas = IsBuffAlreadyActiveOnTarget( pSkill, m_pActor );
+			bool bIsPartyScope = ( pSkill->GetTargetType() == CDnSkill::Party || pSkill->GetTargetType() == CDnSkill::Friend );
+			if( bIsPartyScope && pHumanActor && XZDist( *m_pActor->GetPosition(), *pHumanActor->GetPosition() ) < 900.f )
+			{
+				if( bSelfHas && IsBuffAlreadyActiveOnTarget( pSkill, pHumanActor ) )
+					continue;
+			}
+			else if( bSelfHas )
+			{
+				continue;
+			}
+
+			// Out of combat: only pre-buff long-duration buffs/auras/summons (avoid wasting short 5-10s combat blocks!)
+			if( !m_LastScan.bHasAnyEnemy && eDur == CDnSkill::Buff )
+			{
+				int nMaxDurMs = 0;
+				for( DWORD s = 0; s < pSkill->GetStateEffectCount(); ++s )
+				{
+					CDnSkill::StateEffectStruct* pSE = pSkill->GetStateEffectFromIndex( s );
+					if( pSE && pSE->nDurationTime > nMaxDurMs )
+						nMaxDurMs = pSE->nDurationTime;
+				}
+				if( nMaxDurMs > 0 && nMaxDurMs < 20000 )
+					continue;
+			}
+		}
 
 		int nPriority = -1;
 		if( bNeedHeal && bIsHeal && fAllyDist <= 820.f )
-			nPriority = m_LastScan.bHumanInDanger ? 120 : 100;
+		{
+			nPriority = 100;
+			if( bCriticalAlly || m_LastScan.bHumanInDanger ) nPriority += 30;
+			if( m_LastScan.bSelfInCriticalHp || HasCombatStrategy( CS_DEFENSIVE ) ) nPriority += 15;
+			if( HasCombatStrategy( CS_HEALER ) ) nPriority += 10;
+		}
 		else if( bNeedCure && bIsCure && fAllyDist <= 850.f )
-			nPriority = 92;
+		{
+			nPriority = 94;
+		}
 		else if( bWantBuff && bIsRaidBurst && ( bReadyForRaidBurst || m_LastScan.nAliveEnemyCount >= 3 ) )
-			nPriority = 85;
+		{
+			nPriority = 86;
+		}
 		else if( bWantBuff && bIsBuff )
-			nPriority = ( pSkill->GetTargetType() == CDnSkill::Party || pSkill->GetTargetType() == CDnSkill::Friend ) ? 75 : 65;
+		{
+			nPriority = ( pSkill->GetTargetType() == CDnSkill::Party || pSkill->GetTargetType() == CDnSkill::Friend ) ? 76 : 66;
+			if( HasCombatStrategy( CS_SUPPORT ) ) nPriority += 6;
+		}
 
 		if( nPriority > nBestPriority )
 		{
@@ -3243,6 +3616,16 @@ bool CDnAIBotController::TryCastSupportOrHeal( bool bNeedHeal, bool bNeedCure, b
 
 	if( !pChosen )
 		return false;
+
+	// Party-wide heal coordination: avoid two healers wasting cooldowns on the exact same ally (bypass if critical!)
+	if( bChosenIsHeal && !bCriticalAlly && m_LastScan.hLowestHpAlly && m_pActor->GetGameRoom() )
+	{
+		if( !CTacticalLearningMemory::Get().TryReserveRoomHeal(
+			m_pActor->GetGameRoom()->GetRoomID(), m_LastScan.hLowestHpAlly->GetUniqueID(), timeGetTime(), 1400 ) )
+		{
+			return false;
+		}
+	}
 
 	if( m_eMoveState == MoveState_Moving )
 		SendStopPacket();
@@ -3264,10 +3647,11 @@ bool CDnAIBotController::TryCastSupportOrHeal( bool bNeedHeal, bool bNeedCure, b
 	if( eRes == CDnSkill::UsingResult::Success )
 	{
 		SendUseSkillPacket( pChosen );
-		m_fSkillDelayTimer = 0.42f + m_fReactionJitter;
+		float fBaseDelay = ClampF( (float)cfg.globalSkillDelayMs / 1000.f, 0.08f, 1.0f );
+		m_fSkillDelayTimer = fBaseDelay + 0.14f + m_fReactionJitter;
 		if( bChosenIsBurstBuff && ( m_eEncounterMode == Mode_Nest || m_eEncounterMode == Mode_DragonNest ) )
 			MaybeSendTacticalCallout( L"Buffs up, burst now!", 26.f );
-		else if( bChosenIsHeal && m_LastScan.bHumanInDanger )
+		else if( bChosenIsHeal && ( m_LastScan.bHumanInDanger || bCriticalAlly ) )
 			MaybeSendTacticalCallout( L"Healing!", 26.f );
 		return true;
 	}
@@ -3276,6 +3660,20 @@ bool CDnAIBotController::TryCastSupportOrHeal( bool bNeedHeal, bool bNeedCure, b
 
 bool CDnAIBotController::TryCastCombatSkill( float fDistToTargetBox, float fVerticalDelta, bool bBossInvuln )
 {
+	using namespace Irine::Modules;
+	const PlayerBotsConfig& cfg = PlayerBotsModule::GetActiveConfig();
+
+	// Context Multiplier / Resource Gate: Healers preserve MP for heals & cures when CS_SAVE_MANA is active
+	if( HasCombatStrategy( CS_SAVE_MANA ) && HasCombatStrategy( CS_HEALER ) )
+	{
+		float fReserve = ClampF( (float)cfg.healerManaReservePercent / 100.f, 0.f, 0.80f );
+		if( m_LastScan.fMyManaRatio < fReserve )
+			return false;
+	}
+
+	bool bLowManaConserve = HasCombatStrategy( CS_SAVE_MANA ) && !HasCombatStrategy( CS_HEALER ) &&
+		( m_LastScan.fMyManaRatio < ClampF( (float)cfg.dpsManaConservePercent / 100.f, 0.f, 0.60f ) );
+
 	CDnSkill* pBestSkill = NULL;
 	float fBestScore = -1.f;
 	float fBestEffMaxRange = 0.f;
@@ -3283,6 +3681,23 @@ bool CDnAIBotController::TryCastCombatSkill( float fDistToTargetBox, float fVert
 	bool bTargetIsBoss = ( m_hTargetActor && m_hTargetActor == m_LastScan.hPriorityBoss );
 	bool bIsNest = ( m_eEncounterMode == Mode_Nest || m_eEncounterMode == Mode_DragonNest );
 	int nJobID = m_pActor->GetJobClassID();
+
+	float fTargetHpRatio = 1.0f;
+	bool bTargetIsTrash = false;
+	if( m_hTargetActor )
+	{
+		if( m_hTargetActor->GetMaxHP() > 0 )
+			fTargetHpRatio = (float)m_hTargetActor->GetHP() / (float)m_hTargetActor->GetMaxHP();
+		if( m_hTargetActor->IsMonsterActor() )
+			bTargetIsTrash = ( static_cast<CDnMonsterActor*>( m_hTargetActor.GetPointer() )->GetGrade() < CDnMonsterState::Elite );
+	}
+	float fOverkillRatio = ClampF( (float)cfg.overkillSkipHpPercent / 100.f, 0.f, 0.50f );
+
+	bool bTargetThreateningAlly = ( m_hTargetActor &&
+		( m_hTargetActor == m_LastScan.hEnemyAttackingHuman || m_hTargetActor == m_LastScan.hEnemyAttackingHealer ) );
+	bool bNeedThreatThrottle = ( HasCombatStrategy( CS_THREAT ) && !HasCombatStrategy( CS_TANK ) &&
+		bTargetIsBoss && m_LastScan.bBotHasBossAggro && m_LastScan.bHasLiveTankAlly );
+	bool bDefensivePosture = ( HasCombatStrategy( CS_DEFENSIVE ) || m_LastScan.bSelfInCriticalHp );
 
 	for( DWORD i = 0; i < m_pActor->GetSkillCount(); ++i )
 	{
@@ -3311,24 +3726,38 @@ bool CDnAIBotController::TryCastCombatSkill( float fDistToTargetBox, float fVert
 		if( prof.bHasProjectile && !m_LastScan.bTargetHasLOS && fDistToTargetBox > 140.f )
 			continue;
 
-		// Don't dash straight into an imminent boss frontal/PBAoE telegraph!
-		if( prof.bIsDashForward && m_LastScan.BossThreat.bBotCurrentlyInDanger )
+		// Don't dash straight into an imminent boss frontal/PBAoE telegraph or while in defensive low-HP posture!
+		if( prof.bIsDashForward && ( m_LastScan.BossThreat.bBotCurrentlyInDanger || bDefensivePosture ) )
 			continue;
 
-		// Strategy: Save 40-Ultimates for Boss fights & Burst Windows (don't waste Ult on 1 trash mob or invuln boss!)
+		// Strategy: Save 40-Ultimates for Boss fights & Burst Windows (respects CS_BURST + threat throttle!)
 		float fCD = pSkill->GetDelayTime();
 		if( prof.bIsUltimate )
 		{
-			if( bBossInvuln ) continue;
+			if( !HasCombatStrategy( CS_BURST ) ) continue;
+			if( bBossInvuln || bNeedThreatThrottle ) continue;
 			if( !bTargetIsBoss ) continue;
 			if( bIsNest && !m_LastScan.bBurstWindowActive && m_LastScan.fBossHpRatio > 0.60f )
 				continue;
 		}
 
+		// Non-tank threat discipline: don't press high-threat skills while boss is already glued to us
+		if( bNeedThreatThrottle && IsThreatSkill( pSkill ) )
+			continue;
+
+		// Overkill prevention: don't burn long cooldowns on a single dying trash mob!
+		if( bTargetIsTrash && fTargetHpRatio < fOverkillRatio && fCD >= 12.f && m_LastScan.nEnemiesNearTarget <= 1 )
+			continue;
+
+		// Redundant debuff suppression: skip pure debuff skills whose debuff is already ticking on target
+		bool bDebuffAlreadyOn = prof.bIsDebuffOrArmorBreak && IsDebuffAlreadyActiveOnTarget( pSkill, m_hTargetActor.GetPointer() );
+		if( bDebuffAlreadyOn && !prof.bHasHitSignal && !prof.bHasProjectile && !IsThreatSkill( pSkill ) )
+			continue;
+
 		// Save long cooldown burst skills when boss is currently invulnerable
 		if( bBossInvuln && fCD >= 12.f ) continue;
 
-		// Score skill tactically by role, encounter mode, cluster size, real damage prob, distance fit & learned reliability!
+		// Score skill tactically by role, strategies, encounter mode, cluster size, real damage prob, distance fit & learned reliability!
 		float fScore = 15.f + (float)pSkill->GetLevel() * 0.8f + ClampF( prof.fTotalDamageProb * 6.f, 0.f, 40.f );
 
 		// Favor skills whose optimal range matches our current distance (human-like spacing awareness)
@@ -3339,38 +3768,52 @@ bool CDnAIBotController::TryCastCombatSkill( float fDistToTargetBox, float fVert
 		if( fCD > 3.f && fCD < 45.f )
 			fScore += fCD * 0.40f;
 
-		// AoE bonus when fighting packed dungeon waves!
-		if( prof.bIsAoE && m_LastScan.nEnemiesNearTarget >= 2 )
-			fScore += (float)( m_LastScan.nEnemiesNearTarget * 11 );
+		// AoE bonus when CS_AOE is active and fighting packed waves
+		if( HasCombatStrategy( CS_AOE ) && prof.bIsAoE && m_LastScan.nEnemiesNearTarget >= 2 )
+			fScore += (float)( m_LastScan.nEnemiesNearTarget * 12 );
 
-		// Burst Window & Ultimate priority on Nest / Stage Bosses!
-		if( prof.bIsUltimate && bTargetIsBoss )
-			fScore += m_LastScan.bBurstWindowActive ? 95.f : 55.f;
-		else if( m_LastScan.bBurstWindowActive && fCD >= 12.f )
-			fScore += 28.f;
+		// Burst Window & Ultimate priority on Nest / Stage Bosses
+		if( HasCombatStrategy( CS_BURST ) )
+		{
+			if( prof.bIsUltimate && bTargetIsBoss )
+				fScore += m_LastScan.bBurstWindowActive ? 95.f : 55.f;
+			else if( m_LastScan.bBurstWindowActive && fCD >= 12.f )
+				fScore += 28.f;
+		}
 
-		// Role-specific Nest & Dungeon meta priorities
-		if( m_Role == AIBot::RoleType::Tank )
+		// Strategy-driven role priorities (Tank peel, IceStack, Support debuff, DPS summon)
+		if( HasCombatStrategy( CS_TANK ) )
 		{
 			if( IsThreatSkill( pSkill ) || pSkill->GetAdditionalThreat() > 0 )
-				fScore += 50.f;
-			if( prof.bIsDebuffOrArmorBreak )
+			{
+				fScore += 55.f;
+				// Urgent peel / taunt when boss or mob is hitting human leader or healer, or boss is loose!
+				if( bTargetThreateningAlly || ( bTargetIsBoss && !m_LastScan.bBotHasBossAggro ) )
+					fScore += 85.f;
+			}
+			if( prof.bIsDebuffOrArmorBreak && !bDebuffAlreadyOn )
 				fScore += 32.f;
 		}
-		else if( m_Role == AIBot::RoleType::IceStacker )
+		if( HasCombatStrategy( CS_ICESTACK ) && IsIceStackSkill( pSkill ) )
 		{
-			if( IsIceStackSkill( pSkill ) )
-				fScore += bTargetIsBoss ? 65.f : 35.f;
+			fScore += bTargetIsBoss ? 68.f : 35.f;
 		}
-		else if( m_Role == AIBot::RoleType::Support )
+		if( HasCombatStrategy( CS_SUPPORT ) && prof.bIsDebuffOrArmorBreak && !bDebuffAlreadyOn )
 		{
-			if( prof.bIsDebuffOrArmorBreak )
-				fScore += 35.f;
+			fScore += 36.f;
 		}
-		else if( m_Role == AIBot::RoleType::Dps )
+		if( HasCombatStrategy( CS_DPS ) && prof.bIsSummon && bTargetIsBoss )
 		{
-			if( prof.bIsSummon && bTargetIsBoss )
-				fScore += 30.f;
+			fScore += 32.f;
+		}
+
+		// Defensive / Low-HP safety preference: favor I-frames, backsteps, and safe ranged skills
+		if( bDefensivePosture )
+		{
+			if( prof.bHasIFrame || prof.bIsBackstep )
+				fScore += 32.f;
+			else if( prof.bHasProjectile )
+				fScore += 14.f;
 		}
 
 		// Adaptive Learning weighting: prefer skills that reliably land hits and multi-hit!
@@ -3380,6 +3823,16 @@ bool CDnAIBotController::TryCastCombatSkill( float fDistToTargetBox, float fVert
 			fScore += ( learned.fHitRateEMA - 0.5f ) * 26.f;
 			fScore += ClampF( learned.fAvgHitsPerCastEMA * 3.f, 0.f, 15.f );
 		}
+
+		// Context Multipliers (composable action-weight scaling)
+		if( !HasCombatStrategy( CS_AOE ) && prof.bIsAoE )
+			fScore *= 0.25f;
+		if( bLowManaConserve && fCD < 10.f )
+			fScore *= 0.45f;
+		if( bNeedThreatThrottle )
+			fScore *= 0.40f;
+		if( bTargetIsTrash && fTargetHpRatio < fOverkillRatio && fCD >= 6.f )
+			fScore *= 0.20f;
 
 		if( fScore > fBestScore )
 		{
@@ -3413,7 +3866,8 @@ bool CDnAIBotController::TryCastCombatSkill( float fDistToTargetBox, float fVert
 	if( eRes == CDnSkill::UsingResult::Success )
 	{
 		SendUseSkillPacket( pBestSkill );
-		m_fSkillDelayTimer = 0.28f + m_fReactionJitter;
+		float fBaseDelay = ClampF( (float)cfg.globalSkillDelayMs / 1000.f, 0.08f, 1.0f );
+		m_fSkillDelayTimer = fBaseDelay + m_fReactionJitter;
 
 		// Arm the live hit/whiff learner for this skill cast!
 		FinalizePendingSkillOutcome( true );
@@ -3424,7 +3878,7 @@ bool CDnAIBotController::TryCastCombatSkill( float fDistToTargetBox, float fVert
 		m_nPendingCastHitCount = 0;
 		m_hPendingCastTarget = m_hTargetActor;
 
-		if( bTargetIsBoss && m_Role == AIBot::RoleType::Tank && IsThreatSkill( pBestSkill ) && bIsNest )
+		if( bTargetIsBoss && HasCombatStrategy( CS_TANK ) && IsThreatSkill( pBestSkill ) && bIsNest )
 			MaybeSendTacticalCallout( L"Got aggro, hit from behind!", 30.f );
 
 		return true;
@@ -3979,8 +4433,9 @@ bool CDnAIBotController::IsHittableEnemy( CDnActor* pActor, DnActorHandle hHitte
 	return true;
 }
 
-int CDnAIBotController::ScoreEnemyPriority( CDnMonsterActor* pMon, AIBot::RoleType role, float fDistSq, CDnPlayerActor* pHumanLeader, EncounterMode eMode )
+int CDnAIBotController::ScoreEnemyPriority( CDnMonsterActor* pMon, AIBot::RoleType role, float fDistSq, CDnPlayerActor* pHumanLeader, EncounterMode eMode, uint32_t uCombatStrategies, DnActorHandle hHumanTarget, CDnPlayerActor* pSelfBot )
 {
+	using namespace Irine::Modules;
 	float fDist = sqrtf( fDistSq );
 	int nScore = 1000 - (int)( fDist * 0.45f );
 
@@ -3993,10 +4448,55 @@ int CDnAIBotController::ScoreEnemyPriority( CDnMonsterActor* pMon, AIBot::RoleTy
 	bool bIsElite = ( eGrade >= CDnMonsterState::Elite && eGrade < CDnMonsterState::Boss );
 	bool bIsNest = ( eMode == Mode_Nest || eMode == Mode_DragonNest );
 
-	if( role == AIBot::RoleType::Tank || role == AIBot::RoleType::IceStacker )
+	DnActorHandle hAggro = pMon->GetAggroTarget();
+	bool bAggroOnHuman = ( pHumanLeader && hAggro && hAggro.GetPointer() == pHumanLeader );
+	bool bAggroOnSelf = ( pSelfBot && hAggro && hAggro.GetPointer() == pSelfBot );
+	bool bAggroOnHealer = false;
+	if( hAggro && hAggro->IsPlayerActor() && !hAggro->IsDie() )
 	{
-		if( bIsBoss && !bInvuln ) nScore += bIsNest ? 1100 : 900;
-		else if( bIsElite && !bInvuln ) nScore += 450;
+		CDnPlayerActor* pAggroPlayer = static_cast<CDnPlayerActor*>( hAggro.GetPointer() );
+		if( AIBot::GetJobRole( (BYTE)pAggroPlayer->GetJobClassID() ) == AIBot::RoleType::Healer )
+			bAggroOnHealer = true;
+	}
+
+	// Explicit strategy target overrides (from config or live party chat commands)
+	if( !bInvuln )
+	{
+		if( ( uCombatStrategies & CS_FOCUS_BOSS ) && bIsBoss )
+			nScore += 1200;
+		if( ( uCombatStrategies & CS_CLEAR_ADDS ) && !bIsBoss )
+			nScore += pMon->IsSummonedMonster() ? 1150 : 850;
+		if( ( uCombatStrategies & CS_ASSIST ) )
+		{
+			if( hHumanTarget && hHumanTarget.GetPointer() == pMon )
+				nScore += 780;
+			if( bAggroOnHuman )
+				nScore += 460;
+		}
+	}
+
+	bool bTankBehavior = ( ( uCombatStrategies & CS_TANK ) != 0 ) || ( role == AIBot::RoleType::Tank );
+	if( bTankBehavior )
+	{
+		if( !bInvuln )
+		{
+			// Urgent peel when boss or mob is hitting the human player or healer!
+			if( bIsBoss && ( bAggroOnHuman || bAggroOnHealer ) )
+				nScore += 980;
+			else if( bAggroOnHuman || bAggroOnHealer )
+				nScore += 680;
+
+			if( bIsBoss && !bAggroOnSelf )
+				nScore += 450;
+
+			if( bIsBoss ) nScore += bIsNest ? 1050 : 850;
+			else if( bIsElite ) nScore += 420;
+		}
+	}
+	else if( ( uCombatStrategies & CS_ICESTACK ) || role == AIBot::RoleType::IceStacker )
+	{
+		if( bIsBoss && !bInvuln ) nScore += bIsNest ? 1050 : 850;
+		else if( bIsElite && !bInvuln ) nScore += 420;
 	}
 	else
 	{
@@ -4004,14 +4504,484 @@ int CDnAIBotController::ScoreEnemyPriority( CDnMonsterActor* pMon, AIBot::RoleTy
 		if( !bInvuln && pMon->IsSummonedMonster() )
 			nScore += bIsNest ? 750 : 450;
 		if( pHumanLeader && XZDistSq( *pMon->GetPosition(), *pHumanLeader->GetPosition() ) < ( 360.f * 360.f ) )
-			nScore += 380;
+			nScore += 360;
 		if( bIsBoss && !bInvuln )
+		{
 			nScore += bIsNest ? 620 : 480;
+			// Non-tank threat discipline: if boss is glued to us in a non-nest fight, give adds slight edge while tank peels
+			if( ( uCombatStrategies & CS_THREAT ) && bAggroOnSelf && !bIsNest )
+				nScore -= 220;
+		}
 		else if( bIsElite && !bInvuln )
+		{
 			nScore += 280;
+		}
+
+		// Finish off wounded non-boss enemies instead of spreading damage across full-HP mobs
+		if( !bInvuln && !bIsBoss && pMon->GetMaxHP() > 0 )
+		{
+			float fHpRatio = (float)pMon->GetHP() / (float)pMon->GetMaxHP();
+			if( fHpRatio < 0.35f )
+				nScore += 180;
+		}
 	}
 
 	return nScore;
+}
+
+bool CDnAIBotController::HandlePartyChatCommand( CDNGameRoom* pRoom, CDNUserSession* pSender, const WCHAR* wszMsg )
+{
+	using namespace Irine::Modules;
+	const PlayerBotsConfig& cfg = PlayerBotsModule::GetActiveConfig();
+	if( !cfg.allowBotChatCommands || !pRoom || !pSender || pSender->bIsAIBot() || !wszMsg || !wszMsg[0] )
+		return false;
+
+	// Convert to ASCII tokens for command parsing while preserving wide text for character name matching
+	std::vector<std::string> vecTokens;
+	std::vector<std::wstring> vecWTokens;
+	{
+		const WCHAR* p = wszMsg;
+		while( *p )
+		{
+			while( *p && ( *p == L' ' || *p == L'\t' || *p == L'\r' || *p == L'\n' ) )
+				++p;
+			if( !*p ) break;
+			const WCHAR* pStart = p;
+			while( *p && *p != L' ' && *p != L'\t' && *p != L'\r' && *p != L'\n' )
+				++p;
+			std::wstring wTok( pStart, p );
+			std::string aTok;
+			aTok.reserve( wTok.size() );
+			for( size_t i = 0; i < wTok.size(); ++i )
+			{
+				WCHAR ch = wTok[i];
+				if( ch >= L'A' && ch <= L'Z' ) ch = (WCHAR)( ch - L'A' + L'a' );
+				aTok.push_back( ( ch < 128 ) ? (char)ch : '?' );
+			}
+			vecWTokens.push_back( wTok );
+			vecTokens.push_back( aTok );
+		}
+	}
+	if( vecTokens.empty() )
+		return false;
+
+	size_t idx = 0;
+	bool bHasExplicitPrefix = false;
+	if( vecTokens[0] == "bot" || vecTokens[0] == "!bot" || vecTokens[0] == "/bot" || vecTokens[0] == "bots" )
+	{
+		bHasExplicitPrefix = true;
+		idx = 1;
+	}
+	if( idx >= vecTokens.size() )
+		return false;
+
+	// Collect all live AI bot controllers in this room
+	struct BotEntry
+	{
+		CDnPlayerActor* pActor;
+		CDnAIBotController* pCtrl;
+	};
+	std::vector<BotEntry> vecAllBots;
+	for( UINT i = 0; i < pRoom->GetUserCount(); ++i )
+	{
+		CDNUserSession* pSess = pRoom->GetUserData( i );
+		if( !pSess || !pSess->bIsAIBot() ) continue;
+		DnActorHandle hAct = pSess->GetActorHandle();
+		if( !hAct || !hAct->IsPlayerActor() ) continue;
+		CDnPlayerActor* pBotActor = static_cast<CDnPlayerActor*>( hAct.GetPointer() );
+		CDnAIBotController* pCtrl = pBotActor->GetAIBotController();
+		if( pCtrl )
+		{
+			pCtrl->EnsureRoleInitialized();
+			vecAllBots.push_back( BotEntry{ pBotActor, pCtrl } );
+		}
+	}
+	if( vecAllBots.empty() )
+		return false;
+
+	auto wToLower = []( const WCHAR* s ) -> std::wstring {
+		std::wstring out;
+		if( !s ) return out;
+		while( *s )
+		{
+			WCHAR c = *s++;
+			if( c >= L'A' && c <= L'Z' ) c = (WCHAR)( c - L'A' + L'a' );
+			out.push_back( c );
+		}
+		return out;
+	};
+
+	auto matchesBotName = [&]( const BotEntry& b, const std::wstring& wTarget ) -> bool {
+		std::wstring wFull = wToLower( b.pActor->GetName() );
+		std::wstring wLower = wToLower( wTarget.c_str() );
+		if( wFull == wLower ) return true;
+		// Strip "[bot]" prefix so players can type "owen stay" or "[bot]owen stay"
+		if( wFull.compare( 0, 5, L"[bot]" ) == 0 && wFull.substr( 5 ) == wLower )
+			return true;
+		return false;
+	};
+
+	// Optional target selector token: all | tank | healer | dps | support | icestack | <BotName>
+	std::vector<BotEntry> vecMatched;
+	bool bMatchedSelector = false;
+	{
+		const std::string& t = vecTokens[idx];
+		if( t == "all" )
+		{
+			vecMatched = vecAllBots;
+			bMatchedSelector = true;
+		}
+		else if( t == "tank" || t == "healer" || t == "dps" || t == "support" || t == "icestack" )
+		{
+			for( size_t i = 0; i < vecAllBots.size(); ++i )
+			{
+				AIBot::RoleType r = vecAllBots[i].pCtrl->m_Role;
+				if( ( t == "tank" && r == AIBot::RoleType::Tank ) ||
+					( t == "healer" && r == AIBot::RoleType::Healer ) ||
+					( t == "dps" && r == AIBot::RoleType::Dps ) ||
+					( t == "support" && r == AIBot::RoleType::Support ) ||
+					( t == "icestack" && r == AIBot::RoleType::IceStacker ) )
+				{
+					vecMatched.push_back( vecAllBots[i] );
+				}
+			}
+			bMatchedSelector = true;
+		}
+		else
+		{
+			for( size_t i = 0; i < vecAllBots.size(); ++i )
+			{
+				if( matchesBotName( vecAllBots[i], vecWTokens[idx] ) )
+				{
+					vecMatched.push_back( vecAllBots[i] );
+					bMatchedSelector = true;
+				}
+			}
+		}
+	}
+
+	if( bMatchedSelector )
+	{
+		++idx;
+		if( idx >= vecTokens.size() )
+			return false;
+	}
+	else
+	{
+		vecMatched = vecAllBots;
+	}
+
+	const std::string& cmd = vecTokens[idx];
+	size_t argStart = idx + 1;
+	bool bHasExtraTokens = ( argStart < vecTokens.size() );
+
+	// Join remaining arguments into a comma/space string for co/nc strategy commands
+	std::string strArgs;
+	for( size_t k = argStart; k < vecTokens.size(); ++k )
+	{
+		if( !strArgs.empty() ) strArgs.push_back( ',' );
+		strArgs += vecTokens[k];
+	}
+
+	auto sendPartyReply = [&]( const WCHAR* wszSpeaker, const std::wstring& wReply ) {
+		if( wReply.empty() ) return;
+		int nLen = (int)wReply.size();
+		for( UINT i = 0; i < pRoom->GetUserCount(); ++i )
+		{
+			CDNUserSession* pSess = pRoom->GetUserData( i );
+			if( pSess && !pSess->bIsAIBot() )
+				pSess->SendChat( CHATTYPE_PARTY, nLen, wszSpeaker, wReply.c_str() );
+		}
+	};
+
+	auto asciiToWide = []( const std::string& s ) -> std::wstring {
+		std::wstring w;
+		w.reserve( s.size() );
+		for( size_t i = 0; i < s.size(); ++i )
+			w.push_back( (WCHAR)(unsigned char)s[i] );
+		return w;
+	};
+
+	auto roleLabel = []( AIBot::RoleType r ) -> const WCHAR* {
+		switch( r )
+		{
+			case AIBot::RoleType::Tank:       return L"Tank";
+			case AIBot::RoleType::Healer:     return L"Healer";
+			case AIBot::RoleType::IceStacker: return L"Ice";
+			case AIBot::RoleType::Support:    return L"Supp";
+			default:                          return L"DPS";
+		}
+	};
+
+	if( vecMatched.empty() )
+	{
+		if( bHasExplicitPrefix || bMatchedSelector )
+			sendPartyReply( vecAllBots[0].pActor->GetName(), L"No bot in party matches that role/name." );
+		return bHasExplicitPrefix;
+	}
+
+	// Command: help
+	if( ( cmd == "help" || cmd == "?" ) && ( bHasExplicitPrefix || bMatchedSelector ) && !bHasExtraTokens )
+	{
+		sendPartyReply( vecMatched[0].pActor->GetName(),
+			L"Bot commands: [all|tank|healer|dps|name] stay | follow | attack | passive | defensive | aggressive | boss | adds | buff | heal | status | reset" );
+		sendPartyReply( vecMatched[0].pActor->GetName(),
+			L"Strategies: co +aoe,-burst,+focus_boss,+clear_adds,+defensive,+save_mana,+threat,+avoid_aoe,+dodge_cancel | nc +follow,+stay,+buff,+gather_gate,+passive" );
+		return true;
+	}
+
+	// Command: status / stats
+	if( ( cmd == "status" || cmd == "stats" ) && !bHasExtraTokens )
+	{
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+		{
+			CDnPlayerActor* pAct = vecMatched[i].pActor;
+			CDnAIBotController* pCtrl = vecMatched[i].pCtrl;
+			int nHpPct = ( pAct->GetMaxHP() > 0 ) ? (int)( ( pAct->GetHP() * 100 ) / pAct->GetMaxHP() ) : 0;
+			int nMpPct = ( pAct->GetMaxSP() > 0 ) ? (int)( ( pAct->GetSP() * 100 ) / pAct->GetMaxSP() ) : 0;
+			std::wstring wCo = asciiToWide( BotStrategyUtil::FormatCombatStrategies( pCtrl->GetCombatStrategies() ) );
+			std::wstring wNc = asciiToWide( BotStrategyUtil::FormatNonCombatStrategies( pCtrl->GetNonCombatStrategies() ) );
+			WCHAR wszBuf[256] = { 0 };
+			swprintf_s( wszBuf, _countof( wszBuf ), L"[Lv.%d %s] HP:%d%% MP:%d%% | co:%s | nc:%s",
+				pAct->GetLevel(), roleLabel( pCtrl->m_Role ), nHpPct, nMpPct, wCo.c_str(), wNc.c_str() );
+			sendPartyReply( pAct->GetName(), wszBuf );
+		}
+		return true;
+	}
+
+	// Command: co / combat <+flag,-flag|reset|?>
+	if( cmd == "co" || cmd == "combat" )
+	{
+		if( strArgs.empty() || strArgs == "?" )
+		{
+			for( size_t i = 0; i < vecMatched.size(); ++i )
+			{
+				std::wstring wCo = asciiToWide( BotStrategyUtil::FormatCombatStrategies( vecMatched[i].pCtrl->GetCombatStrategies() ) );
+				sendPartyReply( vecMatched[i].pActor->GetName(), L"Combat strategies: " + wCo );
+			}
+			return true;
+		}
+		std::string strUnknown;
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+		{
+			if( strArgs == "reset" )
+				vecMatched[i].pCtrl->ResetStrategiesToDefaults();
+			else
+			{
+				std::string u;
+				uint32_t nextMask = BotStrategyUtil::ApplyCombatStrategyModifiers( vecMatched[i].pCtrl->GetCombatStrategies(), strArgs, &u );
+				vecMatched[i].pCtrl->SetCombatStrategies( nextMask );
+				if( strUnknown.empty() && !u.empty() ) strUnknown = u;
+			}
+		}
+		std::wstring wCo = asciiToWide( BotStrategyUtil::FormatCombatStrategies( vecMatched[0].pCtrl->GetCombatStrategies() ) );
+		std::wstring wMsg = L"Combat strategies updated: " + wCo;
+		if( !strUnknown.empty() )
+			wMsg += L" (ignored unknown: " + asciiToWide( strUnknown ) + L")";
+		sendPartyReply( vecMatched[0].pActor->GetName(), wMsg );
+		return true;
+	}
+
+	// Command: nc / noncombat <+flag,-flag|reset|?>
+	if( cmd == "nc" || cmd == "noncombat" )
+	{
+		if( strArgs.empty() || strArgs == "?" )
+		{
+			for( size_t i = 0; i < vecMatched.size(); ++i )
+			{
+				std::wstring wNc = asciiToWide( BotStrategyUtil::FormatNonCombatStrategies( vecMatched[i].pCtrl->GetNonCombatStrategies() ) );
+				sendPartyReply( vecMatched[i].pActor->GetName(), L"Non-combat strategies: " + wNc );
+			}
+			return true;
+		}
+		std::string strUnknown;
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+		{
+			CDnAIBotController* pCtrl = vecMatched[i].pCtrl;
+			if( strArgs == "reset" )
+			{
+				pCtrl->ResetStrategiesToDefaults();
+			}
+			else
+			{
+				std::string u;
+				uint32_t nextMask = BotStrategyUtil::ApplyNonCombatStrategyModifiers( pCtrl->GetNonCombatStrategies(), strArgs, &u );
+				pCtrl->SetNonCombatStrategies( nextMask );
+				if( nextMask & NCS_STAY )
+				{
+					pCtrl->m_vStayAnchorPos = *vecMatched[i].pActor->GetPosition();
+					pCtrl->m_bHasStayAnchor = true;
+				}
+				else
+				{
+					pCtrl->m_bHasStayAnchor = false;
+				}
+				if( strUnknown.empty() && !u.empty() ) strUnknown = u;
+			}
+		}
+		std::wstring wNc = asciiToWide( BotStrategyUtil::FormatNonCombatStrategies( vecMatched[0].pCtrl->GetNonCombatStrategies() ) );
+		std::wstring wMsg = L"Non-combat strategies updated: " + wNc;
+		if( !strUnknown.empty() )
+			wMsg += L" (ignored unknown: " + asciiToWide( strUnknown ) + L")";
+		sendPartyReply( vecMatched[0].pActor->GetName(), wMsg );
+		return true;
+	}
+
+	// Single-word tactical commands: require no trailing prose so casual party chat never triggers accidentally!
+	if( bHasExtraTokens )
+		return false;
+
+	if( cmd == "stay" || cmd == "hold" )
+	{
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+		{
+			CDnAIBotController* pCtrl = vecMatched[i].pCtrl;
+			uint32_t nc = ( pCtrl->GetNonCombatStrategies() & ~NCS_FOLLOW ) | NCS_STAY;
+			pCtrl->SetNonCombatStrategies( nc );
+			pCtrl->m_vStayAnchorPos = *vecMatched[i].pActor->GetPosition();
+			pCtrl->m_bHasStayAnchor = true;
+			if( pCtrl->m_eMoveState == MoveState_Moving )
+				pCtrl->SendStopPacket();
+		}
+		sendPartyReply( vecMatched[0].pActor->GetName(), L"Holding position." );
+		return true;
+	}
+
+	if( cmd == "follow" || ( cmd == "come" && ( bHasExplicitPrefix || bMatchedSelector ) ) )
+	{
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+		{
+			CDnAIBotController* pCtrl = vecMatched[i].pCtrl;
+			uint32_t nc = ( pCtrl->GetNonCombatStrategies() & ~( NCS_STAY | NCS_PASSIVE ) ) | NCS_FOLLOW;
+			pCtrl->SetNonCombatStrategies( nc );
+			pCtrl->m_bHasStayAnchor = false;
+		}
+		sendPartyReply( vecMatched[0].pActor->GetName(), L"Following you!" );
+		return true;
+	}
+
+	if( cmd == "attack" || cmd == "assist" )
+	{
+		DnActorHandle hHumanTarget;
+		DWORD dwHumanTgtUID = CTacticalLearningMemory::Get().GetRoomHumanTarget( pRoom->GetRoomID(), timeGetTime(), 12000 );
+		if( dwHumanTgtUID != 0 )
+			hHumanTarget = CDnActor::FindActorFromUniqueID( pRoom, dwHumanTgtUID );
+		if( ( !hHumanTarget || hHumanTarget->IsDie() ) && pSender->GetActorHandle() )
+		{
+			// Pick closest live monster to the human leader
+			EtVector3 vLeaderPos = *pSender->GetActorHandle()->GetPosition();
+			DNVector(DnActorHandle) vecActors;
+			CDnActor::ScanActor( pRoom, vLeaderPos, 1600.f, vecActors );
+			float fBestDistSq = FLT_MAX;
+			for( size_t a = 0; a < vecActors.size(); ++a )
+			{
+				DnActorHandle hA = vecActors[a];
+				if( !hA || hA->IsDie() || !hA->IsMonsterActor() || hA->GetTeam() == pSender->GetActorHandle()->GetTeam() || hA->GetTeam() == 0 )
+					continue;
+				float d2 = XZDistSq( vLeaderPos, *hA->GetPosition() );
+				if( d2 < fBestDistSq )
+				{
+					fBestDistSq = d2;
+					hHumanTarget = hA;
+				}
+			}
+		}
+
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+			vecMatched[i].pCtrl->RequestAssistEngage( hHumanTarget );
+		sendPartyReply( vecMatched[0].pActor->GetName(), hHumanTarget ? L"Engaging your target!" : L"Ready to attack!" );
+		return true;
+	}
+
+	if( cmd == "passive" || ( cmd == "stop" && ( bHasExplicitPrefix || bMatchedSelector ) ) )
+	{
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+		{
+			CDnAIBotController* pCtrl = vecMatched[i].pCtrl;
+			pCtrl->SetNonCombatStrategies( pCtrl->GetNonCombatStrategies() | NCS_PASSIVE );
+			pCtrl->m_hTargetActor.Identity();
+			pCtrl->m_hForcedAssistTarget.Identity();
+			pCtrl->m_fForcedAssistTimer = 0.f;
+		}
+		sendPartyReply( vecMatched[0].pActor->GetName(), L"Passive mode (heals/buffs only)." );
+		return true;
+	}
+
+	if( cmd == "defensive" || ( cmd == "safe" && ( bHasExplicitPrefix || bMatchedSelector ) ) )
+	{
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+		{
+			CDnAIBotController* pCtrl = vecMatched[i].pCtrl;
+			pCtrl->SetCombatStrategies( pCtrl->GetCombatStrategies() | CS_DEFENSIVE | CS_AVOID_AOE | CS_DODGE_CANCEL | CS_SAVE_MANA );
+		}
+		sendPartyReply( vecMatched[0].pActor->GetName(), L"Switching to defensive posture." );
+		return true;
+	}
+
+	if( cmd == "aggressive" || cmd == "aggro" || cmd == "allout" )
+	{
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+		{
+			CDnAIBotController* pCtrl = vecMatched[i].pCtrl;
+			uint32_t co = ( pCtrl->GetCombatStrategies() & ~( CS_DEFENSIVE | CS_SAVE_MANA ) ) | CS_AOE | CS_BURST;
+			pCtrl->SetCombatStrategies( co );
+			pCtrl->SetNonCombatStrategies( pCtrl->GetNonCombatStrategies() & ~NCS_PASSIVE );
+		}
+		sendPartyReply( vecMatched[0].pActor->GetName(), L"Going all-out!" );
+		return true;
+	}
+
+	if( cmd == "boss" || cmd == "focusboss" )
+	{
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+		{
+			CDnAIBotController* pCtrl = vecMatched[i].pCtrl;
+			pCtrl->SetCombatStrategies( ( pCtrl->GetCombatStrategies() & ~CS_CLEAR_ADDS ) | CS_FOCUS_BOSS );
+		}
+		sendPartyReply( vecMatched[0].pActor->GetName(), L"Focusing boss!" );
+		return true;
+	}
+
+	if( cmd == "adds" || cmd == "clearadds" )
+	{
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+		{
+			CDnAIBotController* pCtrl = vecMatched[i].pCtrl;
+			pCtrl->SetCombatStrategies( ( pCtrl->GetCombatStrategies() & ~CS_FOCUS_BOSS ) | CS_CLEAR_ADDS );
+		}
+		sendPartyReply( vecMatched[0].pActor->GetName(), L"Clearing adds first!" );
+		return true;
+	}
+
+	if( cmd == "buff" )
+	{
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+		{
+			CDnAIBotController* pCtrl = vecMatched[i].pCtrl;
+			pCtrl->SetNonCombatStrategies( pCtrl->GetNonCombatStrategies() | NCS_BUFF );
+			pCtrl->RequestImmediateBuff();
+		}
+		sendPartyReply( vecMatched[0].pActor->GetName(), L"Refreshing party buffs." );
+		return true;
+	}
+
+	if( cmd == "heal" )
+	{
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+			vecMatched[i].pCtrl->RequestImmediateHeal();
+		sendPartyReply( vecMatched[0].pActor->GetName(), L"Checking party heals!" );
+		return true;
+	}
+
+	if( cmd == "reset" && ( bHasExplicitPrefix || bMatchedSelector ) )
+	{
+		for( size_t i = 0; i < vecMatched.size(); ++i )
+			vecMatched[i].pCtrl->ResetStrategiesToDefaults();
+		sendPartyReply( vecMatched[0].pActor->GetName(), L"Strategies reset to defaults." );
+		return true;
+	}
+
+	return false;
 }
 
 void CDnAIBotController::SendBotProjectilePacket( CDnPlayerActor* pBotActor, CDnProjectile* pProjectile, ProjectileStruct* pStruct, int nActionIndex, int nSignalIndex )

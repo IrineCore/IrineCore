@@ -2671,6 +2671,19 @@ struct TPartyMemberGlyphEquip
 	TItemInfo EquipArray[GLYPHMAX];
 };
 
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+const int MAX_SEND_SYNCPLAYER_TALISMAN = 2;
+
+struct TPartyMemberTalismanEquip
+{
+#ifdef PRE_MOD_SYNCPACKET
+	UINT nSessionID;
+#endif		//#ifdef PRE_MOD_SYNCPACKET
+	char cCount;
+	TItemInfo EquipArray[TALISMAN_MAX];
+};
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
+
 
 struct CSStartStage
 {
@@ -2751,6 +2764,18 @@ struct SCGlyphEquipData
 #endif		//#ifdef PRE_MOD_SYNCPACKET
 	TPartyMemberGlyphEquip MemberEquip[MAX_SEND_SYNCPLAYER];
 };
+
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+struct SCTalismanEquipData
+{
+	BYTE	cCount;
+#ifdef PRE_MOD_SYNCPACKET
+#else		//#ifdef PRE_MOD_SYNCPACKET
+	USHORT	unStartIndex;
+#endif		//#ifdef PRE_MOD_SYNCPACKET
+	TPartyMemberTalismanEquip MemberEquip[MAX_SEND_SYNCPLAYER_TALISMAN];
+};
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 
 
 struct SCVehicleEquipData
@@ -5205,6 +5230,9 @@ struct SCROOM_SYNC_MEMBER_BREAKINTO
 	short				nCashEquipCount;
 	short				nSkillCount;
 	short				nGlyphCount;
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	short				nTalismanCount;
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 	int					iSelectAppellation;
 	int					nCoverAppellation;
 #if defined(PRE_ADD_VIP)
@@ -5217,6 +5245,9 @@ struct SCROOM_SYNC_MEMBER_BREAKINTO
 	TItemInfo			EquipArray[EQUIPMAX];
 	TItemInfo			CashEquipArray[CASHEQUIPMAX];
 	TItemInfo			GlyphArray[GLYPHMAX];
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	TItemInfo			TalismanArray[TALISMAN_MAX];
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 	TSkill				SkillArray[SKILLMAX];
 };
 

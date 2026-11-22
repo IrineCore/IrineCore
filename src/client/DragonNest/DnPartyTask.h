@@ -93,6 +93,9 @@ public:
 		std::vector<TItemInfo> VecCashParts;
 		TItemInfo CashWeapon[2];
 		std::vector<TItemInfo> VecGlyph;
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+		std::vector<TItemInfo> VecTalisman;
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 
 		TVehicleCompact VehicleInfo;
 		TVehicleCompact PetInfo;
@@ -171,6 +174,9 @@ public:
 			VerifyPartyStruct.push_back(std::make_pair(static_cast<BYTE>(SC_PARTY), static_cast<BYTE>(eParty::SC_EQUIPDATA)));
 			VerifyPartyStruct.push_back(std::make_pair(static_cast<BYTE>(SC_PARTY), static_cast<BYTE>(eParty::SC_EQUIPCASHDATA)));
 			VerifyPartyStruct.push_back(std::make_pair(static_cast<BYTE>(SC_PARTY), static_cast<BYTE>(eParty::SC_GLYPHDATA)));
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+			VerifyPartyStruct.push_back(std::make_pair(static_cast<BYTE>(SC_PARTY), static_cast<BYTE>(eParty::SC_TALISMANDATA)));
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 			VerifyPartyStruct.push_back(std::make_pair(static_cast<BYTE>(SC_PARTY), static_cast<BYTE>(eParty::SC_VEHICLEEQUIPDATA)));
 			VerifyPartyStruct.push_back(std::make_pair(static_cast<BYTE>(SC_PARTY), static_cast<BYTE>(eParty::SC_PETEQUIPDATA)));
 			VerifyPartyStruct.push_back(std::make_pair(static_cast<BYTE>(SC_PARTY), static_cast<BYTE>(eParty::SC_SKILLDATA)));
@@ -491,6 +497,9 @@ public:
 	void SetEquipInfo( SCEquipData* pPacket );
 	void SetCashEquipInfo( SCCashEquipData* pPacket );
 	void SetGlyphEquipInfo( SCGlyphEquipData* pPacket );
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	void SetTalismanEquipInfo( SCTalismanEquipData* pPacket );
+#endif
 	void SetVehicleEquipInfo( SCVehicleEquipData* pPacket );
 	void SetPetEquipInfo( SCVehicleEquipData* pPacket );
 	void SetSkillInfo( SCSkillData* pPacket );
@@ -498,6 +507,9 @@ public:
 	void SetEquipInfo( TPartyMemberEquip *pEquipInfo, SCEquipData* pPacket );
 	void SetCashEquipInfo( TPartyMemberCashEquip *pEquipInfo, SCCashEquipData* pPacket );
 	void SetGlyphEquipInfo( TPartyMemberGlyphEquip *pEquipInfo, SCGlyphEquipData* pPacket );
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	void SetTalismanEquipInfo( TPartyMemberTalismanEquip *pEquipInfo, SCTalismanEquipData* pPacket );
+#endif
 	void SetVehicleEquipInfo( TVehicleCompact *pEquipInfo, SCVehicleEquipData* pPacket );
 	void SetPetEquipInfo( TVehicleCompact *pEquipInfo, SCVehicleEquipData* pPacket );
 	void SetSkillInfo( TPartyMemberSkill *pSkillInfo, SCSkillData* pPacket );
@@ -704,6 +716,9 @@ public:
 	virtual void OnRecvPartyEtcData( SCEtcData *pPacket );
 	virtual void OnRecvPartyWeaponOrderData( SCWeaponOrderData *pPacket );
 	virtual void OnRecvPartyGlyphEquipData( SCGlyphEquipData *pPacket );
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	virtual void OnRecvPartyTalismanEquipData( SCTalismanEquipData *pPacket );
+#endif
 
 	virtual void OnRecvPartyVehicleEquipData( SCVehicleEquipData *pPacket );
 	virtual void OnRecvPartyPetEquipData( SCVehicleEquipData* pPacket );

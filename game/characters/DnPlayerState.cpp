@@ -324,6 +324,11 @@ void CDnPlayerState::GetStateList( int ListType, CDnState::ValueType Type, std::
 	if( ListType & TalismanList ) {
 		CDnPlayerActor *pPlayerActor = static_cast<CDnPlayerActor *>(m_pActor);
 		if( pPlayerActor ) {
+#if defined(_GAMESERVER)
+			CDNUserSession *pSession = pPlayerActor->GetUserSession();
+			__time64_t tCurTime = 0;
+			_time64( &tCurTime );
+#endif
 			for( int i=0; i<TALISMAN_MAX; i++ ) {
 #if !defined(_GAMESERVER)
 				DnTalismanHandle hTalisman = pPlayerActor->GetTalisman( i );
@@ -336,6 +341,14 @@ void CDnPlayerState::GetStateList( int ListType, CDnState::ValueType Type, std::
 				}
 				if( i <= TALISMAN_CASH_MAX && CDnItemTask::IsActive() && m_pActor == CDnActor::s_hLocalActor.GetPointer() && !GetItemTask().IsCashTalismanOpen() )
 					continue;
+#else
+				if( pSession && pSession->GetItem() ) {
+					if( !pSession->GetItem()->IsTalismanSlotOpen( i ) )
+						continue;
+					const TItem *pTalismanData = pSession->GetItem()->GetTalisman( i );
+					if( pTalismanData && !pTalismanData->bEternity && pTalismanData->tExpireDate <= tCurTime )
+						continue;
+				}
 #endif	// #if !defined(_GAMESERVER)
 				CDnState *pState = pPlayerActor->GetTalismanScaledState( i );
 				if( pState && pState->IsExistValueType( Type ) ) {

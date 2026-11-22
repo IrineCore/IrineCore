@@ -1389,8 +1389,10 @@ DnActorHandle CDnGameTask::InitializePlayerActor( CDnPartyTask::PartyStruct *pSt
 		}
 
 #if defined(PRE_ADD_TALISMAN_SYSTEM)
-		// Talisman Item
+		// Talisman Item (local player)
 		for( int j=0; j<TALISMAN_MAX; j++ ) {
+			if( j <= TALISMAN_CASH_MAX && !CDnItemTask::GetInstance().IsCashTalismanOpen() )
+				continue;
 			CDnItem *pItem = CDnItemTask::GetInstance().GetTalismanItem(j);
 			if( !pItem ) continue;
 			if( dynamic_cast<CDnTalisman*>(pItem) && pItem->GetItemType() == ITEMTYPE_TALISMAN ) {
@@ -1399,8 +1401,6 @@ DnActorHandle CDnGameTask::InitializePlayerActor( CDnPartyTask::PartyStruct *pSt
 			}
 			ThreadDelay();
 		}
-#else
-		// Talisman Item
 #endif
 
 #ifndef PRE_FIX_CLIENT_MEMOPTIMIZE
@@ -1489,7 +1489,25 @@ DnActorHandle CDnGameTask::InitializePlayerActor( CDnPartyTask::PartyStruct *pSt
 			ThreadDelay();
 		}
 
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+		// Talisman Item (remote players in dungeon/nest/PvP)
+		for( DWORD j=0; j<pStruct->VecTalisman.size(); j++ ) {
+			TItemInfo *pInfo = &pStruct->VecTalisman[j];
+			if( pInfo->Item.nItemID < 1 ) continue;
+			CDnItem *pItem = CDnItemTask::GetInstance().CreateItem( *pInfo );
+			if( !pItem ) continue;
+			if( dynamic_cast<CDnTalisman*>(pItem) && pItem->GetItemType() == ITEMTYPE_TALISMAN ) {
+				DnTalismanHandle hTalisman = ((CDnTalisman*)pItem)->GetMySmartPtr();
+				pActor->AttachTalisman( hTalisman, pInfo->cSlotIndex, CDnItemTask::GetInstance().GetTalismanEfficiency( pInfo->cSlotIndex ), true );
+			}
+			else {
+				SAFE_DELETE( pItem );
+			}
+			ThreadDelay();
+		}
+#else
 		// Talisman Item
+#endif
 
 		hActor->GetStateBlow()->Process( 0, 0.f, true );
 	}

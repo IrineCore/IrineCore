@@ -434,6 +434,9 @@ bool CDnMarketPriceDlg::PickUpMarketItem( CDnQuickSlotButton *pPressedButton, bo
 			if (type == ITEMTYPE_WEAPON || 
 				type == ITEMTYPE_PARTS ||
 				type == ITEMTYPE_GLYPH ||
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+				type == ITEMTYPE_TALISMAN ||
+#endif
 				type == ITEMTYPE_POTENTIAL_JEWEL)
 			{
 				if (pItem->GetSealCount() > 0)

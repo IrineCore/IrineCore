@@ -3255,7 +3255,20 @@ void CDnTooltipDlg::SetItemStateText( CDnState *pState, DWORD dwFontColor, LPCWS
 		{
 			for (idx = 0; idx < (int)pCompareItemList->size(); ++idx)
 			{
-				compareStateList.push_back(compareItemList[idx]);
+				CDnState *pCompState = compareItemList[idx];
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+				if (compareItemList[idx] && compareItemList[idx]->GetItemType() == ITEMTYPE_TALISMAN && CDnActor::s_hLocalActor)
+				{
+					int nEquipSlot = compareItemList[idx]->GetSlotIndex();
+					CDnPlayerActor *pLocal = dynamic_cast<CDnPlayerActor*>( CDnActor::s_hLocalActor.GetPointer() );
+					if (pLocal && nEquipSlot >= 0 && nEquipSlot < TALISMAN_MAX)
+					{
+						CDnState *pScaled = pLocal->GetTalismanScaledState( nEquipSlot );
+						if (pScaled) pCompState = pScaled;
+					}
+				}
+#endif
+				compareStateList.push_back(pCompState);
 			}
 		}
 		else if (cat == eSCC_ENCHANT)

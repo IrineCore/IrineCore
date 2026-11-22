@@ -1091,6 +1091,12 @@ void CDNGameRoom::OrgProcess()
 					m_pWorld->OnTriggerEventCallback( "CDnGameTask::PostInitializeStage", 0, 0.f, false );
 					m_pWorld->EnableTriggerEventCallback(false);
 
+					for( UINT i=0 ; i<m_VecMember.size() ; ++i )
+					{
+						if( m_VecMember[i].pSession )
+							m_VecMember[i].pSession->FlushPacketQueue();
+					}
+
 					m_GameState = _GAME_STATE_SYNC2PLAY;
 					break;
 				}
@@ -1113,11 +1119,11 @@ void CDNGameRoom::OrgProcess()
 				{
 					if (m_VecMember[i].pSession->IsConnected() && m_VecMember[i].pSession->GetState() == SESSION_STATE_SYNC_READY_2_DELAY)
 					{
+						m_VecMember[i].pSession->SetSessionState(SESSION_STATE_READY_TO_PLAY);
 						m_VecMember[i].pSession->FlushStoredPacket();
 						m_VecMember[i].pSession->FlushPacketQueue();
 						for( UINT i2=0 ; i2<m_VecMember.size() ; ++i2 )
-							SendGameSyncWait( m_VecMember[i2].pSession, m_VecMember[i2].pSession->GetSessionID() );
-						m_VecMember[i].pSession->SetSessionState(SESSION_STATE_READY_TO_PLAY);
+							SendGameSyncWait( m_VecMember[i2].pSession, m_VecMember[i].pSession->GetSessionID() );
 					}
 
 					if (m_VecMember[i].pSession->IsConnected() && m_VecMember[i].pSession->GetState() == SESSION_STATE_READY_TO_PLAY)
@@ -1612,6 +1618,14 @@ void CDNGameRoom::_ProcessImpl()
 				m_pWorld->OnTriggerEventCallback( "CDnGameTask::PostInitializeStage", 0, 0.f, false );
 				m_pWorld->EnableTriggerEventCallback(false);
 
+				// Flush queued actor packets (e.g. DestroyMonster -> SC_CMDSUICIDE) into m_pStoredPacketList
+				// while still in _GAME_STATE_SYNC2SYNC so they are delivered only after each client finishes loading.
+				for( UINT i=0 ; i<m_VecMember.size() ; ++i )
+				{
+					if( m_VecMember[i].pSession )
+						m_VecMember[i].pSession->FlushPacketQueue();
+				}
+
 				m_GameState = _GAME_STATE_SYNC2PLAY;
 				break;
 			}
@@ -1641,11 +1655,11 @@ void CDNGameRoom::_ProcessImpl()
 
 				if (m_VecMember[i].pSession->IsConnected() && m_VecMember[i].pSession->GetState() == SESSION_STATE_SYNC_READY_2_DELAY)
 				{
+					m_VecMember[i].pSession->SetSessionState(SESSION_STATE_READY_TO_PLAY);
 					m_VecMember[i].pSession->FlushStoredPacket();
 					m_VecMember[i].pSession->FlushPacketQueue();
 					for( UINT i2=0 ; i2<m_VecMember.size() ; ++i2 )
 						SendGameSyncWait( m_VecMember[i2].pSession, m_VecMember[i].pSession->GetSessionID() );
-					m_VecMember[i].pSession->SetSessionState(SESSION_STATE_READY_TO_PLAY);
 				}
 
 				if (m_VecMember[i].pSession->IsConnected() && m_VecMember[i].pSession->GetState() == SESSION_STATE_READY_TO_PLAY)
@@ -1954,6 +1968,7 @@ void CDNGameRoom::InitStateAndSync()
 #endif //#if defined(PRE_ADD_WORLD_EVENT)
 
 		for( DWORD i=0; i<GetUserCount(); i++ ) {
+			GetUserData(i)->FlushPacketQueue();
 			GetUserData(i)->SetMapIndex( m_nReservedMapIdx );
 			GetUserData(i)->SendStartStage( m_bReservedDirectConnect, m_nReservedMapIdx, m_nReservedGateIdx, m_nReservedRandomSeed, m_ReservedStageDifficulty, pEvent == NULL ? 0 : pEvent->nAtt1 );
 			GetUserData(i)->ChangeStageUserData();
@@ -2029,6 +2044,7 @@ void CDNGameRoom::InitStateAndSync(int iMapIdx, int iGateIdx, int iRandomSeed, T
 #endif //#if defined(PRE_ADD_WORLD_EVENT)
 
 		for( DWORD i=0; i<GetUserCount(); i++ ) {
+			GetUserData(i)->FlushPacketQueue();
 			GetUserData(i)->SetMapIndex( iMapIdx );
 			GetUserData(i)->SendStartStage( bDirectConnect, iMapIdx, iGateIdx, iRandomSeed, StageDifficulty, pEvent == NULL ? 0 : pEvent->nAtt1 );
 			GetUserData(i)->ChangeStageUserData();
@@ -3168,6 +3184,9 @@ void CDNGameRoom::SendEquipData( CDNUserSession* pBreakIntoSession )
 	std::vector<TPartyMemberEquip> vEquip;
 	std::vector<TPartyMemberCashEquip> vCashEquip;
 	std::vector<TPartyMemberGlyphEquip> vGlyphEquip;
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	std::vector<TPartyMemberTalismanEquip> vTalismanEquip;
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 #ifdef PRE_MOD_SYNCPACKET
 	std::vector<TPartyVehicle> vVehicle;
 	std::vector<TPartyVehicle> vPet;
@@ -3181,6 +3200,9 @@ void CDNGameRoom::SendEquipData( CDNUserSession* pBreakIntoSession )
 	vEquip.reserve( m_VecMember.size() );
 	vCashEquip.reserve( m_VecMember.size() );
 	vGlyphEquip.reserve( m_VecMember.size() );
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	vTalismanEquip.reserve( m_VecMember.size() );
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 	vVehicle.reserve( m_VecMember.size() );
 	vPet.reserve( m_VecMember.size() );
 	
@@ -3277,6 +3299,31 @@ void CDNGameRoom::SendEquipData( CDNUserSession* pBreakIntoSession )
 			GlyphEquip.cCount++;
 		}
 		vGlyphEquip.push_back( GlyphEquip );
+
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+		// Talisman
+		TPartyMemberTalismanEquip TalismanEquip;
+		memset( &TalismanEquip, 0, sizeof(TalismanEquip) );
+#ifdef PRE_MOD_SYNCPACKET
+		TalismanEquip.nSessionID = m_VecMember[i].pSession->GetSessionID();
+#endif
+		__time64_t tCurTime = 0;
+		_time64( &tCurTime );
+		for( int j=0 ; j<TALISMAN_MAX ; ++j )
+		{
+			const TItem *pTalisman = m_VecMember[i].pSession->GetItem()->GetTalisman(j);
+			if( pTalisman == NULL )
+				continue;
+			if( !m_VecMember[i].pSession->GetItem()->IsTalismanSlotOpen(j) )
+				continue;
+			if( !pTalisman->bEternity && pTalisman->tExpireDate <= tCurTime )
+				continue;
+			TalismanEquip.EquipArray[TalismanEquip.cCount].cSlotIndex = static_cast<char>(j);
+			TalismanEquip.EquipArray[TalismanEquip.cCount].Item = *pTalisman;
+			++TalismanEquip.cCount;
+		}
+		vTalismanEquip.push_back( TalismanEquip );
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 		
 
 		// Vehicle
@@ -3317,6 +3364,9 @@ void CDNGameRoom::SendEquipData( CDNUserSession* pBreakIntoSession )
 		pBreakIntoSession->SendEquipData( vEquip );
 		pBreakIntoSession->SendCashEquipData( vCashEquip );
 		pBreakIntoSession->SendGlyphEquipData( vGlyphEquip );
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+		pBreakIntoSession->SendTalismanEquipData( vTalismanEquip );
+#endif
 		pBreakIntoSession->SendVehicleEquipData( vVehicle );
 		pBreakIntoSession->SendPetEquipData(vPet);
 	}
@@ -3329,6 +3379,9 @@ void CDNGameRoom::SendEquipData( CDNUserSession* pBreakIntoSession )
 			m_VecMember[i].pSession->SendEquipData( vEquip );
 			m_VecMember[i].pSession->SendCashEquipData( vCashEquip );
 			m_VecMember[i].pSession->SendGlyphEquipData( vGlyphEquip );
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+			m_VecMember[i].pSession->SendTalismanEquipData( vTalismanEquip );
+#endif
 			m_VecMember[i].pSession->SendVehicleEquipData( vVehicle );
 			m_VecMember[i].pSession->SendPetEquipData( vPet );
 		}
@@ -4575,6 +4628,29 @@ void CDNGameRoom::SendBreakIntoUser( CDNUserSession* pBreakIntoSession )
 		++TxPacket.nGlyphCount;
 	}
 
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	// Talisman
+	{
+		__time64_t tCurTime = 0;
+		_time64( &tCurTime );
+		for( int i=0; i<TALISMAN_MAX; ++i )
+		{
+			const TItem *pTalisman = pBreakIntoSession->GetItem()->GetTalisman(i);
+			if( pTalisman == NULL )
+				continue;
+			if( !pBreakIntoSession->GetItem()->IsTalismanSlotOpen(i) )
+				continue;
+			if( !pTalisman->bEternity && pTalisman->tExpireDate <= tCurTime )
+				continue;
+			char cSlot = static_cast<char>(i);
+			memcpy( pBuffer, &cSlot, sizeof(char) );
+			pBuffer += sizeof(char);
+			memcpy( pBuffer, pTalisman, sizeof(TItem) );
+			pBuffer += sizeof(TItem);
+			++TxPacket.nTalismanCount;
+		}
+	}
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 
 	// Skill
 	for( int i=0 ; i<SKILLMAX ; ++i ) 
@@ -4599,7 +4675,7 @@ void CDNGameRoom::SendBreakIntoUser( CDNUserSession* pBreakIntoSession )
 
 	TxPacket.GuildSelfView = pBreakIntoSession->GetGuildSelfView();
 
-	int iSize = static_cast<int>(sizeof(TxPacket)-sizeof(TxPacket.EquipArray)-sizeof(TxPacket.SkillArray)+(pBuffer-pOrgBuffer));
+	int iSize = static_cast<int>(pBuffer - reinterpret_cast<char*>(&TxPacket));
 	for( UINT i=0; i<m_VecMember.size() ; ++i )
 	{
 		if( m_VecMember[i].pSession == pBreakIntoSession )

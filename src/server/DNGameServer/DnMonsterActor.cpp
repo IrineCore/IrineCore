@@ -1103,6 +1103,61 @@ void CDnMonsterActor::GenerationDropItem()
 		if (h >= 4 || (fCalcDropCount < 1.0f && ((float)(_rand(GetRoom())%100)/100) > fCalcDropCount))
 			break;			//Restrict to less than 4 (3 for event); if remaining value is less than 1, calculate probability to decide whether to run once more
 	}
+
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	// Skill/Fortuitous Talisman (_Type == 1): roll linked DropControlGroup scaled by slot efficiency
+	if( GetGameRoom() && m_nItemDropGroupTableID > 0 )
+	{
+		__time64_t tNow = 0;
+		_time64( &tNow );
+		size_t nPrevCount = m_VecDropItemList.size();
+		for( DWORD u = 0; u < GetGameRoom()->GetUserCount(); ++u )
+		{
+			CDNUserSession *pSess = GetGameRoom()->GetUserData( u );
+			if( !pSess || pSess->bIsGMTrace() || pSess->bIsAIBot() || !pSess->GetActorHandle() )
+				continue;
+			CDnPlayerActor *pPlayer = static_cast<CDnPlayerActor*>( pSess->GetActorHandle().GetPointer() );
+			if( !pPlayer || pPlayer->IsDie() )
+				continue;
+			for( int t = 0; t < TALISMAN_MAX; ++t )
+			{
+				DnTalismanHandle hTal = pPlayer->GetTalisman( t );
+				if( !hTal || hTal->GetTalismanType() != CDnTalisman::Skill )
+					continue;
+				int nDropCtrlID = hTal->GetTalismanIndex();
+				if( nDropCtrlID <= 0 )
+					continue;
+				if( !pSess->GetItem()->IsTalismanSlotOpen( t ) )
+					continue;
+				const TItem *pTalData = pSess->GetItem()->GetTalisman( t );
+				if( pTalData && !pTalData->bEternity && pTalData->tExpireDate <= tNow )
+					continue;
+
+				float fEff = hTal->GetEfficiency();
+				if( fEff <= 0.0f ) fEff = 1.0f;
+				int nFullRolls = static_cast<int>( fEff );
+				float fFrac = fEff - static_cast<float>( nFullRolls );
+				if( fFrac > 0.001f && ( (float)( _rand( GetRoom() ) % 1000 ) / 1000.0f ) < fFrac )
+					++nFullRolls;
+
+				for( int r = 0; r < nFullRolls && r < 3; ++r )
+					CDnDropItem::CalcDropControlList( GetRoom(), nDropCtrlID, m_VecDropItemList );
+			}
+		}
+		for( size_t i = nPrevCount; i < m_VecDropItemList.size(); ++i )
+		{
+#if defined(PRE_ADD_STAGE_CLEAR_ENCHANT_REWARD)
+			if( CDnDropItem::PreInitializeItem( GetRoom(), m_VecDropItemList[i].nItemID, m_VecDropItemList[i].nEnchantID ) == false )
+#else
+			if( CDnDropItem::PreInitializeItem( GetRoom(), m_VecDropItemList[i].nItemID ) == false )
+#endif
+			{
+				m_VecDropItemList.erase( m_VecDropItemList.begin() + i );
+				--i;
+			}
+		}
+	}
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 }
 
 void CDnMonsterActor::SetGenerationArea( SOBB &Box )

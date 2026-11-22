@@ -284,6 +284,9 @@ void CDnPartyTask::SetLocalData( DnActorHandle hActor )
 	// Rotha - Fix infinite vector push_back bug
 	m_LocalData.VecCashParts.clear();
 	m_LocalData.VecGlyph.clear();
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	m_LocalData.VecTalisman.clear();
+#endif
 	m_LocalData.VecParts.clear();
 	m_LocalData.VecSkill.clear();
 	// Local party struct <self info> update timing differs by type, so observe further before modifying. = WIP =
@@ -779,6 +782,9 @@ void CDnPartyTask::OnRecvPartyMessage( int nSubCmd, char *pData, int nSize )
 		case eParty::SC_ETCDATA: OnRecvPartyEtcData( (SCEtcData *)pData ); break;
 		case eParty::SC_WEAPONORDERDATA: OnRecvPartyWeaponOrderData( (SCWeaponOrderData*)pData ); break;
 		case eParty::SC_GLYPHDATA: OnRecvPartyGlyphEquipData( (SCGlyphEquipData* )pData ); break;
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+		case eParty::SC_TALISMANDATA: OnRecvPartyTalismanEquipData( (SCTalismanEquipData* )pData ); break;
+#endif
 		
 		case eParty::SC_VEHICLEEQUIPDATA: OnRecvPartyVehicleEquipData( (SCVehicleEquipData* )pData ); break;
 		case eParty::SC_PETEQUIPDATA: OnRecvPartyPetEquipData( (SCVehicleEquipData* )pData ); break;
@@ -2029,6 +2035,29 @@ void CDnPartyTask::OnRecvPartyGlyphEquipData( SCGlyphEquipData *pPacket )
 #endif		//#ifdef PRE_MOD_SYNCPACKET
 }
 
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+void CDnPartyTask::OnRecvPartyTalismanEquipData( SCTalismanEquipData *pPacket )
+{
+#ifdef PRE_MOD_SYNCPACKET
+	SetTalismanEquipInfo( pPacket );
+#else
+	TPartyMemberTalismanEquip MemberEquip[MAX_SEND_SYNCPLAYER_TALISMAN];
+	int nOffset = sizeof(SCTalismanEquipData) - sizeof(pPacket->MemberEquip);
+	memset( &MemberEquip, 0, sizeof(MemberEquip) );
+	int nSize = 0;
+
+	for( int i = 0; i < pPacket->cCount && i < MAX_SEND_SYNCPLAYER_TALISMAN; i++ ) {
+		char cCount = *((char*)pPacket + nOffset);
+		nSize = ( cCount * sizeof(TItemInfo) ) + sizeof(char);
+		memcpy( &MemberEquip[i], (char*)pPacket + nOffset, nSize );
+		nOffset += nSize;
+	}
+
+	SetTalismanEquipInfo( MemberEquip, pPacket );
+#endif
+}
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
+
 
 void CDnPartyTask::OnRecvPartyVehicleEquipData( SCVehicleEquipData *pPacket )
 {
@@ -2545,6 +2574,16 @@ bool __stdcall CDnPartyTask::OnLoadRecvBreakIntoCallback( void *pThis, void *pPa
 			pBuffer += sizeof(TItemInfo);
 		}
 
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+		// Talisman
+		for( int i=0 ; i<pPacket->nTalismanCount ; ++i )
+		{
+			TItemInfo* pItemInfo = reinterpret_cast<TItemInfo*>(pBuffer);
+			pStruct->VecTalisman.push_back( *pItemInfo );
+			pBuffer += sizeof(TItemInfo);
+		}
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
+
 		// Skill
 		for( int i=0 ; i<pPacket->nSkillCount ; ++i )
 		{
@@ -2859,6 +2898,52 @@ void CDnPartyTask::SetGlyphEquipInfo( TPartyMemberGlyphEquip *pEquipInfo, SCGlyp
 	}
 }
 #endif		//#ifdef PRE_MOD_SYNCPACKET
+
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+#ifdef PRE_MOD_SYNCPACKET
+void CDnPartyTask::SetTalismanEquipInfo( SCTalismanEquipData* pPacket )
+{
+	if( m_PartyRole == PartyRoleEnum::SINGLE ) {
+		PartyStruct *pStruct = &m_LocalData;
+		for( int j = 0; j < pPacket->MemberEquip[0].cCount; j++ ) {
+			pStruct->VecTalisman.push_back( pPacket->MemberEquip[0].EquipArray[j] );
+		}
+	}
+	else {
+		for( int i = 0; i < pPacket->cCount; i++ ) {
+			for( std::vector<PartyStruct>::iterator ii = m_VecPartyList.begin(); ii != m_VecPartyList.end(); ++ii ) {
+				if( (*ii).nSessionID == pPacket->MemberEquip[i].nSessionID ) {
+					PartyStruct *pStruct = &(*ii);
+					for( int j = 0; j < pPacket->MemberEquip[i].cCount; j++ ) {
+						pStruct->VecTalisman.push_back( pPacket->MemberEquip[i].EquipArray[j] );
+					}
+					pStruct->OnRecv( SC_PARTY, eParty::SC_TALISMANDATA );
+					break;
+				}
+			}
+		}
+	}
+}
+#else
+void CDnPartyTask::SetTalismanEquipInfo( TPartyMemberTalismanEquip *pEquipInfo, SCTalismanEquipData* pPacket )
+{
+	if( m_PartyRole == PartyRoleEnum::SINGLE ) {
+		PartyStruct *pStruct = &m_LocalData;
+		for( int j = 0; j < pEquipInfo[0].cCount; j++ ) {
+			pStruct->VecTalisman.push_back( pEquipInfo[0].EquipArray[j] );
+		}
+	}
+	else {
+		for( int i = pPacket->unStartIndex; i < pPacket->unStartIndex + pPacket->cCount; i++ ) {
+			PartyStruct *pStruct = &m_VecPartyList[i];
+			for( int j = 0; j < pEquipInfo[i - pPacket->unStartIndex].cCount; j++ ) {
+				pStruct->VecTalisman.push_back( pEquipInfo[i - pPacket->unStartIndex].EquipArray[j] );
+			}
+		}
+	}
+}
+#endif
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 
 
 #ifdef PRE_MOD_SYNCPACKET

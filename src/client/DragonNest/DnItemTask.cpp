@@ -5040,7 +5040,10 @@ bool CDnItemTask::IsOpenTalismanSlot( int nSlotIndex )
 	if( nType == TALISMAN_BASIC )
 		return true;
 	if( nType == TALISMAN_EXPANSION )
-		return ( m_nTalismanOpenFlag & ( 1 << ( nSlotIndex - TALISMAN_EXPANSION_START ) ) ) ? true : false;
+	{
+		int nFlag = m_nTalismanOpenFlag;
+		return GetBitFlag( reinterpret_cast<char*>(&nFlag), nSlotIndex - TALISMAN_EXPANSION_START );
+	}
 	if( nType == TALISMAN_CASH_EXPANSION )
 		return m_bCashTalismanOpen;
 
@@ -7982,17 +7985,30 @@ void CDnItemTask::OnRecvTalismanExpireData( SCTalismanExpireData *pPacket )
 	m_bCashTalismanOpen = pPacket->bOpenFlag;
 	m_tCashTalismanExpireDate = pPacket->tExpireDate;
 
+	if( CDnActor::s_hLocalActor )
+	{
+		CDnLocalPlayerActor *pLocalActor = (CDnLocalPlayerActor*)CDnActor::s_hLocalActor.GetPointer();
+		if( pLocalActor )
+		{
+			for( int i = TALISMAN_CASH1; i <= TALISMAN_CASH_MAX; ++i )
+			{
+				if( m_bCashTalismanOpen )
+				{
+					CDnItem *pItem = m_pTalisman[i];
+					if( pItem && dynamic_cast<CDnTalisman*>(pItem) && pItem->GetItemType() == ITEMTYPE_TALISMAN )
+						pLocalActor->AttachTalisman( ((CDnTalisman*)pItem)->GetMySmartPtr(), i, GetTalismanEfficiency( i ) );
+				}
+				else
+				{
+					pLocalActor->DetachTalisman( i );
+				}
+			}
+			pLocalActor->RefreshState();
+		}
+	}
+
 	GetInterface().RefreshTalismanCashSlot();
 	GetInterface().RefreshTalismanDialog();
-
-	if( !CDnActor::s_hLocalActor )
-		return;
-
-	CDnLocalPlayerActor *pLocalActor = (CDnLocalPlayerActor*)CDnActor::s_hLocalActor.GetPointer();
-	if( !pLocalActor )
-		return;
-
-	pLocalActor->RefreshState();
 }
 #endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 

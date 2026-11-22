@@ -134,6 +134,9 @@ public:
 	void SendEquipData( const std::vector<TPartyMemberEquip>& vEquip );
 	void SendCashEquipData( const std::vector<TPartyMemberCashEquip>& vEquip );
 	void SendGlyphEquipData( const std::vector<TPartyMemberGlyphEquip>& vGlyphEquip );
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	void SendTalismanEquipData( const std::vector<TPartyMemberTalismanEquip>& vTalismanEquip );
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 #ifdef PRE_MOD_SYNCPACKET
 	void SendVehicleEquipData( const std::vector<TPartyVehicle>& vVehicle );
 	void SendPetEquipData( const std::vector<TPartyVehicle>& vPet );

@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "DnAIBotBuildData.h"
+#include "PlayerBotsModule.h"
 #include "DNUserSession.h"
 #include "DNGameRoom.h"
 #include "DNUserItem.h"
@@ -9,15 +10,23 @@
 #include "DnWeapon.h"
 #include "DnGlyph.h"
 #include "DnSkill.h"
+#include "DnWorld.h"
+#include "DnActor.h"
+#include "Log.h"
 
 #include <map>
 #include <set>
 #include <algorithm>
+#include <cmath>
 
 extern CDNGameDataManager* g_pDataManager;
 
 namespace AIBot
 {
+	using Irine::Modules::PlayerBotsConfig;
+	using Irine::Modules::PlayerBotsModule;
+	namespace BotUtil = Irine::Modules::BotStrategyUtil;
+
 	static const BotJobSpec g_BotJobSpecs[] =
 	{
 		// Core Tank
@@ -68,33 +77,220 @@ namespace AIBot
 
 	RoleType GetJobRole(BYTE cJobID)
 	{
+		// Base classes (Lv 1-14) map cleanly to natural party roles
+		switch (cJobID)
+		{
+		case 4: return RoleType::Healer;     // Base Cleric (Heal + Shield Tanking)
+		case 1: return RoleType::Tank;       // Base Warrior (Frontline Bruiser/Tank)
+		case 3: return RoleType::IceStacker; // Base Sorceress (Control / AoE)
+		case 2: return RoleType::Dps;        // Base Archer (Ranged DPS)
+		case 5: return RoleType::Support;    // Base Academic (Summon/Support)
+		case 6: return RoleType::Support;    // Base Kali (Support/DPS)
+		default: break;
+		}
 		const BotJobSpec* pSpec = FindJobSpec(cJobID);
 		return pSpec ? pSpec->Role : RoleType::Dps;
 	}
 
-	void SelectSquadSpecs(BYTE cHumanJobID, int nBotCount, std::vector<const BotJobSpec*>& outSpecs)
+	void AnalyzeHumanBuildProfile(CDNUserSession* pHuman, HumanBuildProfile& outProfile)
+	{
+		outProfile = HumanBuildProfile();
+		if (!pHuman || !g_pDataManager)
+			return;
+
+		int nLv = (int)pHuman->GetLevel();
+		if (nLv < 1) nLv = 1;
+		if (nLv > 60) nLv = 60;
+		outProfile.nLevel = nLv;
+
+		CDNUserItem* pUserItem = pHuman->GetItem();
+		if (pUserItem)
+		{
+			static const int kInspectSlots[] = {
+				EQUIP_HELMET, EQUIP_BODY, EQUIP_LEG, EQUIP_HAND, EQUIP_FOOT,
+				EQUIP_NECKLACE, EQUIP_EARRING, EQUIP_RING1, EQUIP_RING2,
+				EQUIP_WEAPON1, EQUIP_WEAPON2
+			};
+
+			double dRankSum = 0.0;
+			double dItemLvSum = 0.0;
+			double dEnchantSum = 0.0;
+			double dWeightSum = 0.0;
+
+			for (size_t i = 0; i < _countof(kInspectSlots); ++i)
+			{
+				int nSlot = kInspectSlots[i];
+				const TItem* pEquip = pUserItem->GetEquip(nSlot);
+				if (!pEquip || pEquip->nItemID <= 0)
+					continue;
+
+				const TItemData* pItemData = g_pDataManager->GetItemData(pEquip->nItemID);
+				if (!pItemData)
+					continue;
+
+				// Weight weapons slightly higher than accessories just like real GearScore evaluation
+				double dWeight = (nSlot == EQUIP_WEAPON1 || nSlot == EQUIP_WEAPON2) ? 1.8 : 1.0;
+				int nRank = (int)pItemData->cRank;
+				if (nRank < ITEMRANK_D) nRank = ITEMRANK_D;
+				if (nRank > ITEMRANK_SS) nRank = ITEMRANK_SS;
+
+				dRankSum += (double)nRank * dWeight;
+				dItemLvSum += (double)pItemData->cLevelLimit * dWeight;
+				dEnchantSum += (double)pEquip->cLevel * dWeight;
+				dWeightSum += dWeight;
+				++outProfile.nEquippedNormalCount;
+
+				if (nSlot >= EQUIP_NECKLACE && nSlot <= EQUIP_RING2)
+					++outProfile.nEquippedAccessoryCount;
+				if (pEquip->cOption > 0 || pEquip->cPotential > 0)
+					outProfile.bHasPotentials = true;
+			}
+
+			if (dWeightSum > 0.0)
+			{
+				outProfile.fAvgRank = (float)(dRankSum / dWeightSum);
+				outProfile.fAvgItemLevel = (float)(dItemLvSum / dWeightSum);
+				outProfile.fAvgEnchant = (float)(dEnchantSum / dWeightSum);
+			}
+			else
+			{
+				outProfile.fAvgRank = (float)BotUtil::ComputeBaselineGearRankForLevel(nLv);
+				outProfile.fAvgItemLevel = (float)nLv;
+				outProfile.fAvgEnchant = 0.0f;
+			}
+
+			// Inspect Cash Costumes & Cash Accessories
+			for (int s = 0; s < CASHEQUIPMAX; ++s)
+			{
+				const TItem* pCash = pUserItem->GetCashEquip(s);
+				if (pCash && pCash->nItemID > 0)
+					++outProfile.nCashCostumeCount;
+			}
+			outProfile.bHasCashCostumes = (outProfile.nCashCostumeCount >= 2);
+
+			// Inspect Heraldries (Glyphs)
+			int nMaxGlyphRank = ITEMRANK_D;
+			for (int g = 0; g < GLYPHMAX; ++g)
+			{
+				const TItem* pGlyph = pUserItem->GetGlyph(g);
+				if (!pGlyph || pGlyph->nItemID <= 0)
+					continue;
+				const TItemData* pGData = g_pDataManager->GetItemData(pGlyph->nItemID);
+				if (pGData && pGData->cRank > nMaxGlyphRank)
+					nMaxGlyphRank = pGData->cRank;
+
+				if (g >= GLYPH_ENCHANT1 && g <= GLYPH_ENCHANT8)
+					++outProfile.nEnhGlyphCount;
+				else if (g >= GLYPH_SKILL1 && g <= GLYPH_SKILL4)
+					++outProfile.nSkillGlyphCount;
+				else if (g == GLYPH_SPECIALSKILL)
+					outProfile.bHasSpecialGlyph = true;
+				else if (g >= GLYPH_CASH1 && g <= GLYPH_CASH3)
+					++outProfile.nCashGlyphCount;
+#if defined(PRE_ADD_DRAGON_FELLOWSHIP_GLYPH)
+				else if (g >= GLYPH_DRAGON1 && g <= GLYPH_DRAGON4)
+					++outProfile.nDragonGlyphCount;
+#endif
+			}
+			outProfile.nMaxGlyphRank = nMaxGlyphRank;
+
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+			int nMaxTaliRank = ITEMRANK_D;
+			for (int t = 0; t < TALISMAN_MAX; ++t)
+			{
+				const TItem* pTali = pUserItem->GetTalisman(t);
+				if (!pTali || pTali->nItemID <= 0)
+					continue;
+				++outProfile.nTalismanCount;
+				const TItemData* pTData = g_pDataManager->GetItemData(pTali->nItemID);
+				if (pTData && pTData->cRank > nMaxTaliRank)
+					nMaxTaliRank = pTData->cRank;
+			}
+			outProfile.nMaxTalismanRank = nMaxTaliRank;
+#endif
+		}
+
+		// Inspect Human Skill Investment Ratio so bot skills match player progression cleanly
+		const TSkillGroup* pHumanSkills = pHuman->GetSkillData();
+		if (pHumanSkills)
+		{
+			double dRatioSum = 0.0;
+			int nRatioCount = 0;
+			for (int i = 0; i < SKILLMAX; ++i)
+			{
+				const TSkill& sk = pHumanSkills->SkillList[i];
+				if (sk.nSkillID <= 0 || sk.cSkillLevel == 0)
+					continue;
+				TSkillData* pSkData = g_pDataManager->GetSkillData(sk.nSkillID);
+				if (!pSkData || pSkData->nMaxLevel <= 0)
+					continue;
+
+				int nMaxAtLv = 1;
+				for (size_t l = 0; l < pSkData->vLevelDataList.size(); ++l)
+				{
+					const TSkillLevelData& lvData = pSkData->vLevelDataList[l];
+					if (lvData.cLevelLimit <= nLv && lvData.cSkillLevel <= pSkData->nMaxLevel && lvData.cSkillLevel > nMaxAtLv)
+						nMaxAtLv = lvData.cSkillLevel;
+				}
+				if (nMaxAtLv > 1)
+				{
+					double r = (double)sk.cSkillLevel / (double)nMaxAtLv;
+					if (r > 1.0) r = 1.0;
+					dRatioSum += r;
+					++nRatioCount;
+				}
+			}
+			if (nRatioCount >= 2)
+			{
+				float fAvg = (float)(dRatioSum / (double)nRatioCount);
+				if (fAvg < 0.45f) fAvg = 0.45f;
+				if (fAvg > 1.0f)  fAvg = 1.0f;
+				outProfile.fSkillRankRatio = fAvg;
+			}
+		}
+	}
+
+	void SelectSquadSpecs(BYTE cHumanJobID, int nBotCount, int nTargetLevel, std::vector<const BotJobSpec*>& outSpecs)
 	{
 		outSpecs.clear();
 		if (nBotCount <= 0)
 			return;
 
+		const PlayerBotsConfig& cfg = PlayerBotsModule::GetActiveConfig();
+		const int nJobTier = BotUtil::ResolveUnlockedJobTier(nTargetLevel, cfg.unlockJobByLevel);
+
 		const BotJobSpec* pHumanSpec = FindJobSpec(cHumanJobID);
-		RoleType humanRole = pHumanSpec ? pHumanSpec->Role : RoleType::Dps;
+		RoleType humanRole = GetJobRole(cHumanJobID);
 
-		std::set<BYTE> usedSecondJobs;
+		std::set<BYTE> usedKeys;
+		auto getJobKey = [nJobTier](const BotJobSpec* pSpec) -> BYTE {
+			if (!pSpec) return 0;
+			if (nJobTier == 0) return pSpec->cBaseClass;
+			if (nJobTier == 1) return pSpec->cFirstJob;
+			return pSpec->cSecondJob;
+		};
+
 		if (pHumanSpec)
-			usedSecondJobs.insert(pHumanSpec->cSecondJob);
+		{
+			if (nJobTier == 0)
+				usedKeys.insert(pHumanSpec->cBaseClass);
+			else if (nJobTier == 1)
+				usedKeys.insert(pHumanSpec->cFirstJob);
+			else
+				usedKeys.insert(pHumanSpec->cSecondJob);
+		}
 
-		auto tryAddJob = [&](BYTE cSecondJob) -> bool {
+		auto tryAddJob = [&](BYTE cSecondJob, bool bStrictDistinctKey) -> bool {
 			if ((int)outSpecs.size() >= nBotCount)
-				return false;
-			if (usedSecondJobs.count(cSecondJob))
 				return false;
 			for (size_t i = 0; i < _countof(g_BotJobSpecs); ++i)
 			{
 				if (g_BotJobSpecs[i].cSecondJob == cSecondJob)
 				{
-					usedSecondJobs.insert(cSecondJob);
+					BYTE key = getJobKey(&g_BotJobSpecs[i]);
+					if (bStrictDistinctKey && usedKeys.count(key))
+						return false;
+					usedKeys.insert(key);
 					outSpecs.push_back(&g_BotJobSpecs[i]);
 					return true;
 				}
@@ -102,65 +298,78 @@ namespace AIBot
 			return false;
 		};
 
-		// Priority order for Cap 60 4-man & 8-man nest meta:
-		// 1. Tank (Guardian or Destroyer)
-		// 2. Main Healer (Saint)
-		// 3. Ice Stacker (Elestra)
-		// 4. Support / Buff / Off-Healer (Physician, Spirit Dancer / Windwalker, Smasher)
-		// 5. High DPS mix (GearMaster, Inquisitor, Moonlord, Sniper, Saleana, ShootingStar, Barbarian, DarkSummoner...)
-		if (humanRole != RoleType::Tank)
+		// Balanced party core:
+		// 1) Tank (Guardian/Paladin or Destroyer/Mercenary)
+		// 2) Healer (Saint/Priest or Physician/Alchemist)
+		// 3) Control/IceStacker (Elestra/Elemental Lord)
+		// 4) Support/Buff + DPS mix
+		if (nJobTier == 0)
 		{
-			if (!tryAddJob(41)) // Guardian
-				tryAddJob(26);  // Destroyer
+			// Low-level Base Class party (Lv 1-14): pick distinct iconic base classes!
+			// Cleric (43 -> Heal+Shield), Sorceress (36 -> AoE/Freeze), Archer (29 -> Ranged), Warrior (26 -> Tank), Academic (51 -> Support), Kali (59 -> Support)
+			static const BYTE kBaseClassPriority[] = { 43, 36, 29, 26, 51, 59 };
+			for (size_t i = 0; i < _countof(kBaseClassPriority) && (int)outSpecs.size() < nBotCount; ++i)
+				tryAddJob(kBaseClassPriority[i], true);
 		}
-		if (humanRole != RoleType::Healer)
+		else
 		{
-			if (!tryAddJob(43)) // Saint
-				tryAddJob(51);  // Physician
-		}
-		if (humanRole != RoleType::IceStacker)
-		{
-			tryAddJob(36); // Elestra
+			if (humanRole != RoleType::Tank)
+			{
+				if (!tryAddJob(41, true)) // Guardian / Paladin
+					tryAddJob(26, true);  // Destroyer / Mercenary
+			}
+			if (humanRole != RoleType::Healer)
+			{
+				if (!tryAddJob(43, true)) // Saint / Priest
+					tryAddJob(51, true);  // Physician / Alchemist
+			}
+			if (humanRole != RoleType::IceStacker)
+			{
+				tryAddJob(36, true); // Elestra / Elemental Lord
+			}
 		}
 
 		static const BYTE kMetaPriority[] = {
-			51, // Physician (Heals + Cure + Disease)
-			32, // Windwalker (Spirit Boost)
-			59, // Spirit Dancer (Genie + Dance buffs)
-			48, // GearMaster (Towers + Ducks)
-			37, // Smasher (Beyond Time + Laser)
-			44, // Inquisitor (Curative / Consecration / Burst)
+			51, // Physician
+			32, // Windwalker
+			59, // Spirit Dancer
+			48, // GearMaster
+			37, // Smasher
+			44, // Inquisitor
 			24, // Moonlord
 			29, // Sniper
 			35, // Saleana
-			26, // Destroyer (Armor Break + Howl)
+			26, // Destroyer
 			47, // Shooting Star
 			55, // Dark Summoner
 			23, // Gladiator
 			25, // Barbarian
 			42, // Crusader
-			56, // Soul Eater
-			38, // Majesty
-			58, // Blade Dancer
 			30, // Artillery
 			31, // Tempest
 			50, // Adept
+			56, // Soul Eater
+			38, // Majesty
+			58, // Blade Dancer
 			41, // Guardian
 			43, // Saint
 			36, // Elestra
 		};
 
 		for (size_t i = 0; i < _countof(kMetaPriority) && (int)outSpecs.size() < nBotCount; ++i)
-			tryAddJob(kMetaPriority[i]);
+			tryAddJob(kMetaPriority[i], true);
 
-		// Safety fallback if somehow nBotCount exceeds table
+		// Relax distinct-key constraint only if party size exceeds distinct base classes (e.g. 7 bots at Lv < 15)
+		for (size_t i = 0; i < _countof(kMetaPriority) && (int)outSpecs.size() < nBotCount; ++i)
+			tryAddJob(kMetaPriority[i], false);
+
 		while ((int)outSpecs.size() < nBotCount)
 			outSpecs.push_back(&g_BotJobSpecs[(int)outSpecs.size() % _countof(g_BotJobSpecs)]);
 	}
 
 	namespace
 	{
-		bool ParseJobListMatch(const TItemData* pItem, const BotJobSpec* pSpec)
+		bool ParseJobListMatchForTier(const TItemData* pItem, const BotJobSpec* pSpec, int nJobTier)
 		{
 			if (!pItem || !pSpec)
 				return false;
@@ -169,17 +378,14 @@ namespace AIBot
 			for (size_t i = 0; i < pItem->nNeedJobClassList.size(); ++i)
 			{
 				int j = pItem->nNeedJobClassList[i];
-				if (j == 0 || j == pSpec->cBaseClass || j == pSpec->cFirstJob || j == pSpec->cSecondJob)
+				if (j == 0 || j == pSpec->cBaseClass)
+					return true;
+				if (nJobTier >= 1 && j == pSpec->cFirstJob)
+					return true;
+				if (nJobTier >= 2 && j == pSpec->cSecondJob)
 					return true;
 			}
 			return false;
-		}
-
-		bool DoesJobHierarchyInclude(const BotJobSpec* pSpec, int nJobID)
-		{
-			if (!pSpec || nJobID <= 0)
-				return false;
-			return (nJobID == pSpec->cBaseClass || nJobID == pSpec->cFirstJob || nJobID == pSpec->cSecondJob);
 		}
 
 		int MapPartsEnumToEquipSlot(int nParts)
@@ -297,7 +503,18 @@ namespace AIBot
 				return &m_AppearancePool[cBaseClass];
 			}
 
-			int PickBestGear(const BotJobSpec* pSpec, int nEquipSlot, char cPreferredWeaponType, bool bRandomTieBreak, int nExcludeItemID = 0) const
+			// Balanced level- and rank-synced equipment picker (covers Lv 1..60, ITEMRANK_D..ITEMRANK_SS)
+			int PickBalancedGear(
+				const BotJobSpec* pSpec,
+				int nJobTier,
+				int nEquipSlot,
+				char cPreferredWeaponType,
+				int nTargetLevel,
+				int nTargetRank,
+				int nMinRank,
+				int nMaxRank,
+				bool bRandomTieBreak,
+				int nExcludeItemID = 0) const
 			{
 				if (!pSpec || nEquipSlot < 0 || nEquipSlot >= EQUIPMAX)
 					return 0;
@@ -305,30 +522,48 @@ namespace AIBot
 				const int nSearchSlot = (nEquipSlot == EQUIP_RING2) ? EQUIP_RING1 : nEquipSlot;
 				const std::vector<EquipCandidate>& pool = m_GearPool[nSearchSlot];
 
-				int nBestScore = -1;
+				int nBestScore = -9999999;
 				std::vector<int> bestIDs;
+
 				for (size_t i = 0; i < pool.size(); ++i)
 				{
 					const EquipCandidate& cand = pool[i];
 					if (nExcludeItemID > 0 && cand.nItemID == nExcludeItemID)
 						continue;
-					const TItemData* pItem = g_pDataManager->GetItemData(cand.nItemID);
-					if (!ParseJobListMatch(pItem, pSpec))
+					if (cand.nLevelLimit > nTargetLevel)
+						continue;
+					if (cand.nRank < nMinRank || cand.nRank > nMaxRank)
 						continue;
 
-					int nScore = cand.nRank * 10000 + cand.nLevelLimit * 100;
-					if (cand.nSetItemID > 0)
-						nScore += 500;
+					const TItemData* pItem = g_pDataManager->GetItemData(cand.nItemID);
+					if (!ParseJobListMatchForTier(pItem, pSpec, nJobTier))
+						continue;
 
 					if (nSearchSlot == EQUIP_WEAPON1 || nSearchSlot == EQUIP_WEAPON2)
 					{
 						TWeaponData* pWeap = g_pDataManager->GetWeaponData(cand.nItemID);
 						if (!pWeap)
 							continue;
-						if (nSearchSlot == EQUIP_WEAPON1 && cPreferredWeaponType >= 0 && pWeap->cEquipType == cPreferredWeaponType)
-							nScore += 2000;
-						else if (nSearchSlot == EQUIP_WEAPON2 && cPreferredWeaponType >= 0 && pWeap->cEquipType == cPreferredWeaponType)
-							nScore += 2000;
+					}
+
+					// Score by closeness to target level (prefer highest level <= nTargetLevel)
+					// AND closeness to target rank (penalize over-tiering more than matching!)
+					int nLevelGap = nTargetLevel - cand.nLevelLimit;
+					int nRankDiff = abs(cand.nRank - nTargetRank);
+
+					int nScore = 50000 - (nLevelGap * 420) - (nRankDiff * 3400);
+					if (cand.nRank > nTargetRank)
+						nScore -= (cand.nRank - nTargetRank) * 1800; // Never silently out-tier the human player
+
+					// Prefer set items gently when available at same tier/level
+					if (cand.nSetItemID > 0 && nTargetRank >= ITEMRANK_B)
+						nScore += 180;
+
+					if (nSearchSlot == EQUIP_WEAPON1 || nSearchSlot == EQUIP_WEAPON2)
+					{
+						TWeaponData* pWeap = g_pDataManager->GetWeaponData(cand.nItemID);
+						if (pWeap && cPreferredWeaponType >= 0 && pWeap->cEquipType == cPreferredWeaponType)
+							nScore += 2200;
 					}
 
 					if (nScore > nBestScore)
@@ -344,7 +579,14 @@ namespace AIBot
 				}
 
 				if (bestIDs.empty())
-					return (nExcludeItemID > 0) ? PickBestGear(pSpec, nEquipSlot, cPreferredWeaponType, bRandomTieBreak, 0) : 0;
+				{
+					if (nExcludeItemID > 0)
+						return PickBalancedGear(pSpec, nJobTier, nEquipSlot, cPreferredWeaponType, nTargetLevel, nTargetRank, nMinRank, nMaxRank, bRandomTieBreak, 0);
+					// Relax rank bounds if no item exists at that exact rank for this low level bracket
+					if (nMinRank > ITEMRANK_D || nMaxRank < ITEMRANK_SS)
+						return PickBalancedGear(pSpec, nJobTier, nEquipSlot, cPreferredWeaponType, nTargetLevel, nTargetRank, ITEMRANK_D, ITEMRANK_SS, bRandomTieBreak, 0);
+					return 0;
+				}
 				return bestIDs[bRandomTieBreak ? (rand() % (int)bestIDs.size()) : 0];
 			}
 
@@ -358,7 +600,7 @@ namespace AIBot
 				return sets[rand() % (int)sets.size()];
 			}
 
-			int PickRandomCashPart(const BotJobSpec* pSpec, int nCashSlot, int nPreferredSetID = 0, int nExcludeItemID = 0) const
+			int PickRandomCashPart(const BotJobSpec* pSpec, int nJobTier, int nCashSlot, int nPreferredSetID = 0, int nExcludeItemID = 0) const
 			{
 				if (!pSpec || pSpec->cBaseClass < 1 || pSpec->cBaseClass > 10)
 					return 0;
@@ -374,7 +616,7 @@ namespace AIBot
 					if (nExcludeItemID > 0 && pool[i].nItemID == nExcludeItemID)
 						continue;
 					const TItemData* pItem = g_pDataManager->GetItemData(pool[i].nItemID);
-					if (!ParseJobListMatch(pItem, pSpec))
+					if (!ParseJobListMatchForTier(pItem, pSpec, nJobTier))
 						continue;
 					anyMatches.push_back(pool[i].nItemID);
 					if (nPreferredSetID > 0 && pool[i].nSetItemID == nPreferredSetID)
@@ -385,11 +627,11 @@ namespace AIBot
 				if (!anyMatches.empty())
 					return anyMatches[rand() % (int)anyMatches.size()];
 				if (nExcludeItemID > 0)
-					return PickRandomCashPart(pSpec, nCashSlot, nPreferredSetID, 0);
+					return PickRandomCashPart(pSpec, nJobTier, nCashSlot, nPreferredSetID, 0);
 				return 0;
 			}
 
-			int PickRandomCashWeapon(const BotJobSpec* pSpec, char cWeaponType) const
+			int PickRandomCashWeapon(const BotJobSpec* pSpec, int nJobTier, char cWeaponType) const
 			{
 				if (!pSpec || cWeaponType < 0 || cWeaponType >= 32)
 					return 0;
@@ -405,7 +647,7 @@ namespace AIBot
 					if (!pItem)
 						continue;
 					fallbackMatches.push_back(pool[i].nItemID);
-					if (ParseJobListMatch(pItem, pSpec))
+					if (ParseJobListMatchForTier(pItem, pSpec, nJobTier))
 						jobMatches.push_back(pool[i].nItemID);
 				}
 				if (!jobMatches.empty())
@@ -419,6 +661,7 @@ namespace AIBot
 			const std::vector<int>& GetSkillGlyphPool() const { return m_SkillGlyphPool; }
 			const std::vector<int>& GetSpecialGlyphPool() const { return m_SpecialGlyphPool; }
 			const std::vector<int>& GetDragonGlyphPool() const { return m_DragonGlyphPool; }
+			const std::vector<int>& GetTalismanPool() const { return m_TalismanPool; }
 
 		private:
 			CBotCatalog() : m_bInitialized(false) {}
@@ -454,7 +697,17 @@ namespace AIBot
 						continue;
 					}
 
-					if (pItem->cLevelLimit == 60 && pItem->cRank >= ITEMRANK_A && pItem->cRank <= ITEMRANK_SS)
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+					if (pItem->nType == ITEMTYPE_TALISMAN)
+					{
+						if (pItem->cLevelLimit <= 60 && pItem->cRank >= ITEMRANK_D && pItem->cRank <= ITEMRANK_SS)
+							m_TalismanPool.push_back(pItem->nItemID);
+						continue;
+					}
+#endif
+
+					// Index ALL progression tiers (Lv 1..60, Normal..Heroic) so bots match any player level & gear!
+					if (pItem->cLevelLimit >= 1 && pItem->cLevelLimit <= 60 && pItem->cRank >= ITEMRANK_D && pItem->cRank <= ITEMRANK_SS)
 					{
 						IndexNormalEquipItem(pItem, pPartsSox, pWeaponSox);
 					}
@@ -570,7 +823,6 @@ namespace AIBot
 
 			void BuildCompleteCashSetIndex()
 			{
-				// Find cohesive cash costume sets per class that cover Helmet, Body, Leg, Hand, and Foot
 				for (int cls = 1; cls <= 6; ++cls)
 				{
 					std::map<int, int> setSlotMask;
@@ -627,7 +879,6 @@ namespace AIBot
 
 			void IndexCashItem(const TItemData* pItem, DNTableFileFormat* pPartsSox, DNTableFileFormat* pWeaponSox)
 			{
-				// Allow both permanent and period cash items (bots receive bEternity=true)
 				if (pItem->nType == ITEMTYPE_PARTS)
 				{
 					TPartData* pPart = g_pDataManager->GetPartData(pItem->nItemID);
@@ -660,7 +911,6 @@ namespace AIBot
 						if (bRequireBodySkin && !bHasClassSkin && !bHasSkinID)
 							continue;
 
-						// For non-body accessories (Necklace/Earring/Ring/FaceDeco/Fairy), check class restriction if any
 						if (!bRequireBodySkin && !pItem->nNeedJobClassList.empty())
 						{
 							bool bClassOk = false;
@@ -705,7 +955,6 @@ namespace AIBot
 					if (pSetCell)
 						nSetID = pSetCell->GetInteger();
 
-					// Index directly by cEquipType (avoids 0-based GetBaseClass mismatch!)
 					CashCandidate cand = { pItem->nItemID, pWeap->cEquipType, nSetID };
 					m_CashWeaponByType[(int)pWeap->cEquipType].push_back(cand);
 				}
@@ -714,29 +963,18 @@ namespace AIBot
 			void IndexGlyphItem(const TItemData* pItem)
 			{
 				int nGlyphType = g_pDataManager->GetGlyphType(pItem->nItemID);
+				if (pItem->cLevelLimit > 60 || pItem->cRank < ITEMRANK_D || pItem->cRank > ITEMRANK_SS)
+					return;
+
 				if (nGlyphType == CDnGlyph::Enchant)
-				{
-					// Include Lv.50-60 Rare/Epic/Unique Enhancement Heraldries (Lv.60 Epic ranked highest!)
-					if (pItem->cLevelLimit >= 50 && pItem->cLevelLimit <= 60 && pItem->cRank >= ITEMRANK_B && pItem->cRank <= ITEMRANK_SS)
-						m_StatGlyphPool.push_back(pItem->nItemID);
-				}
+					m_StatGlyphPool.push_back(pItem->nItemID);
 				else if (nGlyphType == CDnGlyph::PassiveSkill)
-				{
-					if (pItem->cLevelLimit <= 60 && pItem->cRank >= ITEMRANK_B && pItem->cRank <= ITEMRANK_SS)
-						m_SkillGlyphPool.push_back(pItem->nItemID);
-				}
+					m_SkillGlyphPool.push_back(pItem->nItemID);
 				else if (nGlyphType == CDnGlyph::ActiveSkill)
-				{
-					// Special Skill Heraldries (GLYPH_SPECIALSKILL - e.g. Manticore/Apocalypse/Sea Dragon/Typhoon Kim/Professor K!)
-					if (pItem->cLevelLimit <= 60 && pItem->cRank >= ITEMRANK_B && pItem->cRank <= ITEMRANK_SS)
-						m_SpecialGlyphPool.push_back(pItem->nItemID);
-				}
+					m_SpecialGlyphPool.push_back(pItem->nItemID);
 #if defined(PRE_ADD_DRAGON_FELLOWSHIP_GLYPH)
 				else if (nGlyphType == CDnGlyph::DragonFellowship)
-				{
-					if (pItem->cLevelLimit <= 60)
-						m_DragonGlyphPool.push_back(pItem->nItemID);
-				}
+					m_DragonGlyphPool.push_back(pItem->nItemID);
 #endif
 			}
 
@@ -774,11 +1012,12 @@ namespace AIBot
 			std::vector<int> m_SkillGlyphPool;
 			std::vector<int> m_SpecialGlyphPool;
 			std::vector<int> m_DragonGlyphPool;
+			std::vector<int> m_TalismanPool;
 		};
 
 		char PickBestEnchantLevel(int nEnchantID, int nDesiredLevel)
 		{
-			if (nEnchantID <= 0)
+			if (nEnchantID <= 0 || nDesiredLevel <= 0)
 				return 0;
 			int nMaxLv = g_pDataManager->GetEnchantMaxLevel(nEnchantID);
 			int nLv = min(nDesiredLevel, nMaxLv);
@@ -822,7 +1061,6 @@ namespace AIBot
 						break;
 					sprintf_s(szLabel, "_State%dValue", s + 1);
 					double fVal = atof(pPotentialSox->GetFieldFromLablePtr(nRowID, szLabel)->GetString());
-					// Score key stats: Str(0)/Agi(1)/Int(2)/Vit(3)/PAtk(4-5,25-26)/MAtk(6-7,27-28)/Crit(12,30)/MaxHP(16,32)/Final(29)
 					if (nStateType == 3 || nStateType == 12 || nStateType == 16 || nStateType == 29 || nStateType == 30 || nStateType == 32)
 						fScore += fVal * 2.0 + 10.0;
 					else if (!bMagicClass && (nStateType == 0 || nStateType == 1 || nStateType == 4 || nStateType == 5 || nStateType == 25 || nStateType == 26))
@@ -841,7 +1079,7 @@ namespace AIBot
 			return (char)nBestIdx;
 		}
 
-		void BuildBotItem(int nItemID, INT64 nSerial, const BotJobSpec* pSpec, int nEnchantTarget, TItem& outItem)
+		void BuildBotItem(int nItemID, INT64 nSerial, const BotJobSpec* pSpec, int nEnchantTarget, bool bRollPotentials, TItem& outItem)
 		{
 			memset(&outItem, 0, sizeof(TItem));
 			const TItemData* pItemData = g_pDataManager->GetItemData(nItemID);
@@ -873,8 +1111,11 @@ namespace AIBot
 			if (!pItemData->IsCash)
 			{
 				outItem.cLevel = PickBestEnchantLevel(pItemData->nEnchantID, nEnchantTarget);
-				outItem.cOption = PickBestPotentialIndex(pItemData->nTypeParam[0], pSpec);
-				outItem.cPotential = PickBestPotentialIndex(pItemData->nTypeParam[1], pSpec);
+				if (bRollPotentials)
+				{
+					outItem.cOption = PickBestPotentialIndex(pItemData->nTypeParam[0], pSpec);
+					outItem.cPotential = PickBestPotentialIndex(pItemData->nTypeParam[1], pSpec);
+				}
 			}
 		}
 
@@ -907,115 +1148,204 @@ namespace AIBot
 			if (!pApp->vecFaces.empty())
 			{
 				int nFaceID = pApp->vecFaces[(dwSeed + 1) % pApp->vecFaces.size()];
-				BuildBotItem(nFaceID, --serialSeq, pSpec, 0, item);
+				BuildBotItem(nFaceID, --serialSeq, pSpec, 0, false, item);
 				pBotSession->GetItem()->SetDirectEquip(EQUIP_FACE, item);
 			}
 			if (!pApp->vecHairs.empty())
 			{
 				int nHairID = pApp->vecHairs[(dwSeed + 5) % pApp->vecHairs.size()];
-				BuildBotItem(nHairID, --serialSeq, pSpec, 0, item);
+				BuildBotItem(nHairID, --serialSeq, pSpec, 0, false, item);
 				pBotSession->GetItem()->SetDirectEquip(EQUIP_HAIR, item);
 			}
 		}
 
-		void PopulateBotEquipment(CDNUserSession* pBotSession, const BotJobSpec* pSpec, INT64& serialSeq)
+		void PopulateBotEquipment(
+			CDNUserSession* pBotSession,
+			const BotJobSpec* pSpec,
+			int nBotLevel,
+			int nJobTier,
+			const HumanBuildProfile& human,
+			const PlayerBotsConfig& cfg,
+			INT64& serialSeq,
+			char& outMainWeaponType,
+			char& outSubWeaponType,
+			int& outTargetRank,
+			int& outTargetEnchant)
 		{
 			const CBotCatalog& catalog = CBotCatalog::GetInstance();
 			TItem item;
 
-			static const int kNormalSlots[] = {
-				EQUIP_HELMET, EQUIP_BODY, EQUIP_LEG, EQUIP_HAND, EQUIP_FOOT,
-				EQUIP_NECKLACE, EQUIP_EARRING, EQUIP_RING1, EQUIP_RING2
+			int nTargetRank = BotUtil::ComputeSyncedGearRank(nBotLevel, human.nEquippedNormalCount, human.fAvgRank, cfg);
+			int nTargetEnchant = BotUtil::ComputeSyncedEnchantLevel(nBotLevel, nTargetRank, human.nEquippedNormalCount, human.fAvgEnchant, cfg);
+			int nGearLevel = (cfg.gearSyncMode == Irine::Modules::GEAR_SYNC_FIXED_ENDGAME) ? 60 : nBotLevel;
+			bool bRollPotentials = (cfg.gearSyncMode == Irine::Modules::GEAR_SYNC_FIXED_ENDGAME)
+				|| (!cfg.matchPlayerPotentials && nBotLevel >= 24)
+				|| human.bHasPotentials;
+
+			outTargetRank = nTargetRank;
+			outTargetEnchant = nTargetEnchant;
+
+			// Equip armor slots; only equip accessories when player wears them or level is high enough (Lv >= 16)
+			static const int kArmorSlots[] = {
+				EQUIP_HELMET, EQUIP_BODY, EQUIP_LEG, EQUIP_HAND, EQUIP_FOOT
 			};
-			int nNormalRing1ID = 0;
-			for (size_t i = 0; i < _countof(kNormalSlots); ++i)
+			for (size_t i = 0; i < _countof(kArmorSlots); ++i)
 			{
-				int nSlot = kNormalSlots[i];
-				int nExclude = (nSlot == EQUIP_RING2) ? nNormalRing1ID : 0;
-				int nItemID = catalog.PickBestGear(pSpec, nSlot, -1, nSlot >= EQUIP_NECKLACE, nExclude);
+				int nSlot = kArmorSlots[i];
+				int nItemID = catalog.PickBalancedGear(
+					pSpec, nJobTier, nSlot, -1, nGearLevel, nTargetRank,
+					cfg.minGearRank, cfg.maxGearRank, false, 0);
 				if (nItemID > 0)
 				{
-					if (nSlot == EQUIP_RING1) nNormalRing1ID = nItemID;
-					BuildBotItem(nItemID, --serialSeq, pSpec, 12, item);
+					BuildBotItem(nItemID, --serialSeq, pSpec, nTargetEnchant, bRollPotentials, item);
 					pBotSession->GetItem()->SetDirectEquip(nSlot, item);
+				}
+			}
+
+			bool bEquipAccessories = (cfg.gearSyncMode == Irine::Modules::GEAR_SYNC_FIXED_ENDGAME)
+				|| (human.nEquippedAccessoryCount > 0)
+				|| (nBotLevel >= 16);
+			if (bEquipAccessories)
+			{
+				static const int kAccSlots[] = {
+					EQUIP_NECKLACE, EQUIP_EARRING, EQUIP_RING1, EQUIP_RING2
+				};
+				int nMaxAcc = (cfg.gearSyncMode == Irine::Modules::GEAR_SYNC_MATCH_PLAYER && human.nEquippedNormalCount >= 3)
+					? human.nEquippedAccessoryCount
+					: 4;
+				int nNormalRing1ID = 0;
+				int nAccEquipped = 0;
+				for (size_t i = 0; i < _countof(kAccSlots) && nAccEquipped < nMaxAcc; ++i)
+				{
+					int nSlot = kAccSlots[i];
+					int nExclude = (nSlot == EQUIP_RING2) ? nNormalRing1ID : 0;
+					int nItemID = catalog.PickBalancedGear(
+						pSpec, nJobTier, nSlot, -1, nGearLevel, nTargetRank,
+						cfg.minGearRank, cfg.maxGearRank, true, nExclude);
+					if (nItemID > 0)
+					{
+						if (nSlot == EQUIP_RING1) nNormalRing1ID = nItemID;
+						BuildBotItem(nItemID, --serialSeq, pSpec, 0, bRollPotentials, item);
+						pBotSession->GetItem()->SetDirectEquip(nSlot, item);
+						++nAccEquipped;
+					}
 				}
 			}
 
 			char cEquippedMainType = pSpec->cMainWeaponType;
 			char cEquippedSubType = pSpec->cSubWeaponType;
 
-			int nMainWeapID = catalog.PickBestGear(pSpec, EQUIP_WEAPON1, cEquippedMainType, false);
+			int nMainWeapID = catalog.PickBalancedGear(
+				pSpec, nJobTier, EQUIP_WEAPON1, cEquippedMainType, nGearLevel, nTargetRank,
+				cfg.minGearRank, cfg.maxGearRank, false, 0);
 			if (nMainWeapID > 0)
 			{
-				BuildBotItem(nMainWeapID, --serialSeq, pSpec, 12, item);
+				BuildBotItem(nMainWeapID, --serialSeq, pSpec, nTargetEnchant, bRollPotentials, item);
 				pBotSession->GetItem()->SetDirectEquip(EQUIP_WEAPON1, item);
 				if (TWeaponData* pW = g_pDataManager->GetWeaponData(nMainWeapID))
 					cEquippedMainType = pW->cEquipType;
 			}
 
-			int nSubWeapID = catalog.PickBestGear(pSpec, EQUIP_WEAPON2, cEquippedSubType, false);
+			int nSubWeapID = catalog.PickBalancedGear(
+				pSpec, nJobTier, EQUIP_WEAPON2, cEquippedSubType, nGearLevel, nTargetRank,
+				cfg.minGearRank, cfg.maxGearRank, false, 0);
 			if (nSubWeapID > 0)
 			{
-				BuildBotItem(nSubWeapID, --serialSeq, pSpec, 12, item);
+				BuildBotItem(nSubWeapID, --serialSeq, pSpec, nTargetEnchant, bRollPotentials, item);
 				pBotSession->GetItem()->SetDirectEquip(EQUIP_WEAPON2, item);
 				if (TWeaponData* pW = g_pDataManager->GetWeaponData(nSubWeapID))
 					cEquippedSubType = pW->cEquipType;
 			}
 
-			// Randomize cohesive Cash Costume Set + ALL Cash Accessories (Necklace, Earring, Ring1/2, Wing, Tail, Decal, Spirit)
-			int nPreferredSetID = catalog.PickRandomCashSetID(pSpec);
-			static const int kCashSlots[] = {
-				CASHEQUIP_HELMET, CASHEQUIP_BODY, CASHEQUIP_LEG, CASHEQUIP_HAND, CASHEQUIP_FOOT,
-				CASHEQUIP_NECKLACE, CASHEQUIP_EARRING, CASHEQUIP_RING1, CASHEQUIP_RING2,
-				CASHEQUIP_WING, CASHEQUIP_TAIL, CASHEQUIP_FACEDECO, CASHEQUIP_FAIRY
-			};
-			int nCashRing1ID = 0;
-			for (size_t i = 0; i < _countof(kCashSlots); ++i)
-			{
-				int nSlot = kCashSlots[i];
-				int nExclude = (nSlot == CASHEQUIP_RING2) ? nCashRing1ID : 0;
-				int nCashID = catalog.PickRandomCashPart(pSpec, nSlot, nPreferredSetID, nExclude);
-				if (nCashID > 0)
-				{
-					if (nSlot == CASHEQUIP_RING1) nCashRing1ID = nCashID;
-					BuildBotItem(nCashID, --serialSeq, pSpec, 0, item);
-					pBotSession->GetItem()->SetDirectCashEquip(nSlot, item);
-					pBotSession->SetViewCashEquipBitmap(nSlot, true);
-				}
-			}
+			outMainWeaponType = cEquippedMainType;
+			outSubWeaponType = cEquippedSubType;
 
-			int nCashWep1 = catalog.PickRandomCashWeapon(pSpec, cEquippedMainType);
-			if (nCashWep1 > 0)
+			// Cash Costumes & Accessories: only wear when matched with human player (or in fixed-endgame mode)
+			bool bEquipCash = (cfg.gearSyncMode == Irine::Modules::GEAR_SYNC_FIXED_ENDGAME)
+				|| !cfg.matchPlayerCashCostumes
+				|| human.bHasCashCostumes;
+			if (bEquipCash)
 			{
-				BuildBotItem(nCashWep1, --serialSeq, pSpec, 0, item);
-				pBotSession->GetItem()->SetDirectCashEquip(CASHEQUIP_WEAPON1, item);
-				pBotSession->SetViewCashEquipBitmap(CASHEQUIP_WEAPON1, true);
-			}
-			int nCashWep2 = catalog.PickRandomCashWeapon(pSpec, cEquippedSubType);
-			if (nCashWep2 > 0)
-			{
-				BuildBotItem(nCashWep2, --serialSeq, pSpec, 0, item);
-				pBotSession->GetItem()->SetDirectCashEquip(CASHEQUIP_WEAPON2, item);
-				pBotSession->SetViewCashEquipBitmap(CASHEQUIP_WEAPON2, true);
+				int nPreferredSetID = catalog.PickRandomCashSetID(pSpec);
+				static const int kCashSlots[] = {
+					CASHEQUIP_HELMET, CASHEQUIP_BODY, CASHEQUIP_LEG, CASHEQUIP_HAND, CASHEQUIP_FOOT,
+					CASHEQUIP_NECKLACE, CASHEQUIP_EARRING, CASHEQUIP_RING1, CASHEQUIP_RING2,
+					CASHEQUIP_WING, CASHEQUIP_TAIL, CASHEQUIP_FACEDECO, CASHEQUIP_FAIRY
+				};
+				int nCashRing1ID = 0;
+				for (size_t i = 0; i < _countof(kCashSlots); ++i)
+				{
+					int nSlot = kCashSlots[i];
+					int nExclude = (nSlot == CASHEQUIP_RING2) ? nCashRing1ID : 0;
+					int nCashID = catalog.PickRandomCashPart(pSpec, nJobTier, nSlot, nPreferredSetID, nExclude);
+					if (nCashID > 0)
+					{
+						if (nSlot == CASHEQUIP_RING1) nCashRing1ID = nCashID;
+						BuildBotItem(nCashID, --serialSeq, pSpec, 0, false, item);
+						pBotSession->GetItem()->SetDirectCashEquip(nSlot, item);
+						pBotSession->SetViewCashEquipBitmap(nSlot, true);
+					}
+				}
+
+				int nCashWep1 = catalog.PickRandomCashWeapon(pSpec, nJobTier, cEquippedMainType);
+				if (nCashWep1 > 0)
+				{
+					BuildBotItem(nCashWep1, --serialSeq, pSpec, 0, false, item);
+					pBotSession->GetItem()->SetDirectCashEquip(CASHEQUIP_WEAPON1, item);
+					pBotSession->SetViewCashEquipBitmap(CASHEQUIP_WEAPON1, true);
+				}
+				int nCashWep2 = catalog.PickRandomCashWeapon(pSpec, nJobTier, cEquippedSubType);
+				if (nCashWep2 > 0)
+				{
+					BuildBotItem(nCashWep2, --serialSeq, pSpec, 0, false, item);
+					pBotSession->GetItem()->SetDirectCashEquip(CASHEQUIP_WEAPON2, item);
+					pBotSession->SetViewCashEquipBitmap(CASHEQUIP_WEAPON2, true);
+				}
 			}
 
 			pBotSession->SetViewCashEquipBitmap(HIDEHELMET_BITINDEX, false);
 		}
 
-		void PopulateBotSkillsAndGlyphs(CDNUserSession* pBotSession, const BotJobSpec* pSpec, int nTargetLevel, INT64& serialSeq)
+		void PopulateBotSkillsGlyphsAndTalismans(
+			CDNUserSession* pBotSession,
+			const BotJobSpec* pSpec,
+			int nBotLevel,
+			int nJobTier,
+			char cEquippedMainType,
+			char cEquippedSubType,
+			const HumanBuildProfile& human,
+			const PlayerBotsConfig& cfg,
+			INT64& serialSeq,
+			int& outSkillCount,
+			int& outGlyphCount,
+			int& outTalismanCount)
 		{
+			outSkillCount = 0;
+			outGlyphCount = 0;
+			outTalismanCount = 0;
+
 			TSkillGroup* pSkillGroup = pBotSession->GetSkillData();
 			memset(pSkillGroup, 0, sizeof(TSkillGroup));
 
-			std::vector<std::pair<int, BYTE>> learnedSkills;
+			int nSkillLevelCap = cfg.syncSkillsToLevel ? nBotLevel : 60;
+			float fSkillScale = (cfg.skillPowerPercent > 0)
+				? ((float)cfg.skillPowerPercent / 100.0f)
+				: human.fSkillRankRatio;
+			if (fSkillScale < 0.35f) fSkillScale = 0.35f;
+			if (fSkillScale > 1.0f)  fSkillScale = 1.0f;
+
+			// Build list of unlocked job IDs in priority order (highest unlocked specialization first)
+			std::vector<int> unlockedJobs;
+			if (nJobTier >= 2) unlockedJobs.push_back(pSpec->cSecondJob);
+			if (nJobTier >= 1) unlockedJobs.push_back(pSpec->cFirstJob);
+			unlockedJobs.push_back(pSpec->cBaseClass);
+
+			std::map<int, BYTE> mapCandidateLevel;
 			std::set<int> usedExclusiveIDs;
 
-			// Pass 1: 2nd-job skills first (ensures 2nd-job ultimate & EX choices claim ExclusiveID slots first)
-			// Pass 2: 1st-job skills, then Pass 3: base-class skills
-			const int jobPriority[3] = { pSpec->cSecondJob, pSpec->cFirstJob, pSpec->cBaseClass };
-			for (int pass = 0; pass < 3; ++pass)
+			for (size_t pass = 0; pass < unlockedJobs.size(); ++pass)
 			{
-				int nJobFilter = jobPriority[pass];
+				int nJobFilter = unlockedJobs[pass];
 				int nTreeCount = g_pDataManager->GetNumSkillTreeData();
 				for (int idx = 0; idx < nTreeCount; ++idx)
 				{
@@ -1026,10 +1356,10 @@ namespace AIBot
 					if (!pSkill || pSkill->nNeedJobID != nJobFilter)
 						continue;
 
-					// Verify weapon compatibility when a skill explicitly restricts weapon type
+					// Verify compatibility against bot's ACTUAL equipped weapons
 					bool bWeaponMatch = (pSkill->cNeedWeaponType[0] == -1 && pSkill->cNeedWeaponType[1] == -1)
-						|| (pSkill->cNeedWeaponType[0] == pSpec->cMainWeaponType || pSkill->cNeedWeaponType[0] == pSpec->cSubWeaponType)
-						|| (pSkill->cNeedWeaponType[1] == pSpec->cMainWeaponType || pSkill->cNeedWeaponType[1] == pSpec->cSubWeaponType);
+						|| (pSkill->cNeedWeaponType[0] == cEquippedMainType || pSkill->cNeedWeaponType[0] == cEquippedSubType)
+						|| (pSkill->cNeedWeaponType[1] == cEquippedMainType || pSkill->cNeedWeaponType[1] == cEquippedSubType);
 					if (!bWeaponMatch)
 						continue;
 
@@ -1040,7 +1370,7 @@ namespace AIBot
 					for (size_t l = 0; l < pSkill->vLevelDataList.size(); ++l)
 					{
 						const TSkillLevelData& lvData = pSkill->vLevelDataList[l];
-						if (lvData.cLevelLimit <= nTargetLevel && lvData.cSkillLevel <= pSkill->nMaxLevel)
+						if (lvData.cLevelLimit <= nSkillLevelCap && lvData.cSkillLevel <= pSkill->nMaxLevel)
 						{
 							if (lvData.cSkillLevel > nMaxLearnLv)
 								nMaxLearnLv = lvData.cSkillLevel;
@@ -1052,19 +1382,90 @@ namespace AIBot
 					if (pSkill->nExclusiveID > 0)
 						usedExclusiveIDs.insert(pSkill->nExclusiveID);
 
-					learnedSkills.push_back(std::make_pair(pSkill->nSkillID, (BYTE)nMaxLearnLv));
+					int nScaledLv = nMaxLearnLv;
+					if (cfg.syncSkillsToLevel && nMaxLearnLv > 1)
+					{
+						nScaledLv = (int)floor((double)nMaxLearnLv * (double)fSkillScale + 0.5);
+						if (nScaledLv < 1) nScaledLv = 1;
+						if (nScaledLv > nMaxLearnLv) nScaledLv = nMaxLearnLv;
+					}
+					mapCandidateLevel[pSkill->nSkillID] = (BYTE)nScaledLv;
 				}
 			}
 
-			// Sort learned skills chronologically (base -> 1st -> 2nd job) so prerequisites satisfy order checks
+			// Enforce skill tree parent prerequisites so low-level bots never have impossible skills
+			if (cfg.respectSkillPrerequisites)
+			{
+				bool bChanged = true;
+				for (int iter = 0; iter < 8 && bChanged; ++iter)
+				{
+					bChanged = false;
+					for (std::map<int, BYTE>::iterator it = mapCandidateLevel.begin(); it != mapCandidateLevel.end(); )
+					{
+						TSkillTreeData* pTree = g_pDataManager->GetSkillTreeData(it->first);
+						bool bPrereqOk = true;
+						if (pTree)
+						{
+							for (int p = 0; p < 3; ++p)
+							{
+								int nParentID = pTree->nParentSkillID[p];
+								int nNeedLv = pTree->nNeedParentSkillLevel[p];
+								if (nParentID <= 0 || nNeedLv <= 0)
+									continue;
+								std::map<int, BYTE>::iterator pit = mapCandidateLevel.find(nParentID);
+								if (pit == mapCandidateLevel.end())
+								{
+									bPrereqOk = false;
+									break;
+								}
+								if (pit->second < (BYTE)nNeedLv)
+								{
+									// Check if parent CAN reach nNeedLv at nSkillLevelCap
+									TSkillData* pParentSk = g_pDataManager->GetSkillData(nParentID);
+									int nParentMaxAtLv = 0;
+									if (pParentSk)
+									{
+										for (size_t l = 0; l < pParentSk->vLevelDataList.size(); ++l)
+										{
+											const TSkillLevelData& lvD = pParentSk->vLevelDataList[l];
+											if (lvD.cLevelLimit <= nSkillLevelCap && lvD.cSkillLevel <= pParentSk->nMaxLevel && lvD.cSkillLevel > nParentMaxAtLv)
+												nParentMaxAtLv = lvD.cSkillLevel;
+										}
+									}
+									if (nParentMaxAtLv >= nNeedLv)
+									{
+										pit->second = (BYTE)nNeedLv;
+									}
+									else
+									{
+										bPrereqOk = false;
+										break;
+									}
+								}
+							}
+						}
+						if (!bPrereqOk)
+						{
+							it = mapCandidateLevel.erase(it);
+							bChanged = true;
+						}
+						else
+						{
+							++it;
+						}
+					}
+				}
+			}
+
+			// Write learned skills chronologically (base -> 1st -> 2nd job)
 			std::set<int> learnedIDs;
 			int nWriteIdx = 0;
-			for (int pass = 2; pass >= 0 && nWriteIdx < SKILLMAX; --pass)
+			for (int pass = (int)unlockedJobs.size() - 1; pass >= 0 && nWriteIdx < SKILLMAX; --pass)
 			{
-				int nJobFilter = jobPriority[pass];
-				for (size_t i = 0; i < learnedSkills.size() && nWriteIdx < SKILLMAX; ++i)
+				int nJobFilter = unlockedJobs[pass];
+				for (std::map<int, BYTE>::const_iterator it = mapCandidateLevel.begin(); it != mapCandidateLevel.end() && nWriteIdx < SKILLMAX; ++it)
 				{
-					TSkillData* pSkill = g_pDataManager->GetSkillData(learnedSkills[i].first);
+					TSkillData* pSkill = g_pDataManager->GetSkillData(it->first);
 					if (!pSkill || pSkill->nNeedJobID != nJobFilter)
 						continue;
 					if (learnedIDs.count(pSkill->nSkillID))
@@ -1072,180 +1473,271 @@ namespace AIBot
 					learnedIDs.insert(pSkill->nSkillID);
 
 					pSkillGroup->SkillList[nWriteIdx].nSkillID = pSkill->nSkillID;
-					pSkillGroup->SkillList[nWriteIdx].cSkillLevel = learnedSkills[i].second;
+					pSkillGroup->SkillList[nWriteIdx].cSkillLevel = it->second;
 					pSkillGroup->SkillList[nWriteIdx].nCoolTime = 0;
 					pSkillGroup->SkillList[nWriteIdx].bLock = false;
 					++nWriteIdx;
 				}
 			}
+			outSkillCount = nWriteIdx;
 
-			// Equip ALL Heraldry Slots:
-			// 1) 8 Enhancement Heraldries (GLYPH_ENCHANT1..8) - deduplicated by real nTypeParam[1] family
-			// 2) 4 Skill Heraldries (GLYPH_SKILL1..4) - prioritized for 2nd/1st job learned skills
-			// 3) 1 Special Skill Heraldry (GLYPH_SPECIALSKILL)
-			// 4) 3 Cash Expansion Heraldries (GLYPH_CASH1..3) - unlocked & filled with extra Skill/Enhancement crests
-			// 5) 4 Dragon Expedition Heraldries (GLYPH_DRAGON1..4) when PRE_ADD_DRAGON_FELLOWSHIP_GLYPH is active
+			// =========================================================================
+			// Heraldries (Glyphs) — synced to player count, level & rank!
+			// =========================================================================
+			const bool bEndgameMode = (cfg.gearSyncMode == Irine::Modules::GEAR_SYNC_FIXED_ENDGAME);
+			const bool bMatchGlyphs = (!bEndgameMode && cfg.matchPlayerGlyphs);
+
+			int nTargetEnhGlyphs = bMatchGlyphs ? human.nEnhGlyphCount : (nBotLevel >= 24 ? 8 : (nBotLevel >= 16 ? 4 : 0));
+			int nTargetSkillGlyphs = bMatchGlyphs ? human.nSkillGlyphCount : (nBotLevel >= 24 ? 4 : 0);
+			bool bWantSpecialGlyph = bMatchGlyphs ? human.bHasSpecialGlyph : (nBotLevel >= 40);
+			int nTargetCashGlyphs = bMatchGlyphs ? human.nCashGlyphCount : (bEndgameMode ? 3 : 0);
+			int nTargetDragonGlyphs = bMatchGlyphs ? human.nDragonGlyphCount : (bEndgameMode ? 4 : 0);
+			int nGlyphRankCap = bMatchGlyphs ? min(human.nMaxGlyphRank + max(0, cfg.gearQualityOffset), cfg.maxGearRank) : cfg.maxGearRank;
+			int nGlyphLevelCap = bEndgameMode ? 60 : nBotLevel;
+
 			const CBotCatalog& catalog = CBotCatalog::GetInstance();
 			DNTableFileFormat* pItemSox = GetDNTable(CDnTableDB::TITEM);
 			bool bMagicClass = (pSpec->cBaseClass == 3 || pSpec->cBaseClass == 4 || pSpec->cSecondJob == 24 || pSpec->cSecondJob == 30 || pSpec->cSecondJob == 50 || pSpec->cSecondJob == 51 || pSpec->cSecondJob == 55 || pSpec->cSecondJob == 56);
 
-			std::vector<std::pair<int, int>> rankedStatGlyphs;
-			const std::vector<int>& statGlyphs = catalog.GetStatGlyphPool();
-			for (size_t i = 0; i < statGlyphs.size(); ++i)
-			{
-				int nGlyphID = statGlyphs[i];
-				const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
-				if (!pItemData || !pItemSox || !pItemSox->IsExistItem(nGlyphID))
-					continue;
-				int nState1 = pItemSox->GetFieldFromLablePtr(nGlyphID, "_State1")->GetInteger();
-				int nScore = pItemData->cLevelLimit * 1000 + pItemData->cRank * 200;
-				if (nState1 == 12 || nState1 == 29 || nState1 == 3 || nState1 == 16) nScore += 80; // Crit / FD / Vit / HP
-				if (!bMagicClass && (nState1 == 0 || nState1 == 1 || nState1 == 4 || nState1 == 5 || nState1 == 25 || nState1 == 26)) nScore += 120;
-				if (bMagicClass && (nState1 == 2 || nState1 == 6 || nState1 == 7 || nState1 == 27 || nState1 == 28)) nScore += 120;
-				rankedStatGlyphs.push_back(std::make_pair(nScore, nGlyphID));
-			}
-			std::sort(rankedStatGlyphs.begin(), rankedStatGlyphs.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-				return a.first > b.first;
-			});
-
 			std::set<int> usedGlyphTypeParams;
-			int nEnhSlot = GLYPH_ENCHANT1;
-			for (size_t i = 0; i < rankedStatGlyphs.size() && nEnhSlot <= GLYPH_ENCHANT8; ++i)
+			std::vector<std::pair<int, int>> rankedStatGlyphs;
+			if (nTargetEnhGlyphs > 0 || nTargetCashGlyphs > 0)
 			{
-				int nGlyphID = rankedStatGlyphs[i].second;
-				const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
-				if (!pItemData) continue;
-				int nFamily = pItemData->nTypeParam[1];
-				if (nFamily > 0 && usedGlyphTypeParams.count(nFamily))
-					continue;
-				if (nFamily > 0) usedGlyphTypeParams.insert(nFamily);
-				TItem glyphItem;
-				BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, glyphItem);
-				pBotSession->GetItem()->SetDirectGlyph(nEnhSlot++, glyphItem);
+				const std::vector<int>& statGlyphs = catalog.GetStatGlyphPool();
+				for (size_t i = 0; i < statGlyphs.size(); ++i)
+				{
+					int nGlyphID = statGlyphs[i];
+					const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
+					if (!pItemData || !pItemSox || !pItemSox->IsExistItem(nGlyphID))
+						continue;
+					if (pItemData->cLevelLimit > nGlyphLevelCap || pItemData->cRank > nGlyphRankCap)
+						continue;
+					int nState1 = pItemSox->GetFieldFromLablePtr(nGlyphID, "_State1")->GetInteger();
+					int nScore = pItemData->cLevelLimit * 1000 + pItemData->cRank * 200;
+					if (nState1 == 12 || nState1 == 29 || nState1 == 3 || nState1 == 16) nScore += 80;
+					if (!bMagicClass && (nState1 == 0 || nState1 == 1 || nState1 == 4 || nState1 == 5 || nState1 == 25 || nState1 == 26)) nScore += 120;
+					if (bMagicClass && (nState1 == 2 || nState1 == 6 || nState1 == 7 || nState1 == 27 || nState1 == 28)) nScore += 120;
+					rankedStatGlyphs.push_back(std::make_pair(nScore, nGlyphID));
+				}
+				std::sort(rankedStatGlyphs.begin(), rankedStatGlyphs.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+					return a.first > b.first;
+				});
+
+				int nEnhSlot = GLYPH_ENCHANT1;
+				for (size_t i = 0; i < rankedStatGlyphs.size() && (nEnhSlot - GLYPH_ENCHANT1) < nTargetEnhGlyphs && nEnhSlot <= GLYPH_ENCHANT8; ++i)
+				{
+					int nGlyphID = rankedStatGlyphs[i].second;
+					const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
+					if (!pItemData) continue;
+					int nFamily = pItemData->nTypeParam[1];
+					if (nFamily > 0 && usedGlyphTypeParams.count(nFamily))
+						continue;
+					if (nFamily > 0) usedGlyphTypeParams.insert(nFamily);
+					TItem glyphItem;
+					BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, false, glyphItem);
+					pBotSession->GetItem()->SetDirectGlyph(nEnhSlot++, glyphItem);
+					++outGlyphCount;
+				}
 			}
 
 			std::vector<std::pair<int, int>> rankedSkillGlyphs;
-			const std::vector<int>& skillGlyphs = catalog.GetSkillGlyphPool();
-			for (size_t i = 0; i < skillGlyphs.size(); ++i)
-			{
-				int nGlyphID = skillGlyphs[i];
-				TGlyphSkillData* pGlyphData = g_pDataManager->GetGlyphSkillData(nGlyphID);
-				const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
-				if (!pGlyphData || !pItemData || !learnedIDs.count(pGlyphData->nSkillID))
-					continue;
-				TSkillData* pSkData = g_pDataManager->GetSkillData(pGlyphData->nSkillID);
-				int nScore = pItemData->cLevelLimit * 100 + pItemData->cRank * 50;
-				if (pSkData && pSkData->nNeedJobID == pSpec->cSecondJob) nScore += 300;
-				else if (pSkData && pSkData->nNeedJobID == pSpec->cFirstJob) nScore += 150;
-				rankedSkillGlyphs.push_back(std::make_pair(nScore, nGlyphID));
-			}
-			std::sort(rankedSkillGlyphs.begin(), rankedSkillGlyphs.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-				return a.first > b.first;
-			});
-
-			int nSkillSlot = GLYPH_SKILL1;
 			std::set<int> usedSkillCrests;
 			size_t nSkillCursor = 0;
-			for (; nSkillCursor < rankedSkillGlyphs.size() && nSkillSlot <= GLYPH_SKILL4; ++nSkillCursor)
+			if (nTargetSkillGlyphs > 0 || nTargetCashGlyphs > 0)
 			{
-				int nGlyphID = rankedSkillGlyphs[nSkillCursor].second;
-				TGlyphSkillData* pGlyphData = g_pDataManager->GetGlyphSkillData(nGlyphID);
-				const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
-				if (!pGlyphData || !pItemData || usedSkillCrests.count(pGlyphData->nSkillID))
-					continue;
-				if (pItemData->nTypeParam[1] > 0 && usedGlyphTypeParams.count(pItemData->nTypeParam[1]))
-					continue;
-				usedSkillCrests.insert(pGlyphData->nSkillID);
-				if (pItemData->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pItemData->nTypeParam[1]);
-				TItem glyphItem;
-				BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, glyphItem);
-				pBotSession->GetItem()->SetDirectGlyph(nSkillSlot++, glyphItem);
-			}
-
-			// Special Skill Heraldry (GLYPH_SPECIALSKILL)
-			const std::vector<int>& specialGlyphs = catalog.GetSpecialGlyphPool();
-			int nBestSpecialID = 0;
-			int nBestSpecialScore = -1;
-			for (size_t i = 0; i < specialGlyphs.size(); ++i)
-			{
-				int nGlyphID = specialGlyphs[i];
-				const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
-				if (!pItemData || !ParseJobListMatch(pItemData, pSpec))
-					continue;
-				int nScore = pItemData->cLevelLimit * 100 + pItemData->cRank * 50 + (rand() % 25);
-				if (nScore > nBestSpecialScore)
+				const std::vector<int>& skillGlyphs = catalog.GetSkillGlyphPool();
+				for (size_t i = 0; i < skillGlyphs.size(); ++i)
 				{
-					nBestSpecialScore = nScore;
-					nBestSpecialID = nGlyphID;
+					int nGlyphID = skillGlyphs[i];
+					TGlyphSkillData* pGlyphData = g_pDataManager->GetGlyphSkillData(nGlyphID);
+					const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
+					if (!pGlyphData || !pItemData || !learnedIDs.count(pGlyphData->nSkillID))
+						continue;
+					if (pItemData->cLevelLimit > nGlyphLevelCap || pItemData->cRank > nGlyphRankCap)
+						continue;
+					TSkillData* pSkData = g_pDataManager->GetSkillData(pGlyphData->nSkillID);
+					int nScore = pItemData->cLevelLimit * 100 + pItemData->cRank * 50;
+					if (pSkData && pSkData->nNeedJobID == pSpec->cSecondJob) nScore += 300;
+					else if (pSkData && pSkData->nNeedJobID == pSpec->cFirstJob) nScore += 150;
+					rankedSkillGlyphs.push_back(std::make_pair(nScore, nGlyphID));
+				}
+				std::sort(rankedSkillGlyphs.begin(), rankedSkillGlyphs.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+					return a.first > b.first;
+				});
+
+				int nSkillSlot = GLYPH_SKILL1;
+				for (; nSkillCursor < rankedSkillGlyphs.size() && (nSkillSlot - GLYPH_SKILL1) < nTargetSkillGlyphs && nSkillSlot <= GLYPH_SKILL4; ++nSkillCursor)
+				{
+					int nGlyphID = rankedSkillGlyphs[nSkillCursor].second;
+					TGlyphSkillData* pGlyphData = g_pDataManager->GetGlyphSkillData(nGlyphID);
+					const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
+					if (!pGlyphData || !pItemData || usedSkillCrests.count(pGlyphData->nSkillID))
+						continue;
+					if (pItemData->nTypeParam[1] > 0 && usedGlyphTypeParams.count(pItemData->nTypeParam[1]))
+						continue;
+					usedSkillCrests.insert(pGlyphData->nSkillID);
+					if (pItemData->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pItemData->nTypeParam[1]);
+					TItem glyphItem;
+					BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, false, glyphItem);
+					pBotSession->GetItem()->SetDirectGlyph(nSkillSlot++, glyphItem);
+					++outGlyphCount;
 				}
 			}
-			if (nBestSpecialID > 0)
-			{
-				const TItemData* pSpecItem = g_pDataManager->GetItemData(nBestSpecialID);
-				if (pSpecItem && pSpecItem->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pSpecItem->nTypeParam[1]);
-				TItem glyphItem;
-				BuildBotItem(nBestSpecialID, --serialSeq, pSpec, 0, glyphItem);
-				pBotSession->GetItem()->SetDirectGlyph(GLYPH_SPECIALSKILL, glyphItem);
-			}
 
-			// Unlock & fill all 3 Extra Cash Heraldry Slots (GLYPH_CASH1..3)
-			TCashGlyphData* pCashGlyphExpire = pBotSession->GetItem()->GetGlyphExpireDate();
-			if (pCashGlyphExpire)
+			if (bWantSpecialGlyph)
 			{
-				__time64_t tFuture = _time64(NULL) + 86400LL * 365LL;
-				for (int c = 0; c < 3; ++c)
+				const std::vector<int>& specialGlyphs = catalog.GetSpecialGlyphPool();
+				int nBestSpecialID = 0;
+				int nBestSpecialScore = -1;
+				for (size_t i = 0; i < specialGlyphs.size(); ++i)
 				{
-					pCashGlyphExpire[c].cActiveGlyph = (BYTE)(c + 1);
-					pCashGlyphExpire[c].tGlyphExpireDate = tFuture;
+					int nGlyphID = specialGlyphs[i];
+					const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
+					if (!pItemData || pItemData->cLevelLimit > nGlyphLevelCap || pItemData->cRank > nGlyphRankCap)
+						continue;
+					if (!ParseJobListMatchForTier(pItemData, pSpec, nJobTier))
+						continue;
+					int nScore = pItemData->cLevelLimit * 100 + pItemData->cRank * 50 + (rand() % 25);
+					if (nScore > nBestSpecialScore)
+					{
+						nBestSpecialScore = nScore;
+						nBestSpecialID = nGlyphID;
+					}
+				}
+				if (nBestSpecialID > 0)
+				{
+					const TItemData* pSpecItem = g_pDataManager->GetItemData(nBestSpecialID);
+					if (pSpecItem && pSpecItem->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pSpecItem->nTypeParam[1]);
+					TItem glyphItem;
+					BuildBotItem(nBestSpecialID, --serialSeq, pSpec, 0, false, glyphItem);
+					pBotSession->GetItem()->SetDirectGlyph(GLYPH_SPECIALSKILL, glyphItem);
+					++outGlyphCount;
 				}
 			}
-			int nCashGlyphSlot = GLYPH_CASH1;
-			for (; nSkillCursor < rankedSkillGlyphs.size() && nCashGlyphSlot <= GLYPH_CASH3; ++nSkillCursor)
+
+			if (nTargetCashGlyphs > 0)
 			{
-				int nGlyphID = rankedSkillGlyphs[nSkillCursor].second;
-				TGlyphSkillData* pGlyphData = g_pDataManager->GetGlyphSkillData(nGlyphID);
-				const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
-				if (!pGlyphData || !pItemData || usedSkillCrests.count(pGlyphData->nSkillID))
-					continue;
-				if (pItemData->nTypeParam[1] > 0 && usedGlyphTypeParams.count(pItemData->nTypeParam[1]))
-					continue;
-				usedSkillCrests.insert(pGlyphData->nSkillID);
-				if (pItemData->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pItemData->nTypeParam[1]);
-				TItem glyphItem;
-				BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, glyphItem);
-				pBotSession->GetItem()->SetDirectGlyph(nCashGlyphSlot++, glyphItem);
-			}
-			for (size_t i = 0; i < rankedStatGlyphs.size() && nCashGlyphSlot <= GLYPH_CASH3; ++i)
-			{
-				int nGlyphID = rankedStatGlyphs[i].second;
-				const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
-				if (!pItemData) continue;
-				if (pItemData->nTypeParam[1] > 0 && usedGlyphTypeParams.count(pItemData->nTypeParam[1]))
-					continue;
-				if (pItemData->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pItemData->nTypeParam[1]);
-				TItem glyphItem;
-				BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, glyphItem);
-				pBotSession->GetItem()->SetDirectGlyph(nCashGlyphSlot++, glyphItem);
+				TCashGlyphData* pCashGlyphExpire = pBotSession->GetItem()->GetGlyphExpireDate();
+				if (pCashGlyphExpire)
+				{
+					__time64_t tFuture = _time64(NULL) + 86400LL * 365LL;
+					for (int c = 0; c < nTargetCashGlyphs && c < 3; ++c)
+					{
+						pCashGlyphExpire[c].cActiveGlyph = (BYTE)(c + 1);
+						pCashGlyphExpire[c].tGlyphExpireDate = tFuture;
+					}
+				}
+				int nCashGlyphSlot = GLYPH_CASH1;
+				for (; nSkillCursor < rankedSkillGlyphs.size() && (nCashGlyphSlot - GLYPH_CASH1) < nTargetCashGlyphs && nCashGlyphSlot <= GLYPH_CASH3; ++nSkillCursor)
+				{
+					int nGlyphID = rankedSkillGlyphs[nSkillCursor].second;
+					TGlyphSkillData* pGlyphData = g_pDataManager->GetGlyphSkillData(nGlyphID);
+					const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
+					if (!pGlyphData || !pItemData || usedSkillCrests.count(pGlyphData->nSkillID))
+						continue;
+					if (pItemData->nTypeParam[1] > 0 && usedGlyphTypeParams.count(pItemData->nTypeParam[1]))
+						continue;
+					usedSkillCrests.insert(pGlyphData->nSkillID);
+					if (pItemData->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pItemData->nTypeParam[1]);
+					TItem glyphItem;
+					BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, false, glyphItem);
+					pBotSession->GetItem()->SetDirectGlyph(nCashGlyphSlot++, glyphItem);
+					++outGlyphCount;
+				}
+				for (size_t i = 0; i < rankedStatGlyphs.size() && (nCashGlyphSlot - GLYPH_CASH1) < nTargetCashGlyphs && nCashGlyphSlot <= GLYPH_CASH3; ++i)
+				{
+					int nGlyphID = rankedStatGlyphs[i].second;
+					const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
+					if (!pItemData) continue;
+					if (pItemData->nTypeParam[1] > 0 && usedGlyphTypeParams.count(pItemData->nTypeParam[1]))
+						continue;
+					if (pItemData->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pItemData->nTypeParam[1]);
+					TItem glyphItem;
+					BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, false, glyphItem);
+					pBotSession->GetItem()->SetDirectGlyph(nCashGlyphSlot++, glyphItem);
+					++outGlyphCount;
+				}
 			}
 
 #if defined(PRE_ADD_DRAGON_FELLOWSHIP_GLYPH)
-			const std::vector<int>& dragonGlyphs = catalog.GetDragonGlyphPool();
-			int nDragonSlot = GLYPH_DRAGON1;
-			for (size_t i = 0; i < dragonGlyphs.size() && nDragonSlot <= GLYPH_DRAGON4; ++i)
+			if (nTargetDragonGlyphs > 0)
 			{
-				int nGlyphID = dragonGlyphs[i];
-				const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
-				if (!pItemData || !ParseJobListMatch(pItemData, pSpec))
-					continue;
-				if (pItemData->nTypeParam[1] > 0 && usedGlyphTypeParams.count(pItemData->nTypeParam[1]))
-					continue;
-				if (pItemData->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pItemData->nTypeParam[1]);
-				TItem glyphItem;
-				BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, glyphItem);
-				pBotSession->GetItem()->SetDirectGlyph(nDragonSlot++, glyphItem);
+				const std::vector<int>& dragonGlyphs = catalog.GetDragonGlyphPool();
+				int nDragonSlot = GLYPH_DRAGON1;
+				for (size_t i = 0; i < dragonGlyphs.size() && (nDragonSlot - GLYPH_DRAGON1) < nTargetDragonGlyphs && nDragonSlot <= GLYPH_DRAGON4; ++i)
+				{
+					int nGlyphID = dragonGlyphs[i];
+					const TItemData* pItemData = g_pDataManager->GetItemData(nGlyphID);
+					if (!pItemData || pItemData->cLevelLimit > nGlyphLevelCap || pItemData->cRank > nGlyphRankCap)
+						continue;
+					if (!ParseJobListMatchForTier(pItemData, pSpec, nJobTier))
+						continue;
+					if (pItemData->nTypeParam[1] > 0 && usedGlyphTypeParams.count(pItemData->nTypeParam[1]))
+						continue;
+					if (pItemData->nTypeParam[1] > 0) usedGlyphTypeParams.insert(pItemData->nTypeParam[1]);
+					TItem glyphItem;
+					BuildBotItem(nGlyphID, --serialSeq, pSpec, 0, false, glyphItem);
+					pBotSession->GetItem()->SetDirectGlyph(nDragonSlot++, glyphItem);
+					++outGlyphCount;
+				}
+			}
+#endif
+
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+			int nTargetTalismans = (!bEndgameMode && cfg.matchPlayerTalismans) ? human.nTalismanCount : (nBotLevel >= 60 ? 8 : 0);
+			if (nTargetTalismans > 0)
+			{
+				int nTaliRankCap = (!bEndgameMode && cfg.matchPlayerTalismans)
+					? min(human.nMaxTalismanRank + max(0, cfg.gearQualityOffset), cfg.maxGearRank)
+					: cfg.maxGearRank;
+
+				const std::vector<int>& taliPool = catalog.GetTalismanPool();
+				std::vector<std::pair<int, int>> rankedTalismans;
+				for (size_t i = 0; i < taliPool.size(); ++i)
+				{
+					int nTaliID = taliPool[i];
+					const TItemData* pItemData = g_pDataManager->GetItemData(nTaliID);
+					TTalismanData* pTaliData = g_pDataManager->GetTalismanData(nTaliID);
+					if (!pItemData || !pTaliData || !pItemSox || !pItemSox->IsExistItem(nTaliID))
+						continue;
+					if (pItemData->cLevelLimit > nGlyphLevelCap || pItemData->cRank > nTaliRankCap)
+						continue;
+					int nState1 = pItemSox->GetFieldFromLablePtr(nTaliID, "_State1")->GetInteger();
+					int nScore = pItemData->cLevelLimit * 100 + pItemData->cRank * 200;
+					if (nState1 == 12 || nState1 == 29 || nState1 == 3 || nState1 == 16) nScore += 80;
+					if (!bMagicClass && (nState1 == 0 || nState1 == 1 || nState1 == 4 || nState1 == 5 || nState1 == 25 || nState1 == 26)) nScore += 120;
+					if (bMagicClass && (nState1 == 2 || nState1 == 6 || nState1 == 7 || nState1 == 27 || nState1 == 28)) nScore += 120;
+					rankedTalismans.push_back(std::make_pair(nScore, nTaliID));
+				}
+				std::sort(rankedTalismans.begin(), rankedTalismans.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+					return a.first > b.first;
+				});
+
+				std::set<int> usedTaliIndices;
+				size_t nTaliCursor = 0;
+				// Fill basic slots first (TALISMAN_BASIC_START..TALISMAN_BASIC_END)
+				for (int slot = TALISMAN_BASIC_START; slot <= TALISMAN_BASIC_END && outTalismanCount < nTargetTalismans; ++slot)
+				{
+					if (!g_pDataManager->IsTalismanSlotService(slot) || !g_pDataManager->IsTalismanSlotLevel(slot, nBotLevel))
+						continue;
+					while (nTaliCursor < rankedTalismans.size())
+					{
+						int nTaliID = rankedTalismans[nTaliCursor++].second;
+						TTalismanData* pTD = g_pDataManager->GetTalismanData(nTaliID);
+						if (!pTD || (pTD->nIndex > 0 && usedTaliIndices.count(pTD->nIndex)))
+							continue;
+						if (pTD->nIndex > 0) usedTaliIndices.insert(pTD->nIndex);
+						TItem taliItem;
+						BuildBotItem(nTaliID, --serialSeq, pSpec, 0, false, taliItem);
+						pBotSession->GetItem()->SetDirectTalisman(slot, taliItem);
+						++outTalismanCount;
+						break;
+					}
+				}
 			}
 #endif
 		}
+
 		bool IsBotNameUsedInRoom(CDNGameRoom* pRoom, const WCHAR* wszCandidate)
 		{
 			if (!pRoom || !wszCandidate)
@@ -1300,15 +1792,18 @@ namespace AIBot
 					return;
 			}
 
-			// Fallback with slot suffix if somehow exhausted
 			swprintf_s(wszOut, cchOut, L"[BOT]%s%d", pPool[nStart], nBotSlotIndex + 1);
 		}
 	}
 
-	bool PopulateBotSession(CDNUserSession* pBotSession, const BotJobSpec* pSpec, int nBotSlotIndex, int nTargetLevel)
+	bool PopulateBotSession(CDNUserSession* pBotSession, const BotJobSpec* pSpec, int nBotSlotIndex, const HumanBuildProfile& humanProfile)
 	{
 		if (!pBotSession || !pSpec || !g_pDataManager)
 			return false;
+
+		const PlayerBotsConfig& cfg = PlayerBotsModule::GetActiveConfig();
+		const int nBotLevel = BotUtil::ComputeSyncedBotLevel(humanProfile.nLevel, cfg);
+		const int nJobTier = BotUtil::ResolveUnlockedJobTier(nBotLevel, cfg.unlockJobByLevel);
 
 		pBotSession->SetAIBot(true);
 		WCHAR wszBotName[NAMELENMAX] = { 0 };
@@ -1317,33 +1812,67 @@ namespace AIBot
 
 		TCharacterStatus* pStatus = pBotSession->GetStatusData();
 		pStatus->cClass = (char)pSpec->cBaseClass;
-		pStatus->cJob = pSpec->cSecondJob;
-		pStatus->cLevel = (BYTE)nTargetLevel;
-		pStatus->nExp = g_pDataManager->GetExp(pSpec->cBaseClass, (BYTE)nTargetLevel);
+		pStatus->cLevel = (BYTE)nBotLevel;
+		pStatus->nExp = g_pDataManager->GetExp(pSpec->cBaseClass, (BYTE)nBotLevel);
+
 		memset(pStatus->cJobArray, 0, sizeof(pStatus->cJobArray));
 		pStatus->cJobArray[0] = pSpec->cBaseClass;
-		pStatus->cJobArray[1] = pSpec->cFirstJob;
-		pStatus->cJobArray[2] = pSpec->cSecondJob;
+		if (nJobTier == 0)
+		{
+			pStatus->cJob = pSpec->cBaseClass;
+		}
+		else if (nJobTier == 1)
+		{
+			pStatus->cJob = pSpec->cFirstJob;
+			pStatus->cJobArray[1] = pSpec->cFirstJob;
+		}
+		else
+		{
+			pStatus->cJob = pSpec->cSecondJob;
+			pStatus->cJobArray[1] = pSpec->cFirstJob;
+			pStatus->cJobArray[2] = pSpec->cSecondJob;
+		}
+
 		pStatus->wFatigue = 0;
 		pStatus->cRebirthCoin = 0;
 
 		static LONG s_BotItemSerialCounter = 0;
 		INT64 serialSeq = -1000000LL * (nBotSlotIndex + 1) - (INT64)InterlockedIncrement(&s_BotItemSerialCounter) * 100LL;
 
+		char cEquippedMainType = pSpec->cMainWeaponType;
+		char cEquippedSubType = pSpec->cSubWeaponType;
+		int nTargetRank = 0;
+		int nTargetEnchant = 0;
+		int nSkillCount = 0;
+		int nGlyphCount = 0;
+		int nTalismanCount = 0;
+
 		PopulateBotAppearance(pBotSession, pSpec, nBotSlotIndex, serialSeq);
-		PopulateBotEquipment(pBotSession, pSpec, serialSeq);
-		PopulateBotSkillsAndGlyphs(pBotSession, pSpec, nTargetLevel, serialSeq);
+		PopulateBotEquipment(
+			pBotSession, pSpec, nBotLevel, nJobTier, humanProfile, cfg, serialSeq,
+			cEquippedMainType, cEquippedSubType, nTargetRank, nTargetEnchant);
+		PopulateBotSkillsGlyphsAndTalismans(
+			pBotSession, pSpec, nBotLevel, nJobTier, cEquippedMainType, cEquippedSubType,
+			humanProfile, cfg, serialSeq, nSkillCount, nGlyphCount, nTalismanCount);
+
+		g_Log.Log(LogType::_NORMAL,
+			L"[AIBot] Built Bot=%s Lv=%d(Human=%d) Job=%d(Tier=%d) GearRank=%d +%d Cash=%d Skills=%d Glyphs=%d Talismans=%d\n",
+			wszBotName, nBotLevel, humanProfile.nLevel, (int)pStatus->cJob, nJobTier,
+			nTargetRank, nTargetEnchant, humanProfile.bHasCashCostumes ? 1 : 0,
+			nSkillCount, nGlyphCount, nTalismanCount);
 
 		pBotSession->SetLoadingComplete(true);
 		pBotSession->SetSessionState(SESSION_STATE_READY_TO_SYNC);
 		return true;
 	}
-}
 
-#include "DNUserSession.h"
-#include "DnTableDB.h"
-#include "DnActor.h"
-#include "DnWorld.h"
+	bool PopulateBotSession(CDNUserSession* pBotSession, const BotJobSpec* pSpec, int nBotSlotIndex, int nTargetLevel)
+	{
+		HumanBuildProfile fallback;
+		fallback.nLevel = nTargetLevel;
+		return PopulateBotSession(pBotSession, pSpec, nBotSlotIndex, fallback);
+	}
+}
 
 bool CDNGameRoom::HasAIBots()
 {
@@ -1387,6 +1916,10 @@ int CDNGameRoom::ResolveTargetMapIndex( int nMapIdx, int nGateIdx, int nGateSele
 
 int CDNGameRoom::GetTargetMapAIBotCount( int nTargetMapIdx, bool bContinueStage, int nCurrentBots, TDUNGEONDIFFICULTY StageDifficulty )
 {
+	const Irine::Modules::PlayerBotsConfig& cfg = Irine::Modules::PlayerBotsModule::GetActiveConfig();
+	if( !cfg.enabled || cfg.maxBotsPerParty <= 0 )
+		return 0;
+
 	if( bIsPvPRoom() || bIsFarmRoom() || nTargetMapIdx <= 0 )
 		return 0;
 
@@ -1402,24 +1935,28 @@ int CDNGameRoom::GetTargetMapAIBotCount( int nTargetMapIdx, bool bContinueStage,
 	if( MapSubType == EWorldEnum::MapSubTypePvPVillage || MapSubType == EWorldEnum::MapSubTypePvPLobby )
 		return 0;
 
-	// Do not summon AI bots on Easy or Normal regular stages (Hero allies assist there instead).
-	// Hard/Master/Abyss stages, Nests, Dark Lair, and Chaos dungeons continue to summon AI bots.
-	if( MapSubType == EWorldEnum::MapSubTypeNone &&
+	bool bIsNest = ( MapSubType == EWorldEnum::MapSubTypeNest || MapSubType == EWorldEnum::MapSubTypeNestNormal );
+	if( bIsNest && !cfg.autoSummonInNests )
+		return 0;
+	if( !bIsNest && !cfg.autoSummonInDungeons )
+		return 0;
+
+	// Exclude Easy (0) and Normal (1) regular stages when configured
+	if( cfg.excludeEasyAndNormal && MapSubType == EWorldEnum::MapSubTypeNone &&
 		( StageDifficulty == Dungeon::Difficulty::Easy || StageDifficulty == Dungeon::Difficulty::Normal ) )
 		return 0;
 
 	int nEnterTableID = pSox->GetFieldFromLablePtr( nTargetMapIdx, "_EnterConditionTableID" )->GetInteger();
 	if( nEnterTableID <= 0 )
 	{
-		// Multi-stage sub-maps (e.g. Nest/Raid Stage 2+, Dungeon Boss rooms) omit _EnterConditionTableID; preserve squad!
 		if( bContinueStage && nCurrentBots > 0 )
-			return nCurrentBots;
+			return min( nCurrentBots, cfg.maxBotsPerParty );
 		return 0;
 	}
 
 	DNTableFileFormat* pDungeonSOX = GetDNTable( CDnTableDB::TDUNGEONENTER );
 	if( !pDungeonSOX || !pDungeonSOX->IsExistItem( nEnterTableID ) )
-		return ( bContinueStage && nCurrentBots > 0 ) ? nCurrentBots : 0;
+		return ( bContinueStage && nCurrentBots > 0 ) ? min( nCurrentBots, cfg.maxBotsPerParty ) : 0;
 
 	int nMaxParty = pDungeonSOX->GetFieldFromLablePtr( nEnterTableID, "_PartyOneNumMax" )->GetInteger();
 	if( nMaxParty == 1 || nMaxParty == 0 )
@@ -1429,32 +1966,34 @@ int CDNGameRoom::GetTargetMapAIBotCount( int nTargetMapIdx, bool bContinueStage,
 	if( nMaxParty > PARTYCOUNTMAX )
 		nMaxParty = PARTYCOUNTMAX;
 
-	// Size bot squad from the stage/nest/dungeon's recommended player count for the entered difficulty
-	// (total party = recommended count, so solo human gets recommended - 1 bots:
-	// e.g. rec 2 -> 1 bot, rec 4 -> 3 bots, rec 6 -> 5 bots, rec 8 -> 7 bots).
-	const char* szRecommendLabel = "_RecommendNightmarePartyCount";
-	switch( StageDifficulty )
+	int nTargetParty = nMaxParty;
+	if( cfg.useRecommendedPartySize )
 	{
-		case Dungeon::Difficulty::Easy:   szRecommendLabel = "_RecommendEasyPartyCount";      break;
-		case Dungeon::Difficulty::Normal: szRecommendLabel = "_RecommendNormalPartyCount";    break;
-		case Dungeon::Difficulty::Hard:   szRecommendLabel = "_RecommendHardPartyCount";      break;
-		case Dungeon::Difficulty::Master: szRecommendLabel = "_RecommendVeryHardPartyCount";  break;
-		case Dungeon::Difficulty::Abyss:  szRecommendLabel = "_RecommendNightmarePartyCount"; break;
-		default:                          szRecommendLabel = "_RecommendNightmarePartyCount"; break;
+		const char* szRecommendLabel = "_RecommendNightmarePartyCount";
+		switch( StageDifficulty )
+		{
+			case Dungeon::Difficulty::Easy:   szRecommendLabel = "_RecommendEasyPartyCount";      break;
+			case Dungeon::Difficulty::Normal: szRecommendLabel = "_RecommendNormalPartyCount";    break;
+			case Dungeon::Difficulty::Hard:   szRecommendLabel = "_RecommendHardPartyCount";      break;
+			case Dungeon::Difficulty::Master: szRecommendLabel = "_RecommendVeryHardPartyCount";  break;
+			case Dungeon::Difficulty::Abyss:  szRecommendLabel = "_RecommendNightmarePartyCount"; break;
+			default:                          szRecommendLabel = "_RecommendNightmarePartyCount"; break;
+		}
+
+		int nRecommendParty = 0;
+		if( DNTableCell* pRecCell = pDungeonSOX->GetFieldFromLablePtr( nEnterTableID, szRecommendLabel ) )
+			nRecommendParty = pRecCell->GetInteger();
+
+		if( nRecommendParty <= 0 )
+		{
+			if( DNTableCell* pNestRecCell = pDungeonSOX->GetFieldFromLablePtr( nEnterTableID, "_RecommendNightmarePartyCount" ) )
+				nRecommendParty = pNestRecCell->GetInteger();
+		}
+
+		if( nRecommendParty > 0 )
+			nTargetParty = nRecommendParty;
 	}
 
-	int nRecommendParty = 0;
-	if( DNTableCell* pRecCell = pDungeonSOX->GetFieldFromLablePtr( nEnterTableID, szRecommendLabel ) )
-		nRecommendParty = pRecCell->GetInteger();
-
-	// Nests and some special stages only populate _RecommendNightmarePartyCount (matching client UI).
-	if( nRecommendParty <= 0 )
-	{
-		if( DNTableCell* pNestRecCell = pDungeonSOX->GetFieldFromLablePtr( nEnterTableID, "_RecommendNightmarePartyCount" ) )
-			nRecommendParty = pNestRecCell->GetInteger();
-	}
-
-	int nTargetParty = ( nRecommendParty > 0 ) ? nRecommendParty : nMaxParty;
 	if( nTargetParty > nMaxParty )
 		nTargetParty = nMaxParty;
 	if( nTargetParty > PARTYCOUNTMAX )
@@ -1462,7 +2001,10 @@ int CDNGameRoom::GetTargetMapAIBotCount( int nTargetMapIdx, bool bContinueStage,
 	if( nTargetParty <= 1 )
 		return 0;
 
-	return nTargetParty - 1;
+	int nBots = nTargetParty - 1;
+	if( nBots > cfg.maxBotsPerParty )
+		nBots = cfg.maxBotsPerParty;
+	return nBots;
 }
 
 void CDNGameRoom::DespawnAndRemoveAIBots( bool bNotifyClients )
@@ -1544,10 +2086,15 @@ bool CDNGameRoom::EnsureAIBotsForMap( int nTargetMapIdx, bool bContinueStage, TD
 		return false;
 
 	int nCurrentBots = 0;
+	int nFirstBotLevel = -1;
 	for( DWORD i = 0; i < (DWORD)m_VecMember.size(); ++i )
 	{
 		if( m_VecMember[i].pSession && m_VecMember[i].pSession->bIsAIBot() )
+		{
+			if( nFirstBotLevel < 0 )
+				nFirstBotLevel = (int)m_VecMember[i].pSession->GetLevel();
 			++nCurrentBots;
+		}
 	}
 
 	int nWantedBots = GetTargetMapAIBotCount( nTargetMapIdx, bContinueStage, nCurrentBots, StageDifficulty );
@@ -1562,14 +2109,21 @@ bool CDNGameRoom::EnsureAIBotsForMap( int nTargetMapIdx, bool bContinueStage, TD
 		return false;
 	}
 
-	if( nCurrentBots == nWantedBots )
+	const Irine::Modules::PlayerBotsConfig& cfg = Irine::Modules::PlayerBotsModule::GetActiveConfig();
+	AIBot::HumanBuildProfile humanProfile;
+	AIBot::AnalyzeHumanBuildProfile( pHuman, humanProfile );
+	const int nDesiredBotLevel = Irine::Modules::BotStrategyUtil::ComputeSyncedBotLevel( humanProfile.nLevel, cfg );
+
+	// Resync existing bots on stage transitions if the player leveled up (so bots never lag behind!)
+	bool bNeedLevelResync = ( bContinueStage && cfg.resyncOnStageTransition && nFirstBotLevel > 0 && nFirstBotLevel != nDesiredBotLevel );
+	if( nCurrentBots == nWantedBots && !bNeedLevelResync )
 		return false;
 
 	if( nCurrentBots > 0 )
 		DespawnAndRemoveAIBots( bContinueStage );
 
 	std::vector<const AIBot::BotJobSpec*> vecSpecs;
-	AIBot::SelectSquadSpecs( pHuman->GetUserJob(), nWantedBots, vecSpecs );
+	AIBot::SelectSquadSpecs( pHuman->GetUserJob(), nWantedBots, nDesiredBotLevel, vecSpecs );
 
 	// Ensure human leader owns a valid party slot index so gate/ready packets stay aligned
 	int nHumanIdx = pHuman->GetPartyMemberIndex();
@@ -1594,30 +2148,30 @@ bool CDNGameRoom::EnsureAIBotsForMap( int nTargetMapIdx, bool bContinueStage, TD
 		pBotSession->SetAIBot( true );
 		pBotSession->PreInitializeUser( L"AIBot", nBotAID, nBotSID, biBotCID,
 			pHuman->GetTeam(), pHuman->GetWorldSetID(), pHuman->GetVillageID(), false, true, 0, NULL );
-		AIBot::PopulateBotSession( pBotSession, vecSpecs[k], k, 60 );
+		AIBot::PopulateBotSession( pBotSession, vecSpecs[k], k, humanProfile );
 		pBotSession->SetMapIndex( nTargetMapIdx );
 		pBotSession->SetSessionState( SESSION_STATE_READY_TO_SYNC );
 		pBotSession->SetLoadingComplete( true );
 
-		int nBotMemberIdx = GetLeftMemberIndex();
-		if( nBotMemberIdx < 0 || nBotMemberIdx >= PARTYMAX )
+		int nPartyIdx = -1;
+		for( int s = 0; s < PARTYMAX; ++s )
 		{
-			for( int s = 0; s < PARTYMAX; ++s )
+			if( m_nPartyMemberIndex[s] == 0 )
 			{
-				if( m_nPartyMemberIndex[s] == 0 )
-				{
-					nBotMemberIdx = s;
-					break;
-				}
+				m_nPartyMemberIndex[s] = nBotSID;
+				nPartyIdx = s;
+				break;
 			}
 		}
-		if( nBotMemberIdx < 0 || nBotMemberIdx >= PARTYMAX )
-			nBotMemberIdx = ( k + 1 < PARTYMAX ) ? ( k + 1 ) : ( PARTYMAX - 1 );
-		pBotSession->SetPartyMemberIndex( nBotMemberIdx );
-		m_nPartyMemberIndex[nBotMemberIdx] = nBotSID;
+		if( nPartyIdx < 0 )
+			nPartyIdx = (int)m_VecMember.size();
+		pBotSession->SetPartyMemberIndex( nPartyIdx );
 
-		AddPartyStruct( pBotSession, false );
+		PartyStruct Struct;
+		Struct.pSession = pBotSession;
+		m_VecMember.push_back( Struct );
 		m_UserList.push_back( pBotSession );
+		m_mCharDBIDMember.insert( std::make_pair( biBotCID, pBotSession ) );
 	}
 
 	m_iPartMemberCnt = (int)m_VecMember.size();

@@ -165,7 +165,10 @@ CDNUserSession::CDNUserSession(unsigned int iUID, CDNRUDPGameServer * pServer, C
 CDNUserSession::~CDNUserSession()
 {
 	for( DNVector(_STORE_PACKET)::iterator ii = m_pStoredPacketList.begin(); ii != m_pStoredPacketList.end(); ii++)
-		CLfhHeap::GetInstance()->_DeAlloc((*ii).pMsg);
+	{
+		if( (*ii).pMsg )
+			CLfhHeap::GetInstance()->_DeAlloc((*ii).pMsg);
+	}
 }
 
 const char * CDNUserSession::GetIp()
@@ -2341,7 +2344,21 @@ void CDNUserSession::SendPacket(int iMainCmd, int iSubCmd, const void * pMsg, in
 #endif		//#ifdef PRE_ADD_PACKETSIZE_CHECKER
 
 	//Except for a few things, they are sent over TCP~
-	if(m_pGameRoom->GetRoomState() == _GAME_STATE_SYNC2SYNC)
+	bool bStoreForSync = (m_pGameRoom->GetRoomState() == _GAME_STATE_SYNC2SYNC);
+	if( !bStoreForSync &&
+		m_pGameRoom->GetRoomState() == _GAME_STATE_SYNC2PLAY &&
+		!bIsBreakIntoSession() &&
+		!bIsLoadingComplete() &&
+		GetState() != SESSION_STATE_READY_TO_PLAY &&
+		iMainCmd != SC_SYSTEM )
+	{
+		// Keep packets queued until this client finishes stage loading and sends CS_SYNC_WAIT.
+		// Otherwise an earlier-ready member (e.g. AI bot or faster party mate) broadcasting
+		// SC_SYNC_WAIT flushes packets prematurely while this client is still on the previous stage.
+		bStoreForSync = true;
+	}
+
+	if( bStoreForSync )
 		StorePacket(iMainCmd, iSubCmd, (char*)pMsg, iLen);
 	else
 	{
@@ -3569,15 +3586,19 @@ void CDNUserSession::FlushPacketQueue( int nPrior )
 
 void CDNUserSession::FlushStoredPacket()
 {
-	ScopeLock<CSyncLock> Lock( m_StoreSync );
+	DNVector(_STORE_PACKET) StoredPackets;
+	{
+		ScopeLock<CSyncLock> Lock( m_StoreSync );
+		StoredPackets.swap( m_pStoredPacketList );
+	}
 
 	DNVector(_STORE_PACKET)::iterator ii;
-	for(ii = m_pStoredPacketList.begin(); ii != m_pStoredPacketList.end(); ii++)
+	for(ii = StoredPackets.begin(); ii != StoredPackets.end(); ii++)
 	{
 		SendPacket((*ii).iMainCmd, (*ii).iSubCmd, (*ii).pMsg, (*ii).iSize, _RELIABLE);
-		CLfhHeap::GetInstance()->_DeAlloc((*ii).pMsg);
+		if( (*ii).pMsg )
+			CLfhHeap::GetInstance()->_DeAlloc((*ii).pMsg);
 	}
-	m_pStoredPacketList.clear();
 }
 
 void CDNUserSession::StorePacket(int iMainCmd, int iSubCmd, const char * pData, int nLen)
@@ -3588,8 +3609,15 @@ void CDNUserSession::StorePacket(int iMainCmd, int iSubCmd, const char * pData, 
 	Store.iMainCmd = iMainCmd;
 	Store.iSubCmd = iSubCmd;
 	Store.iSize = nLen;
-	Store.pMsg = static_cast<char*>(CLfhHeap::GetInstance()->_Alloc(nLen));
-	memcpy(Store.pMsg, pData, nLen);
+	if( nLen > 0 && pData )
+	{
+		Store.pMsg = static_cast<char*>(CLfhHeap::GetInstance()->_Alloc(nLen));
+		memcpy(Store.pMsg, pData, nLen);
+	}
+	else
+	{
+		Store.pMsg = NULL;
+	}
 
 	m_pStoredPacketList.push_back(Store);
 }

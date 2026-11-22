@@ -2562,8 +2562,39 @@ void CDNUserItem::SetTalismanExpireDate(bool bOpenFlag, __time64_t tExpireDate)
 		m_tCashTalismanExpireDate = 0;
 	}
 
-	if (m_pSession)
+	if (m_pSession) {
 		m_pSession->SendTalismanExpireData(m_bCashTalismanOpen, m_tCashTalismanExpireDate);
+#if defined(_GAMESERVER)
+		if (m_pSession->GetActorHandle() && m_pSession->GetGameRoom()) {
+			CDnPlayerActor *pPlayer = static_cast<CDnPlayerActor*>(m_pSession->GetActorHandle().GetPointer());
+			CDnItemTask *pItemTask = static_cast<CDnItemTask*>(m_pSession->GetGameRoom()->GetTaskMng()->GetTask("ItemTask"));
+			if (pPlayer && pItemTask) {
+				__time64_t CurTime = 0;
+				_time64(&CurTime);
+				for (int j = TALISMAN_CASH1; j <= TALISMAN_CASH_MAX; ++j) {
+					if (m_bCashTalismanOpen) {
+						CDnItem *pItem = pItemTask->GetTalismanItem(m_pSession, j);
+						const TItem *pTalismanData = GetTalisman(j);
+						if (pItem && pTalismanData && pItem->GetItemType() == ITEMTYPE_TALISMAN &&
+							g_pDataManager->IsTalismanSlotLevel(j, m_pSession->GetLevel()) &&
+							(pTalismanData->bEternity || pTalismanData->tExpireDate > CurTime))
+						{
+							pPlayer->AttachTalisman(((CDnTalisman*)pItem)->GetMySmartPtr(), j, g_pDataManager->GetTalismanSlotEfficiency(j));
+							BroadcastChangeTalisman(j, *pTalismanData);
+						}
+					}
+					else {
+						pPlayer->DetachTalisman(j);
+						TItem EmptyItem;
+						memset(&EmptyItem, 0, sizeof(EmptyItem));
+						BroadcastChangeTalisman(j, EmptyItem);
+					}
+				}
+				pPlayer->RefreshState();
+			}
+		}
+#endif	// #if defined(_GAMESERVER)
+	}
 }
 
 void CDNUserItem::BroadcastChangeTalisman(int nSlotIndex, const TItem &TalismanItem)
@@ -5120,12 +5151,44 @@ int CDNUserItem::_FromTalismanToInven(const CSMoveItem *pMove)
 	int nOverlapCount = g_pDataManager->GetItemOverlapCount(pTalisman->nItemID);
 	if (nOverlapCount != 1) return ERROR_ITEM_FAIL;
 
-	if (GetInventory(pMove->cDestIndex) != NULL) return ERROR_ITEM_FAIL;
-
 	if (!g_pDataManager->IsTalismanSlotService(pMove->cSrcIndex))
 		return ERROR_TALISMAN_SLOT_NOT_SERVICE;
 	if (!IsTalismanSlotOpen(pMove->cSrcIndex))
 		return ERROR_TALISMAN_SLOT_NOT_OPEND;
+
+	// Support swapping directly with an inventory talisman (matching client drag-drop behavior)
+	const TItem *pDestInven = GetInventory(pMove->cDestIndex);
+	if (pDestInven != NULL) {
+		if (!IsTalismanItem(pDestInven->nItemID))
+			return ERROR_ITEM_EQUIPMISMATCH;
+		if (g_pDataManager->GetItemOverlapCount(pDestInven->nItemID) != 1)
+			return ERROR_ITEM_FAIL;
+		int nEquipRet = IsEquipEnableItem(*pDestInven);
+		if (nEquipRet != ERROR_NONE)
+			return nEquipRet;
+		if (g_pDataManager->GetItemLevelLimit(pDestInven->nItemID) > m_pSession->GetLevel())
+			return ERROR_TALISMAN_LIMITLEVEL;
+		if (!g_pDataManager->IsTalismanSlotLevel(pMove->cSrcIndex, m_pSession->GetLevel()))
+			return ERROR_TALISMAN_SLOT_LIMITLEVEL;
+
+		const TItemData *pNewTalismanData = g_pDataManager->GetItemData(pDestInven->nItemID);
+		if (!pNewTalismanData)
+			return ERROR_TALISMAN_EQUIP_FAIL;
+		for (int i = 0; i < TALISMAN_MAX; ++i) {
+			if (i == pMove->cSrcIndex || m_Talisman[i].nItemID <= 0)
+				continue;
+			const TItemData *pEquippedData = g_pDataManager->GetItemData(m_Talisman[i].nItemID);
+			if (!pEquippedData)
+				return ERROR_TALISMAN_EQUIP_FAIL;
+			if (pNewTalismanData->nTypeParam[1] > 0) {
+				if (pNewTalismanData->nTypeParam[1] == pEquippedData->nTypeParam[1])
+					return ERROR_TALISMAN_DUPLICATE;
+			}
+			else if (m_Talisman[i].nItemID == pDestInven->nItemID) {
+				return ERROR_TALISMAN_DUPLICATE;
+			}
+		}
+	}
 
 	TPlayerCommonLevelTableInfo *pLevelTable = g_pDataManager->GetPlayerCommonLevelTable(m_pSession->GetLevel());
 	int nCharge = pLevelTable ? pLevelTable->nTalismanCost : 0;
@@ -5135,21 +5198,36 @@ int CDNUserItem::_FromTalismanToInven(const CSMoveItem *pMove)
 		m_pSession->DelCoin(nCharge, DBDNWorldDef::CoinChangeCode::TalismanSlotChange, pMove->cSrcIndex, true);
 	}
 
-	if (m_pSession->GetDBConnection()) {
-		char cInventoryLocationCode = DBDNWorldDef::ItemLocation::Inventory;
+	char cInventoryLocationCode = DBDNWorldDef::ItemLocation::Inventory;
 #if defined(PRE_PERIOD_INVENTORY)
-		if (_CheckRangePeriodInventoryIndex(pMove->cDestIndex))
-			cInventoryLocationCode = DBDNWorldDef::ItemLocation::PeriodInventory;
+	if (_CheckRangePeriodInventoryIndex(pMove->cDestIndex))
+		cInventoryLocationCode = DBDNWorldDef::ItemLocation::PeriodInventory;
 #endif
-		if (m_Talisman[pMove->cSrcIndex].nItemID > 0) {
+
+	if (m_pSession->GetDBConnection()) {
+		if (pDestInven != NULL) {
+			m_pSession->GetDBConnection()->QuerySwitchItemLocation(m_pSession,
+				DBDNWorldDef::ItemLocation::Talisman, pMove->cSrcIndex, m_Inventory[pMove->cDestIndex].nSerial,
+				cInventoryLocationCode, pMove->cDestIndex, m_Talisman[pMove->cSrcIndex].nSerial);
+		}
+		else if (m_Talisman[pMove->cSrcIndex].nItemID > 0) {
 			m_pSession->GetDBConnection()->QueryChangeItemLocation(m_pSession, m_Talisman[pMove->cSrcIndex].nSerial, 0, m_Talisman[pMove->cSrcIndex].nItemID,
 				cInventoryLocationCode, pMove->cDestIndex, m_Talisman[pMove->cSrcIndex].wCount, false, 0, false);
 		}
 	}
 
-	TItem TalismanItem = *pTalisman;
-	_PopTalismanSlot(pMove->cSrcIndex, pMove->wCount, true);
-	_PushInventorySlotItem(pMove->cDestIndex, TalismanItem);
+	if (pDestInven != NULL) {
+		TItem TalismanItem = m_Talisman[pMove->cSrcIndex];
+		m_Talisman[pMove->cSrcIndex] = m_Inventory[pMove->cDestIndex];
+		m_Inventory[pMove->cDestIndex] = TalismanItem;
+		_UpdateInventoryCoolTime(pMove->cDestIndex);
+		BroadcastChangeTalisman(pMove->cSrcIndex, m_Talisman[pMove->cSrcIndex]);
+	}
+	else {
+		TItem TalismanItem = *pTalisman;
+		_PopTalismanSlot(pMove->cSrcIndex, pMove->wCount, true);
+		_PushInventorySlotItem(pMove->cDestIndex, TalismanItem);
+	}
 
 	m_pSession->SendMoveItem(pMove->cMoveType, pMove->cSrcIndex, pMove->cDestIndex, &m_Talisman[pMove->cSrcIndex], &m_Inventory[pMove->cDestIndex], ERROR_NONE);
 	return ERROR_NONE;
@@ -5171,6 +5249,9 @@ int CDNUserItem::_FromInvenToTalisman(const CSMoveItem *pMove)
 
 	if (!IsTalismanItem(pInven->nItemID))
 		return ERROR_ITEM_EQUIPMISMATCH;
+	nRet = IsEquipEnableItem(*pInven);
+	if (nRet != ERROR_NONE)
+		return nRet;
 	if (g_pDataManager->GetItemLevelLimit(pInven->nItemID) > m_pSession->GetLevel())
 		return ERROR_TALISMAN_LIMITLEVEL;
 	if (!g_pDataManager->IsTalismanSlotService(pMove->cDestIndex))
@@ -5179,14 +5260,15 @@ int CDNUserItem::_FromInvenToTalisman(const CSMoveItem *pMove)
 		return ERROR_TALISMAN_SLOT_LIMITLEVEL;
 	if (!IsTalismanSlotOpen(pMove->cDestIndex))
 		return ERROR_TALISMAN_SLOT_NOT_OPEND;
-	if (m_Talisman[pMove->cDestIndex].nItemID > 0)
-		return ERROR_TALISMAN_EQUIP_FAIL;
 
 	const TItemData *pTalismanItem = g_pDataManager->GetItemData(pInven->nItemID);
 	if (!pTalismanItem)
 		return ERROR_TALISMAN_EQUIP_FAIL;
 
+	bool bSwappingExisting = (m_Talisman[pMove->cDestIndex].nItemID > 0);
 	for (int i = 0; i < TALISMAN_MAX; ++i) {
+		if (bSwappingExisting && i == pMove->cDestIndex)
+			continue;
 		if (m_Talisman[i].nItemID <= 0)
 			continue;
 
@@ -5203,15 +5285,37 @@ int CDNUserItem::_FromInvenToTalisman(const CSMoveItem *pMove)
 		}
 	}
 
+	// Replacing an occupied talisman slot incurs the relocation fee (same as unequipping the displaced talisman)
+	if (bSwappingExisting) {
+		TPlayerCommonLevelTableInfo *pLevelTable = g_pDataManager->GetPlayerCommonLevelTable(m_pSession->GetLevel());
+		int nCharge = pLevelTable ? pLevelTable->nTalismanCost : 0;
+		if (nCharge > 0) {
+			if (!m_pSession->CheckEnoughCoin(nCharge))
+				return ERROR_ITEM_INSUFFICIENCY_MONEY;
+			m_pSession->DelCoin(nCharge, DBDNWorldDef::CoinChangeCode::TalismanSlotChange, pMove->cDestIndex, true);
+		}
+	}
+
+	char cInventoryLocationCode = DBDNWorldDef::ItemLocation::Inventory;
+#if defined(PRE_PERIOD_INVENTORY)
+	if (_CheckRangePeriodInventoryIndex(pMove->cSrcIndex))
+		cInventoryLocationCode = DBDNWorldDef::ItemLocation::PeriodInventory;
+#endif
+
 	if (m_pSession->GetDBConnection()) {
-		if (m_Inventory[pMove->cSrcIndex].nItemID > 0) {
+		if (bSwappingExisting) {
+			m_pSession->GetDBConnection()->QuerySwitchItemLocation(m_pSession,
+				cInventoryLocationCode, pMove->cSrcIndex, m_Talisman[pMove->cDestIndex].nSerial,
+				DBDNWorldDef::ItemLocation::Talisman, pMove->cDestIndex, m_Inventory[pMove->cSrcIndex].nSerial);
+		}
+		else if (m_Inventory[pMove->cSrcIndex].nItemID > 0) {
 			m_pSession->GetDBConnection()->QueryChangeItemLocation(m_pSession, m_Inventory[pMove->cSrcIndex].nSerial, 0, m_Inventory[pMove->cSrcIndex].nItemID,
 				DBDNWorldDef::ItemLocation::Talisman, pMove->cDestIndex, m_Inventory[pMove->cSrcIndex].wCount, false, 0, false);
 		}
 	}
 
 	TItem Inven = m_Inventory[pMove->cSrcIndex];
-	memset(&m_Inventory[pMove->cSrcIndex], 0, sizeof(TItem));
+	m_Inventory[pMove->cSrcIndex] = m_Talisman[pMove->cDestIndex];
 	_UpdateInventoryCoolTime(pMove->cSrcIndex);
 
 	m_Talisman[pMove->cDestIndex] = Inven;
@@ -10849,14 +10953,20 @@ void CDNUserItem::GetEquipList(char &cCount, char &cCashCount, char &cGlyphCount
 	}
 
 #if defined(PRE_ADD_TALISMAN_SYSTEM)
-	// Talisman
+	// Talisman (omit inactive cash slots & expired timed talismans so inspecting players never see stale stats)
 	cTalismanCount = 0;
-	for (int i = 0; i < TALISMAN_MAX; i++){
-		if (m_Talisman[i].nItemID <= 0) continue;
-		pInfo->cSlotIndex = i;
-		pInfo->Item = m_Talisman[i];
-		cTalismanCount++;
-		pInfo++;
+	{
+		__time64_t CurTime = 0;
+		_time64(&CurTime);
+		for (int i = 0; i < TALISMAN_MAX; i++){
+			if (m_Talisman[i].nItemID <= 0) continue;
+			if (_CheckRangeCashTalismanIndex(i) && !m_bCashTalismanOpen) continue;
+			if (!m_Talisman[i].bEternity && m_Talisman[i].tExpireDate <= CurTime) continue;
+			pInfo->cSlotIndex = i;
+			pInfo->Item = m_Talisman[i];
+			cTalismanCount++;
+			pInfo++;
+		}
 	}
 #endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 }

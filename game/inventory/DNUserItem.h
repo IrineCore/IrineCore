@@ -441,6 +441,7 @@ public:
 	void SetDirectGlyph(int nIndex, const TItem& Item) { if (nIndex >= 0 && nIndex < GLYPHMAX) m_Glyph[nIndex] = Item; }
 #if defined(PRE_ADD_TALISMAN_SYSTEM)
 	const TItem *GetTalisman(int nIndex) const;
+	void SetDirectTalisman(int nIndex, const TItem& Item) { if (nIndex >= 0 && nIndex < TALISMAN_MAX) m_Talisman[nIndex] = Item; }
 #endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
 	const TItem* GetInventory(int nIndex) const;	// m_pItemGroup->Inventory[cIndex].Item
 	const TItem* GetWarehouse(int nIndex) const;	// m_pItemGroup->Warehouse[cIndex].Item

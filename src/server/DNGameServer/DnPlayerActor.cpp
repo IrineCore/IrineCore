@@ -3357,6 +3357,8 @@ void CDnPlayerActor::OnHitSuccess( LOCAL_TIME LocalTime, DnActorHandle hActor, H
 #ifdef IRINE_MOD_PLAYER_BOTS
 	if( m_pAIBotController && hActor )
 		m_pAIBotController->OnAttackHitTarget( hActor, false );
+	else if( !IsAIBotActor() && hActor && hActor->IsMonsterActor() && GetGameRoom() && GetGameRoom()->HasAIBots() )
+		CDnAIBotController::ObserveHumanAttackTarget( GetGameRoom(), hActor );
 #endif
 
 	if( hActor && hActor->IsHit() && pStruct->szTargetHitAction != NULL )
@@ -3392,6 +3394,8 @@ void CDnPlayerActor::OnHitProjectile( LOCAL_TIME LocalTime, DnActorHandle hHitte
 #ifdef IRINE_MOD_PLAYER_BOTS
 	if( m_pAIBotController && hHittedTarget )
 		m_pAIBotController->OnAttackHitTarget( hHittedTarget, true );
+	else if( !IsAIBotActor() && hHittedTarget && hHittedTarget->IsMonsterActor() && GetGameRoom() && GetGameRoom()->HasAIBots() )
+		CDnAIBotController::ObserveHumanAttackTarget( GetGameRoom(), hHittedTarget );
 #endif
 }
 

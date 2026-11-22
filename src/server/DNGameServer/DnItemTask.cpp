@@ -1683,23 +1683,34 @@ void CDnItemTask::PickUpItem( DnActorHandle hActor, DnDropItemHandle hDropItem, 
 					)
 					continue;
 
-				int nDropCoin = 0;
-				if( hActor == pPlayer ) {
-					nDropCoin = nCoin + nDivide;
-					if (!pPlayer->GetUserSession()->CheckMaxCoin(nCoin + nDivide)){
-						pPlayer->GetUserSession()->SendPickUp(ERROR_ITEM_OVERFLOWMONEY, -1, NULL, 0);
-						continue;
+				int nDropCoin = ( hActor == pPlayer ) ? ( nCoin + nDivide ) : nCoin;
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+				if( nDropCoin > 0 ) {
+					float fDropGoldBonus = 0.0f;
+					__time64_t tNow = 0;
+					_time64( &tNow );
+					for( int t = 0; t < TALISMAN_MAX; ++t ) {
+						DnTalismanHandle hTal = pPlayer->GetTalisman( t );
+						if( !hTal || hTal->GetTalismanType() != CDnTalisman::Drop )
+							continue;
+						if( !pUserSession->GetItem()->IsTalismanSlotOpen( t ) )
+							continue;
+						const TItem *pTalData = pUserSession->GetItem()->GetTalisman( t );
+						if( pTalData && !pTalData->bEternity && pTalData->tExpireDate <= tNow )
+							continue;
+						float fExp = hTal->GetExpectation() * hTal->GetEfficiency();
+						if( fExp > 0.0f )
+							fDropGoldBonus += fExp;
 					}
-					pPlayer->CmdAddCoin( nCoin + nDivide, DBDNWorldDef::CoinChangeCode::PickUp, 0, true );
+					if( fDropGoldBonus > 0.0f )
+						nDropCoin += static_cast<int>( nDropCoin * fDropGoldBonus );
 				}
-				else {
-					if (!pPlayer->GetUserSession()->CheckMaxCoin(nCoin)){
-						pPlayer->GetUserSession()->SendPickUp(ERROR_ITEM_OVERFLOWMONEY, -1, NULL, 0);
-						continue;
-					}
-
-					pPlayer->CmdAddCoin( nCoin, DBDNWorldDef::CoinChangeCode::PickUp, 0, true );
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
+				if (!pPlayer->GetUserSession()->CheckMaxCoin(nDropCoin)){
+					pPlayer->GetUserSession()->SendPickUp(ERROR_ITEM_OVERFLOWMONEY, -1, NULL, 0);
+					continue;
 				}
+				pPlayer->CmdAddCoin( nDropCoin, DBDNWorldDef::CoinChangeCode::PickUp, 0, true );
 			}
 		}
 		hDropItem->Send( CDnDropItem::DPT_PICKUP, NULL );

@@ -1354,6 +1354,62 @@ void CDNUserSendManager::SendGlyphEquipData( const std::vector<TPartyMemberGlyph
 #endif		//#ifdef PRE_MOD_SYNCPACKET
 }
 
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+void CDNUserSendManager::SendTalismanEquipData( const std::vector<TPartyMemberTalismanEquip>& vTalismanEquip )
+{
+	SCTalismanEquipData TxPacket;
+	memset( &TxPacket, 0, sizeof(TxPacket) );
+
+#ifdef PRE_MOD_SYNCPACKET
+	UINT uiSendCount = 0;
+	for( UINT i=0 ; i<vTalismanEquip.size() ; ++i )
+	{
+		TxPacket.MemberEquip[i - uiSendCount] = vTalismanEquip[i];
+
+		if( (i + 1) % _countof(TxPacket.MemberEquip) == 0 )
+		{
+			TxPacket.cCount = _countof(TxPacket.MemberEquip);
+			m_pSession->AddSendData( SC_PARTY, eParty::SC_TALISMANDATA, reinterpret_cast<char*>(&TxPacket), sizeof(TxPacket) );
+			uiSendCount += _countof(TxPacket.MemberEquip);
+		}
+	}
+
+	if( uiSendCount < vTalismanEquip.size() )
+	{
+		TxPacket.cCount = static_cast<BYTE>(vTalismanEquip.size() - uiSendCount);
+		int iSize = static_cast<int>(sizeof(TxPacket) - sizeof(TxPacket.MemberEquip) + TxPacket.cCount * sizeof(TPartyMemberTalismanEquip));
+		m_pSession->AddSendData( SC_PARTY, eParty::SC_TALISMANDATA, reinterpret_cast<char*>(&TxPacket), iSize );
+	}
+#else
+	UINT uiSendCount = 0;
+	int iOffset = sizeof(TxPacket) - sizeof(TxPacket.MemberEquip);
+
+	for( UINT i=0 ; i<vTalismanEquip.size() ; ++i )
+	{
+		int iSize = ( vTalismanEquip[i].cCount * sizeof(TItemInfo) ) + sizeof(char);
+		memcpy( reinterpret_cast<char*>(&TxPacket) + iOffset, &vTalismanEquip[i], iSize );
+		iOffset += iSize;
+
+		if( (i + 1) % _countof(TxPacket.MemberEquip) == 0 )
+		{
+			TxPacket.cCount = _countof(TxPacket.MemberEquip);
+			TxPacket.unStartIndex = uiSendCount;
+			m_pSession->AddSendData( SC_PARTY, eParty::SC_TALISMANDATA, reinterpret_cast<char*>(&TxPacket), iOffset );
+			uiSendCount += _countof(TxPacket.MemberEquip);
+			iOffset = sizeof(TxPacket) - sizeof(TxPacket.MemberEquip);
+		}
+	}
+
+	if( uiSendCount < vTalismanEquip.size() )
+	{
+		TxPacket.cCount = static_cast<BYTE>(vTalismanEquip.size() - uiSendCount);
+		TxPacket.unStartIndex = uiSendCount;
+		m_pSession->AddSendData( SC_PARTY, eParty::SC_TALISMANDATA, reinterpret_cast<char*>(&TxPacket), iOffset );
+	}
+#endif
+}
+#endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
+
 
 #ifdef PRE_MOD_SYNCPACKET
 void CDNUserSendManager::SendVehicleEquipData( const std::vector<TPartyVehicle>& vVehicle )

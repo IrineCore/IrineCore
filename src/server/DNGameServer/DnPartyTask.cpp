@@ -155,13 +155,13 @@ int CDnPartyTask::OnRecvRoomSyncWait( CDNUserSession *pSession, CSSyncWait *pPac
 		return ERROR_NONE;
 	}
 	
+	int iPrevState = pSession->GetState();
+	pSession->SetSessionState(SESSION_STATE_READY_TO_PLAY);
+
 	pSession->FlushStoredPacket();
 	pSession->FlushPacketQueue();
 	for( DWORD i=0; i<GetUserCount(); i++ )
 		SendGameSyncWait( GetUserData(i), pSession->GetSessionID() );
-
-	int iPrevState = pSession->GetState();
-	pSession->SetSessionState(SESSION_STATE_READY_TO_PLAY);
 
 #ifdef _DEBUG
 	g_Log.Log(LogType::_NORMAL, pSession, L"on PT_GAME_SYNC_WAIT[2] : %s RoomState:%d SessionState=%d\n", pSession->GetCharacterName(), GetRoom()->GetRoomState(), iPrevState );

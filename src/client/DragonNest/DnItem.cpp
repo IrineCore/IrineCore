@@ -1199,7 +1199,11 @@ int CDnItem::GetOptionTableID(int nItemTableID, char cOptionIndex)
 
 void CDnItem::InitializeOption()
 {
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+	if (m_ItemType != ITEMTYPE_WEAPON && m_ItemType != ITEMTYPE_PARTS && m_ItemType != ITEMTYPE_GLYPH && m_ItemType != ITEMTYPE_TALISMAN) return;
+#else
 	if (m_ItemType != ITEMTYPE_WEAPON && m_ItemType != ITEMTYPE_PARTS && m_ItemType != ITEMTYPE_GLYPH) return;
+#endif
 
 #ifdef PRE_MOD_GACHA_SYSTEM
 	DNTableFileFormat* pItemSox = GetDNTable(CDnTableDB::TITEM);

@@ -697,6 +697,9 @@ namespace eParty {
 #if defined(PRE_MOD_REQ_JOIN_PARTY_ANSWER_MSG_APP)
 		SC_PARTYINFO,
 #endif
+#if defined(PRE_ADD_TALISMAN_SYSTEM)
+		SC_TALISMANDATA,
+#endif
 	};
 };
 

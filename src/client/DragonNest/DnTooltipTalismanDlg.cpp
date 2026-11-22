@@ -5,6 +5,7 @@
 #include "DnTooltipTalismanDlg.h"
 #include "DnTableDB.h"
 #include "DnInterfaceString.h"
+#include "DnItem.h"
 
 #ifdef _DEBUG
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
@@ -64,33 +65,44 @@ void CDnTooltipTalismanDlg::SetTalismanSlot( int nTableRowID, bool bCashSlot )
 	swprintf_s( wszStr, _countof(wszStr), L"%s", GetEtUIXML().GetUIString( CEtUIXML::idCategory1, nDescID ) );
 	m_pTextBox->AddText( wszStr, textcolor::ORANGE );
 
-	// Required Level (UIString 8347)
-	swprintf_s( wszStr, _countof(wszStr), L"%s", GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8347 ) );
+	// Required Level (UIString 8347: "Min Level: %d")
+	const wchar_t *wszLvFmt = GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8347 );
+	if( wcsstr( wszLvFmt, L"%d" ) )
+		swprintf_s( wszStr, _countof(wszStr), wszLvFmt, nLevel );
+	else
+		swprintf_s( wszStr, _countof(wszStr), L"%s %d", wszLvFmt, nLevel );
 	m_pTextBox->AddText( wszStr, textcolor::TOMATO );
-	swprintf_s( wszStr, _countof(wszStr), L" %d", nLevel );
-	m_pTextBox->AppendText( wszStr, textcolor::WHITE );
 
-	// Required Gold (UIString 8348, format 8370)
-	swprintf_s( wszStr, _countof(wszStr), L"%s", GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8348 ) );
-	m_pTextBox->AddText( wszStr, textcolor::TOMATO );
+	// Required Gold (UIString 8348: "Cost: %d Gold %d Silver %d Copper")
 	int nGold = nAmount / 10000;
 	int nSilver = ( nAmount % 10000 ) / 100;
 	int nCopper = nAmount % 100;
-	swprintf_s( wszStr, _countof(wszStr), GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8370 ), nGold, nSilver, nCopper );
-	m_pTextBox->AppendText( wszStr, textcolor::WHITE );
-
-	// Required Item (UIString 8349; None = UIString 93)
-	swprintf_s( wszStr, _countof(wszStr), L"%s", GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8349 ) );
-	m_pTextBox->AddText( wszStr, textcolor::TOMATO );
-	if( nNeedItemID < 1 )
+	const wchar_t *wszCostFmt = GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8348 );
+	if( wcsstr( wszCostFmt, L"%d" ) )
 	{
-		swprintf_s( wszStr, _countof(wszStr), L" %s", GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 93 ) );
+		swprintf_s( wszStr, _countof(wszStr), wszCostFmt, nGold, nSilver, nCopper );
+		m_pTextBox->AddText( wszStr, textcolor::TOMATO );
 	}
 	else
 	{
-		swprintf_s( wszStr, _countof(wszStr), L" %s", GetEtUIXML().GetUIString( CEtUIXML::idCategory1, nNeedItemID ) );
+		m_pTextBox->AddText( wszCostFmt, textcolor::TOMATO );
+		swprintf_s( wszStr, _countof(wszStr), GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8370 ), nGold, nSilver, nCopper );
+		m_pTextBox->AppendText( wszStr, textcolor::WHITE );
 	}
-	m_pTextBox->AppendText( wszStr, textcolor::WHITE );
+
+	// Required Item (UIString 8349: "Required Item: %s"; None = UIString 93)
+	std::wstring wszItemName;
+	if( nNeedItemID < 1 )
+		wszItemName = GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 93 );
+	else
+		wszItemName = CDnItem::GetItemFullName( nNeedItemID );
+
+	const wchar_t *wszItemFmt = GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8349 );
+	if( wcsstr( wszItemFmt, L"%s" ) )
+		swprintf_s( wszStr, _countof(wszStr), wszItemFmt, wszItemName.c_str() );
+	else
+		swprintf_s( wszStr, _countof(wszStr), L"%s %s", wszItemFmt, wszItemName.c_str() );
+	m_pTextBox->AddText( wszStr, textcolor::TOMATO );
 }
 
 void CDnTooltipTalismanDlg::AdjustPosition()

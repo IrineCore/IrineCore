@@ -59,6 +59,9 @@
 #ifdef PRE_ADD_DOORS
 #include "DNFriend.h"
 #endif		//#ifdef PRE_ADD_DOORS
+#ifdef IRINE_MOD_PLAYER_BOTS
+#include "DnAIBotController.h"
+#endif
 
 #define DCS_ClearResultStay_Delay 8.f
 #define DCS_SelectRewardItemStay_Delay 5.f
@@ -1297,16 +1300,23 @@ bool CDnGameTask::OnInitializePlayerActor( CDNUserSession* pSession, const int i
 
 #if defined(PRE_ADD_TALISMAN_SYSTEM)
 	// Talisman Item
-	for( int j=0; j<TALISMAN_MAX; j++ ) {
-		CDnItem *pItem = CDnItemTask::GetInstance(GetRoom()).GetTalismanItem( pSession, j );
-		if( !pItem ) continue;
-		if( pItem->GetItemType() == ITEMTYPE_TALISMAN ) {
-			if( !pSession->GetItem()->IsTalismanSlotOpen(j) )
-				continue;
-			if( !g_pDataManager->IsTalismanSlotLevel(j, pSession->GetLevel()) )
-				continue;
-			DnTalismanHandle hTalisman = ((CDnTalisman*)pItem)->GetMySmartPtr();
-			pActor->AttachTalisman( hTalisman, j, g_pDataManager->GetTalismanSlotEfficiency(j) );
+	{
+		__time64_t tCurTime = 0;
+		_time64( &tCurTime );
+		for( int j=0; j<TALISMAN_MAX; j++ ) {
+			CDnItem *pItem = CDnItemTask::GetInstance(GetRoom()).GetTalismanItem( pSession, j );
+			if( !pItem ) continue;
+			if( pItem->GetItemType() == ITEMTYPE_TALISMAN ) {
+				if( !pSession->GetItem()->IsTalismanSlotOpen(j) )
+					continue;
+				if( !g_pDataManager->IsTalismanSlotLevel(j, pSession->GetLevel()) )
+					continue;
+				const TItem *pTalismanData = pSession->GetItem()->GetTalisman( j );
+				if( pTalismanData && !pTalismanData->bEternity && pTalismanData->tExpireDate <= tCurTime )
+					continue;
+				DnTalismanHandle hTalisman = ((CDnTalisman*)pItem)->GetMySmartPtr();
+				pActor->AttachTalisman( hTalisman, j, g_pDataManager->GetTalismanSlotEfficiency(j) );
+			}
 		}
 	}
 #endif	// #if defined(PRE_ADD_TALISMAN_SYSTEM)
@@ -4630,6 +4640,14 @@ int CDnGameTask::OnRecvChatChatMsg( CDNUserSession * pSession, CSChat *pPacket, 
 
 				pStruct->pSession->SendChat(pPacket->eType, pPacket->nLen, pSession->GetCharacterName(), wszChatMsg);
 			}
+#ifdef IRINE_MOD_PLAYER_BOTS
+			if( !pSession->bIsAIBot() && GetRoom() && GetRoom()->HasAIBots() &&
+				( pPacket->eType == CHATTYPE_PARTY || pPacket->eType == CHATTYPE_PARTY_GM ||
+				  pPacket->eType == CHATTYPE_NORMAL || pPacket->eType == CHATTYPE_GM ) )
+			{
+				CDnAIBotController::HandlePartyChatCommand( GetRoom(), pSession, wszChatMsg );
+			}
+#endif
 			break;
 		}
 

@@ -133,15 +133,12 @@ void CDnCharTalismanListDlg::InitTalismanSlot()
 		if( !bExist ) info.pStaticSlot = NULL;
 		if( info.pStaticSlot )
 		{
-			info.pStaticSlot->Show( info.bService );
-			if( info.bService )
-			{
-				SUICoord slotCoord;
-				info.pStaticSlot->GetUICoord( slotCoord );
-				float fSlotBottom = slotCoord.Bottom() + TALISMAN_LIST_TOP_PADDING;
-				if( fSlotBottom > m_fContentHeight )
-					m_fContentHeight = fSlotBottom;
-			}
+			info.pStaticSlot->Show( true );
+			SUICoord slotCoord;
+			info.pStaticSlot->GetUICoord( slotCoord );
+			float fSlotBottom = slotCoord.Bottom() + TALISMAN_LIST_TOP_PADDING;
+			if( fSlotBottom > m_fContentHeight )
+				m_fContentHeight = fSlotBottom;
 		}
 
 		bExist = false;
@@ -152,7 +149,7 @@ void CDnCharTalismanListDlg::InitTalismanSlot()
 		{
 			info.pSlotButton->SetSlotIndex( i );
 			info.pSlotButton->SetSlotType( ( i <= TALISMAN_CASH_MAX ) ? ST_TALISMAN_CASH : ST_TALISMAN );
-			info.pSlotButton->Show( info.bService );
+			info.pSlotButton->Show( true );
 		}
 
 		bExist = false;
@@ -173,7 +170,7 @@ void CDnCharTalismanListDlg::InitTalismanSlot()
 		if( !bExist ) info.pStaticCover = NULL;
 		if( info.pStaticCover )
 		{
-			info.pStaticCover->Show( info.bService && info.nSlotType == TALISMAN_EXPANSION );
+			info.pStaticCover->Show( info.nSlotType == TALISMAN_EXPANSION );
 			info.pStaticCover->Enable( info.pStaticCover->IsShow() );
 			info.pStaticCover->SetID( i );
 		}
@@ -184,7 +181,7 @@ void CDnCharTalismanListDlg::InitTalismanSlot()
 		if( !bExist ) info.pStaticCashCover = NULL;
 		if( info.pStaticCashCover )
 		{
-			info.pStaticCashCover->Show( info.bService && info.nSlotType == TALISMAN_CASH_EXPANSION );
+			info.pStaticCashCover->Show( info.nSlotType == TALISMAN_CASH_EXPANSION );
 			info.pStaticCashCover->Enable( info.pStaticCashCover->IsShow() );
 			info.pStaticCashCover->SetID( i );
 		}
@@ -243,6 +240,36 @@ bool CDnCharTalismanListDlg::MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			{
 				HideTooltip();
 				return false;
+			}
+		}
+	}
+
+	if( uMsg == WM_RBUTTONUP )
+	{
+		CDnSlotButton *pDragButton = (CDnSlotButton*)drag::GetControl();
+		if( pDragButton == NULL )
+		{
+			POINT MousePoint;
+			MousePoint.x = short( LOWORD( lParam ) );
+			MousePoint.y = short( HIWORD( lParam ) );
+			float fLocalX = 0.0f, fLocalY = 0.0f;
+			PointToFloat( MousePoint, fLocalX, fLocalY );
+
+			for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )
+			{
+				STalismanSlotInfo &slot = m_vecSlotInfo[i];
+				if( !slot.bService || slot.bOpen || slot.nSlotType != TALISMAN_EXPANSION )
+					continue;
+				if( slot.pStaticCover && slot.pStaticCover->IsShow() )
+				{
+					SUICoord coverCoord;
+					slot.pStaticCover->GetUICoord( coverCoord );
+					if( coverCoord.IsInside( fLocalX, fLocalY ) )
+					{
+						ProcessCommand( EVENT_BUTTON_CLICKED, true, slot.pStaticCover, WM_RBUTTONUP );
+						return true;
+					}
+				}
 			}
 		}
 	}
@@ -485,15 +512,7 @@ void CDnCharTalismanListDlg::RefreshOpenSlot()
 	for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )
 	{
 		STalismanSlotInfo &slot = m_vecSlotInfo[i];
-		if( !slot.bService )
-		{
-			slot.bOpen = false;
-			if( slot.pStaticCover ) slot.pStaticCover->Show( false );
-			if( slot.pStaticCashCover ) slot.pStaticCashCover->Show( false );
-			continue;
-		}
-
-		slot.bOpen = GetItemTask().IsOpenTalismanSlot( (int)i );
+		slot.bOpen = slot.bService ? GetItemTask().IsOpenTalismanSlot( (int)i ) : false;
 
 		if( slot.nSlotType == TALISMAN_EXPANSION )
 		{
@@ -502,8 +521,9 @@ void CDnCharTalismanListDlg::RefreshOpenSlot()
 		}
 		else if( slot.nSlotType == TALISMAN_CASH_EXPANSION )
 		{
+			bool bHasItem = ( GetItemTask().GetTalismanItem( (int)i ) != NULL );
 			if( slot.pStaticCashCover )
-				slot.pStaticCashCover->Show( !slot.bOpen );
+				slot.pStaticCashCover->Show( !slot.bOpen && !bHasItem );
 		}
 		else
 		{
@@ -523,18 +543,24 @@ void CDnCharTalismanListDlg::RefreshCashSlot()
 	__time64_t tExpire = GetItemTask().GetCashTalismanExpireDate();
 	__time64_t tCur = CSyncTimer::GetInstance().GetCurTime();
 
-	std::wstring wszRemain;
+	std::wstring wszTimeTooltip;
 	if( bCashOpen && tExpire > tCur )
 	{
-		__time64_t tDiff = tExpire - tCur;
-		INT64 nDays = tDiff / 86400;
-		INT64 nHours = ( tDiff % 86400 ) / 3600;
-		wchar_t wszBuf[64] = {0,};
-		if( nDays > 0 )
-			swprintf_s( wszBuf, _countof(wszBuf), L"%I64d%s", nDays, GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 1213 ) );
-		else
-			swprintf_s( wszBuf, _countof(wszBuf), L"%I64d%s", max( (INT64)1, nHours ), GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 1214 ) );
-		wszRemain = wszBuf;
+		struct tm tmExpire;
+		memset( &tmExpire, 0, sizeof(tmExpire) );
+		if( _localtime64_s( &tmExpire, &tExpire ) == 0 )
+		{
+			wchar_t wszDate[64] = {0,};
+			swprintf_s( wszDate, _countof(wszDate), L"%04d-%02d-%02d %02d:%02d",
+				tmExpire.tm_year + 1900, tmExpire.tm_mon + 1, tmExpire.tm_mday, tmExpire.tm_hour, tmExpire.tm_min );
+			const wchar_t *wszFmt = GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8615 );
+			wchar_t wszBuf[256] = {0,};
+			if( wcsstr( wszFmt, L"%s" ) )
+				swprintf_s( wszBuf, _countof(wszBuf), wszFmt, wszDate );
+			else
+				swprintf_s( wszBuf, _countof(wszBuf), L"%s %s", wszFmt, wszDate );
+			wszTimeTooltip = wszBuf;
+		}
 	}
 
 	for( int i = TALISMAN_CASH1; i <= TALISMAN_CASH_MAX && i < (int)m_vecSlotInfo.size(); ++i )
@@ -543,13 +569,20 @@ void CDnCharTalismanListDlg::RefreshCashSlot()
 			continue;
 
 		m_vecSlotInfo[i].bOpen = bCashOpen;
+		bool bHasItem = ( GetItemTask().GetTalismanItem( i ) != NULL );
 		if( m_vecSlotInfo[i].pStaticCashCover )
-			m_vecSlotInfo[i].pStaticCashCover->Show( !bCashOpen );
+			m_vecSlotInfo[i].pStaticCashCover->Show( !bCashOpen && !bHasItem );
+		if( m_vecSlotInfo[i].pSlotButton )
+		{
+			// Dim/disable occupied cash slot when cash expansion has expired (keeps item visible while clearly inactive)
+			m_vecSlotInfo[i].pSlotButton->SetItemState( ( !bCashOpen && bHasItem ) ? ITEMSLOT_DISABLE : ITEMSLOT_ENABLE );
+		}
 		if( m_vecSlotInfo[i].pStaticTime )
 		{
-			m_vecSlotInfo[i].pStaticTime->Show( bCashOpen && !wszRemain.empty() );
-			if( !wszRemain.empty() )
-				m_vecSlotInfo[i].pStaticTime->SetText( wszRemain );
+			m_vecSlotInfo[i].pStaticTime->Show( bCashOpen && !wszTimeTooltip.empty() );
+			m_vecSlotInfo[i].pStaticTime->SetText( L"" );
+			if( !wszTimeTooltip.empty() )
+				m_vecSlotInfo[i].pStaticTime->SetTooltipText( wszTimeTooltip.c_str() );
 		}
 	}
 }
@@ -559,7 +592,11 @@ void CDnCharTalismanListDlg::SetSlotMagneticMode( bool bMagnetic )
 	for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )
 	{
 		if( m_vecSlotInfo[i].pSlotButton )
-			m_vecSlotInfo[i].pSlotButton->SetMagnetic( bMagnetic && m_vecSlotInfo[i].bOpen );
+		{
+			bool bActive = bMagnetic && m_vecSlotInfo[i].bOpen;
+			m_vecSlotInfo[i].pSlotButton->SetWearable( bActive );
+			m_vecSlotInfo[i].pSlotButton->SetMagnetic( bActive );
+		}
 	}
 }
 
@@ -568,7 +605,7 @@ void CDnCharTalismanListDlg::SetEfficiencyTextShow( bool bShow )
 	for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )
 	{
 		if( m_vecSlotInfo[i].pStaticEfficiency )
-			m_vecSlotInfo[i].pStaticEfficiency->Show( bShow && m_vecSlotInfo[i].bService );
+			m_vecSlotInfo[i].pStaticEfficiency->Show( bShow );
 	}
 }
 
@@ -603,32 +640,49 @@ CDnCharStatusDlg::eRetWearable CDnCharTalismanListDlg::GetWearableTalismanEquipT
 	if( !CDnActor::s_hLocalActor || !CDnItemTask::IsActive() )
 		return CDnCharStatusDlg::eWEAR_UNABLE;
 
+	if( pDnItem->GetReversion() == CDnItem::Belong && !pDnItem->IsSoulbBound() )
+	{
+		if( strErrorMsg )
+			*strErrorMsg = GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 1752 );
+		return CDnCharStatusDlg::eWEAR_NEED_UNSEAL;
+	}
+
 	if( CDnActor::s_hLocalActor->GetLevel() < pDnItem->GetLevelLimit() )
 	{
 		if( strErrorMsg )
-			*strErrorMsg = GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 5070 );
-		return CDnCharStatusDlg::eWEAR_NEED_UNSEAL;
+			*strErrorMsg = GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 720 );
+		return CDnCharStatusDlg::eWEAR_UNABLE;
 	}
 
 	if( GetItemTask().IsEquipTalismanType( pDnItem ) )
 	{
 		if( strErrorMsg )
-			*strErrorMsg = GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8358 );
+			*strErrorMsg = GetEtUIXML().GetUIString( CEtUIXML::idCategory1, 8362 );
 		return CDnCharStatusDlg::eWEAR_UNABLE;
 	}
 
-	// Find first open empty slot
+	// Pick the open empty slot with the highest efficiency (e.g. 200% slots before 175%/125%/100%)
+	int nBestSlot = -1;
+	float fBestEff = -1.0f;
 	for( size_t i = 0; i < m_vecSlotInfo.size(); ++i )
 	{
 		if( !GetItemTask().IsOpenTalismanSlot( (int)i ) )
 			continue;
 		if( CDnActor::s_hLocalActor->GetLevel() < m_vecSlotInfo[i].nLevel )
 			continue;
-		if( GetItemTask().GetTalismanItem( (int)i ) == NULL )
+		if( GetItemTask().GetTalismanItem( (int)i ) != NULL )
+			continue;
+		if( m_vecSlotInfo[i].fEfficiency > fBestEff )
 		{
-			nSlotIndex = (int)i;
-			return CDnCharStatusDlg::eWEAR_ENABLE;
+			fBestEff = m_vecSlotInfo[i].fEfficiency;
+			nBestSlot = (int)i;
 		}
+	}
+
+	if( nBestSlot >= 0 )
+	{
+		nSlotIndex = nBestSlot;
+		return CDnCharStatusDlg::eWEAR_ENABLE;
 	}
 
 	return CDnCharStatusDlg::eWEAR_UNABLE;
