@@ -1,13 +1,13 @@
-# ![logo](https://raw.githubusercontent.com/monakaibrahim-cmyk/IrineCore/refs/heads/master/.github/images/logo.png) IrineCore
+# ![logo](https://raw.githubusercontent.com/IrineCore/IrineCore/refs/heads/master/.github/images/logo.png) IrineCore
 
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/zPdNnFEyPv)
 
 ## Build Status
 
-[![docker-build](https://github.com/monakaibrahim-cmyk/IrineCore/actions/workflows/docker_build.yml/badge.svg?branch=master)](https://github.com/monakaibrahim-cmyk/IrineCore/actions/workflows/docker_build.yml?query=branch%3Amaster)
-[![windows-build](https://github.com/monakaibrahim-cmyk/IrineCore/actions/workflows/windows_build.yml/badge.svg?branch=master)](https://github.com/monakaibrahim-cmyk/IrineCore/actions/workflows/windows_build.yml?query=branch%3Amaster)
-[![linux-build](https://github.com/monakaibrahim-cmyk/IrineCore/actions/workflows/linux_build.yml/badge.svg?branch=master)](https://github.com/monakaibrahim-cmyk/IrineCore/actions/workflows/linux_build.yml?query=branch%3Amaster)
+[![docker-build](https://github.com/IrineCore/IrineCore/actions/workflows/docker_build.yml/badge.svg?branch=master)](https://github.com/IrineCore/IrineCore/actions/workflows/docker_build.yml?query=branch%3Amaster)
+[![windows-build](https://github.com/IrineCore/IrineCore/actions/workflows/windows_build.yml/badge.svg?branch=master)](https://github.com/IrineCore/IrineCore/actions/workflows/windows_build.yml?query=branch%3Amaster)
+[![linux-build](https://github.com/IrineCore/IrineCore/actions/workflows/linux_build.yml/badge.svg?branch=master)](https://github.com/IrineCore/IrineCore/actions/workflows/linux_build.yml?query=branch%3Amaster)
 
 
 ## Introduction
