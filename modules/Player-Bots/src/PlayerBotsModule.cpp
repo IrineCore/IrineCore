@@ -14,7 +14,7 @@ bool PlayerBotsModule::OnLoadConfig(const WCHAR* moduleConfigDirPath)
 
     m_config.enabled              = (::GetPrivateProfileIntW(L"PlayerBots", L"Enabled", 1, path.c_str()) != 0);
     m_config.excludeEasyAndNormal = (::GetPrivateProfileIntW(L"PlayerBots", L"ExcludeEasyAndNormal", 1, path.c_str()) != 0);
-    m_config.maxBotsPerParty      = static_cast<int>(::GetPrivateProfileIntW(L"PlayerBots", L"MaxBotsPerParty", 3, path.c_str()));
+    m_config.maxBotsPerParty      = static_cast<int>(::GetPrivateProfileIntW(L"PlayerBots", L"MaxBotsPerParty", 7, path.c_str()));
     m_config.autoSummonInDungeons = (::GetPrivateProfileIntW(L"PlayerBots", L"AutoSummonInDungeons", 1, path.c_str()) != 0);
     m_config.autoSummonInNests    = (::GetPrivateProfileIntW(L"PlayerBots", L"AutoSummonInNests", 1, path.c_str()) != 0);
     m_config.aggroRange           = static_cast<int>(::GetPrivateProfileIntW(L"PlayerBots", L"AggroRange", 1500, path.c_str()));

@@ -1429,7 +1429,40 @@ int CDNGameRoom::GetTargetMapAIBotCount( int nTargetMapIdx, bool bContinueStage,
 	if( nMaxParty > PARTYCOUNTMAX )
 		nMaxParty = PARTYCOUNTMAX;
 
-	return nMaxParty - 1;
+	// Size bot squad from the stage/nest/dungeon's recommended player count for the entered difficulty
+	// (total party = recommended count, so solo human gets recommended - 1 bots:
+	// e.g. rec 2 -> 1 bot, rec 4 -> 3 bots, rec 6 -> 5 bots, rec 8 -> 7 bots).
+	const char* szRecommendLabel = "_RecommendNightmarePartyCount";
+	switch( StageDifficulty )
+	{
+		case Dungeon::Difficulty::Easy:   szRecommendLabel = "_RecommendEasyPartyCount";      break;
+		case Dungeon::Difficulty::Normal: szRecommendLabel = "_RecommendNormalPartyCount";    break;
+		case Dungeon::Difficulty::Hard:   szRecommendLabel = "_RecommendHardPartyCount";      break;
+		case Dungeon::Difficulty::Master: szRecommendLabel = "_RecommendVeryHardPartyCount";  break;
+		case Dungeon::Difficulty::Abyss:  szRecommendLabel = "_RecommendNightmarePartyCount"; break;
+		default:                          szRecommendLabel = "_RecommendNightmarePartyCount"; break;
+	}
+
+	int nRecommendParty = 0;
+	if( DNTableCell* pRecCell = pDungeonSOX->GetFieldFromLablePtr( nEnterTableID, szRecommendLabel ) )
+		nRecommendParty = pRecCell->GetInteger();
+
+	// Nests and some special stages only populate _RecommendNightmarePartyCount (matching client UI).
+	if( nRecommendParty <= 0 )
+	{
+		if( DNTableCell* pNestRecCell = pDungeonSOX->GetFieldFromLablePtr( nEnterTableID, "_RecommendNightmarePartyCount" ) )
+			nRecommendParty = pNestRecCell->GetInteger();
+	}
+
+	int nTargetParty = ( nRecommendParty > 0 ) ? nRecommendParty : nMaxParty;
+	if( nTargetParty > nMaxParty )
+		nTargetParty = nMaxParty;
+	if( nTargetParty > PARTYCOUNTMAX )
+		nTargetParty = PARTYCOUNTMAX;
+	if( nTargetParty <= 1 )
+		return 0;
+
+	return nTargetParty - 1;
 }
 
 void CDNGameRoom::DespawnAndRemoveAIBots( bool bNotifyClients )
