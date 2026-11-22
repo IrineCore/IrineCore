@@ -3,6 +3,15 @@
 ## 1. Building Servers
 
 ### Windows (Visual Studio 2022/2026, x64)
+
+Install the required Visual Studio 2022–2026 C++, ATL/MFC, CMake, vcpkg, and Windows SDK components using the repository's `.vsconfig` / `vs-requirements.json` file (Visual Studio auto-detects `.vsconfig` when opening the repo, or import via Visual Studio Installer UI / CLI):
+```powershell
+& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe" modify `
+    --installPath "<VS_INSTALL_PATH>" `
+    --config ".\vs-requirements.json" --passive --norestart
+```
+*(Building the Windows client/launcher also requires the DirectX 9 SDK (June 2010).)*
+
 ```powershell
 .\apps\compiler\compile.ps1
 ```
