@@ -1,5 +1,41 @@
 # Deployment & Operations Guide
 
+## 0. Unified Management CLI (`irine.sh` & `irine.ps1`)
+
+IrineCore provides a single top-level CLI on both Linux (`./irine.sh`) and Windows (`.\irine.ps1`) for building, testing, Docker deployment, database migrations, module management, log rotation, and preflight diagnostics:
+
+```bash
+# Linux / macOS / Git Bash
+./irine.sh doctor                         # Preflight check (toolchain, ODBC, GameRes, configs, DB)
+./irine.sh install                        # Install apt deps, compile, run CTest, stage env/dist
+./irine.sh compiler build                 # Incremental build
+./irine.sh compiler test                  # Run CTest suite
+./irine.sh docker up                      # Launch full 9-container stack (MSSQL + Nginx + 7 servers)
+./irine.sh db status                      # Show applied vs pending core & module SQL migrations
+./irine.sh db update                      # Apply pending core + enabled-module SQL migrations
+./irine.sh db backup                      # Create compressed .bak backups of all 5 databases
+./irine.sh module list                    # List modules and enabled/disabled state
+./irine.sh module enable Player-Bots      # Enable or disable a module without deleting code
+./irine.sh module create My-Feature       # Scaffold a ready-to-build starter module
+./irine.sh server rotate-logs             # Rotate native server logs (keeps 5 backups)
+```
+
+```powershell
+# Windows PowerShell
+.\irine.ps1 doctor
+.\irine.ps1 compiler all                  # Configure, build x64 servers, run CTest, install env\dist
+.\irine.ps1 compiler client               # Build Windows x64 DragonNest.exe & DnLauncher.exe
+.\irine.ps1 docker infra                  # Start SQL Server 2022 + Nginx Patch WebServer
+.\irine.ps1 db status
+.\irine.ps1 db update
+.\irine.ps1 module list
+.\irine.ps1 server start -Background
+```
+
+### `.ini.dist` Config Layering & `conf/` Build Overrides
+- **Runtime configs**: `cmake --install` always refreshes `env/dist/config/*.ini.dist` and `env/dist/module/*.ini.dist` with the latest defaults, while seeding active `*.ini` files **only if absent** so upgrades never overwrite your custom settings. At runtime, `CIniFile` reads from your local `*.ini` first and automatically falls back to `*.ini.dist` for any newly added keys.
+- **Build & CLI overrides (`conf/`)**: Copy `conf/dist/config.sh` → `conf/config.sh` (Linux) or `conf\dist\config.ps1` → `conf\config.ps1` (Windows) to persist custom CMake flags, `IRINE_BUILD_TYPE`, disabled modules, `ccache`, or log retention settings without modifying tracked files.
+
 ## 1. Building Servers
 
 ### Windows (Visual Studio 2022/2026, x64)
@@ -58,6 +94,25 @@ Or run the entire 9-container stack (MSSQL + Nginx + all 7 Linux servers) via Do
 ```bash
 docker compose up -d --build
 ```
+
+### Overriding `GameRes` Location in Docker
+
+All 6 resource-reading server containers (`irine-dbserver`, `irine-cashserver`, `irine-masterserver`, `irine-loginserver`, `irine-villageserver`, `irine-gameserver`) mount `GameRes` read-only at `/irinecore/GameRes` by default, and `apps/docker/entrypoint.sh` automatically rewrites `[Resource] Path=` in a container-local runtime copy of `DN*.ini` without modifying your host `env/dist/config/*.ini` files.
+
+You can override the host `GameRes` location in any of three ways:
+
+1. **Via `.env` (recommended)** — copy `.env.example` to `.env` (gitignored) and set `IRINE_GAMERES_PATH`:
+   ```dotenv
+   # Linux
+   IRINE_GAMERES_PATH=/srv/irinecore/GameRes
+   # Windows
+   IRINE_GAMERES_PATH=R:/Server/GameRes
+   ```
+2. **Via `docker-compose.override.yml`** — copy `docker-compose.override.yml.example` to `docker-compose.override.yml` (gitignored) and edit the host mount path under `x-gameres-override`.
+3. **Inline per command**:
+   ```bash
+   IRINE_GAMERES_PATH=/srv/irinecore/GameRes docker compose up -d --build
+   ```
 
 To populate an existing local or remote SQL Server on Windows without Docker:
 ```powershell

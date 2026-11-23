@@ -107,19 +107,74 @@ else
     fi
 fi
 
-# Apply any custom SQL updates mounted or baked in /opt/dn-init/updates/*.sql
-if [ -d "$UPDATES_DIR" ]; then
-    shopt -s nullglob
-    update_files=("$UPDATES_DIR"/*.sql)
-    shopt -u nullglob
-    if [ "${#update_files[@]}" -gt 0 ]; then
-        IFS=$'\n' sorted_updates=($(printf '%s\n' "${update_files[@]}" | sort))
-        unset IFS
-        for uf in "${sorted_updates[@]}"; do
-            echo "[dn-mssql] Applying SQL update $(basename "$uf")..."
-            sqlcmd_sa -i "$uf"
-        done
+# Ensure idempotent migration ledger table exists in dnmembership
+sqlcmd_sa -Q "SET NOCOUNT ON;
+IF DB_ID(N'dnmembership') IS NOT NULL AND OBJECT_ID(N'dnmembership.dbo.IrineSchemaMigrations', N'U') IS NULL
+BEGIN
+    CREATE TABLE dnmembership.dbo.IrineSchemaMigrations (
+        MigrationKey NVARCHAR(260) NOT NULL PRIMARY KEY,
+        SourceName   NVARCHAR(128) NOT NULL,
+        TargetDb     NVARCHAR(64)  NOT NULL,
+        Sha256       CHAR(64)      NOT NULL,
+        AppliedAtUtc DATETIME2(0)  NOT NULL CONSTRAINT DF_IrineSchemaMigrations_AppliedAt DEFAULT SYSUTCDATETIME()
+    );
+END"
+
+apply_tracked_migration() {
+    local mig_key="$1"
+    local mig_src="$2"
+    local sql_file="$3"
+    local safe_key="${mig_key//\'/\'\'}"
+    local safe_src="${mig_src//\'/\'\'}"
+    local file_sha
+    file_sha="$(sha256sum "$sql_file" | awk '{print $1}')"
+
+    local already
+    already="$(sqlcmd_sa -h -1 -W -Q "SET NOCOUNT ON; SELECT COUNT(*) FROM dnmembership.dbo.IrineSchemaMigrations WHERE MigrationKey = N'${safe_key}';" | tr -d '[:space:]')"
+    if [ "$already" = "0" ]; then
+        echo "[dn-mssql] Applying SQL migration [${mig_src}] ${mig_key} ..."
+        sqlcmd_sa -i "$sql_file"
+        sqlcmd_sa -Q "SET NOCOUNT ON; INSERT INTO dnmembership.dbo.IrineSchemaMigrations (MigrationKey, SourceName, TargetDb, Sha256) VALUES (N'${safe_key}', N'${safe_src}', N'master', '${file_sha}');"
+    else
+        echo "[dn-mssql] Skipping already-applied migration ${mig_key}."
     fi
+}
+
+# Apply tracked core SQL updates mounted or baked in /opt/dn-init/updates/**/*.sql
+if [ -d "$UPDATES_DIR" ]; then
+    while IFS= read -r uf; do
+        [ -n "$uf" ] || continue
+        rel="${uf#${UPDATES_DIR}/}"
+        apply_tracked_migration "data/sql/updates/${rel}" "core" "$uf"
+    done < <(find "$UPDATES_DIR" -type f -name '*.sql' | sort)
+fi
+
+# Auto-discover and apply tracked SQL from enabled modules mounted in /opt/dn-init/modules
+MODULES_DIR="/opt/dn-init/modules"
+if [ -d "$MODULES_DIR" ]; then
+    for mod_dir in "$MODULES_DIR"/*/; do
+        [ -d "$mod_dir" ] || continue
+        mod_name="$(basename "$mod_dir")"
+        case "$mod_name" in
+            .*|disabled) continue ;;
+        esac
+        [ -f "${mod_dir}.disabled" ] && continue
+        mod_sql_root="${mod_dir}data/sql"
+        [ -d "$mod_sql_root" ] || continue
+        for phase_dir in "${mod_sql_root}/base" "${mod_sql_root}" "${mod_sql_root}/updates"; do
+            [ -d "$phase_dir" ] || continue
+            if [ "$phase_dir" = "$mod_sql_root" ]; then
+                find_cmd=(find "$phase_dir" -maxdepth 1 -type f -name '*.sql')
+            else
+                find_cmd=(find "$phase_dir" -type f -name '*.sql')
+            fi
+            while IFS= read -r msf; do
+                [ -n "$msf" ] || continue
+                rel="${msf#${MODULES_DIR}/}"
+                apply_tracked_migration "modules/${rel}" "module:${mod_name}" "$msf"
+            done < <("${find_cmd[@]}" | sort)
+        done
+    done
 fi
 
 # Always apply idempotent application login, role mappings, and critical seed checks

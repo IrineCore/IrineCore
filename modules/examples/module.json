@@ -1,0 +1,11 @@
+{
+  "name": "examples",
+  "version": "1.0.0",
+  "description": "Reference starter module demonstrating IrineCore module auto-discovery, event hooks, and INI configuration.",
+  "author": "IrineCore",
+  "caps": ["Cap-60"],
+  "servers": ["DNGameServer"],
+  "config": "modules/Example-Module.ini",
+  "sql_dir": "data/sql",
+  "dependencies": []
+}

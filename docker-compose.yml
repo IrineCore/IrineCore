@@ -8,9 +8,46 @@
 # Infrastructure-only (for running native Windows/Linux env/dist binaries):
 #   docker compose up -d --build irine-database irine-webserver
 #
-# Full containerized stack:
-#   docker compose up -d --build
+# Full containerized stack (override GameRes path via .env or
+# docker-compose.override.yml — see .env.example):
+#   IRINE_GAMERES_PATH=/path/to/GameRes docker compose up -d --build
 # =============================================================================
+
+x-default-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-server-base-volumes: &server-base-volumes
+  - "${IRINE_CONFIG_PATH:-./env/dist/config}:/irinecore/env/dist/config"
+  - "${IRINE_MODULE_PATH:-./env/dist/module}:/irinecore/env/dist/module"
+  - "${IRINE_SYSTEMS_PATH:-./env/dist/systems}:/irinecore/env/dist/systems"
+  - "${IRINE_LOGS_PATH:-./env/dist/logs}:/irinecore/env/dist/logs"
+
+x-server-gameres-volumes: &server-gameres-volumes
+  - "${IRINE_CONFIG_PATH:-./env/dist/config}:/irinecore/env/dist/config"
+  - "${IRINE_MODULE_PATH:-./env/dist/module}:/irinecore/env/dist/module"
+  - "${IRINE_SYSTEMS_PATH:-./env/dist/systems}:/irinecore/env/dist/systems"
+  - "${IRINE_LOGS_PATH:-./env/dist/logs}:/irinecore/env/dist/logs"
+  - "${IRINE_GAMERES_PATH:-./env/GameRes}:${IRINE_GAMERES_CONTAINER_PATH:-/irinecore/GameRes}:ro"
+
+x-server-common-env: &server-common-env
+  IRINE_DOCKER_NETWORK: "1"
+  IRINE_DB_HOST: irine-database
+  IRINE_LOG_HOST: irine-logserver
+  IRINE_DB_SERVER_HOST: irine-dbserver
+  IRINE_CASH_HOST: irine-cashserver
+  IRINE_MASTER_HOST: irine-masterserver
+  IRINE_LOGIN_HOST: irine-loginserver
+  IRINE_PUBLIC_IP: "${IRINE_PUBLIC_IP:-127.0.0.1}"
+  IRINE_PRIVATE_IP: "${IRINE_PRIVATE_IP:-}"
+  IRINE_GAME_UDP_START_PORT: "${IRINE_GAME_UDP_START_PORT:-15100}"
+  IRINE_GAMERES_CONTAINER_PATH: "${IRINE_GAMERES_CONTAINER_PATH:-/irinecore/GameRes}"
+  IRINE_LOG_MAX_MB: "${IRINE_LOG_MAX_MB:-50}"
+  DN_APP_USER: "${DN_APP_USER:-}"
+  DN_APP_PASSWORD: "${DN_APP_PASSWORD:-}"
+
 services:
   irine-database:
     build:
@@ -29,6 +66,7 @@ services:
     volumes:
       - irine-mssql-data:/var/opt/mssql
       - ./data/sql/updates:/opt/dn-init/updates:ro
+      - ./modules:/opt/dn-init/modules:ro
     healthcheck:
       test:
         [
@@ -39,6 +77,7 @@ services:
       timeout: 5s
       retries: 20
       start_period: 120s
+    logging: *default-logging
     restart: unless-stopped
 
   irine-webserver:
@@ -57,148 +96,176 @@ services:
       timeout: 3s
       retries: 5
       start_period: 5s
+    logging: *default-logging
     restart: unless-stopped
 
   irine-logserver:
     build:
       context: .
       dockerfile: Dockerfile
+    image: "${IRINE_SERVER_IMAGE:-ghcr.io/irinecore/irinecore-server:latest}"
     container_name: irine-logserver
     command: ["DNLogServer64"]
-    environment:
-      IRINE_DB_HOST: irine-database
+    environment: *server-common-env
     depends_on:
       irine-database:
         condition: service_healthy
-    volumes:
-      - ./env/dist/config:/irinecore/env/dist/config
-      - ./env/dist/module:/irinecore/env/dist/module
-      - ./env/dist/systems:/irinecore/env/dist/systems
-      - ./env/dist/logs:/irinecore/env/dist/logs
+    volumes: *server-base-volumes
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 3000 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    logging: *default-logging
     restart: unless-stopped
 
   irine-dbserver:
     build:
       context: .
       dockerfile: Dockerfile
+    image: "${IRINE_SERVER_IMAGE:-ghcr.io/irinecore/irinecore-server:latest}"
     container_name: irine-dbserver
     command: ["DNDBServer64"]
-    environment:
-      IRINE_DB_HOST: irine-database
+    environment: *server-common-env
     depends_on:
       irine-database:
         condition: service_healthy
       irine-logserver:
-        condition: service_started
-    volumes:
-      - ./env/dist/config:/irinecore/env/dist/config
-      - ./env/dist/module:/irinecore/env/dist/module
-      - ./env/dist/systems:/irinecore/env/dist/systems
-      - ./env/dist/logs:/irinecore/env/dist/logs
+        condition: service_healthy
+    volumes: *server-gameres-volumes
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 2600 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    logging: *default-logging
     restart: unless-stopped
 
   irine-cashserver:
     build:
       context: .
       dockerfile: Dockerfile
+    image: "${IRINE_SERVER_IMAGE:-ghcr.io/irinecore/irinecore-server:latest}"
     container_name: irine-cashserver
     command: ["DNCashServer64"]
-    environment:
-      IRINE_DB_HOST: irine-database
+    environment: *server-common-env
     depends_on:
       irine-database:
         condition: service_healthy
       irine-logserver:
-        condition: service_started
-    volumes:
-      - ./env/dist/config:/irinecore/env/dist/config
-      - ./env/dist/module:/irinecore/env/dist/module
-      - ./env/dist/systems:/irinecore/env/dist/systems
-      - ./env/dist/logs:/irinecore/env/dist/logs
+        condition: service_healthy
+    volumes: *server-gameres-volumes
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 12600 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    logging: *default-logging
     restart: unless-stopped
 
   irine-masterserver:
     build:
       context: .
       dockerfile: Dockerfile
+    image: "${IRINE_SERVER_IMAGE:-ghcr.io/irinecore/irinecore-server:latest}"
     container_name: irine-masterserver
     command: ["DNMasterServer64"]
+    environment: *server-common-env
     depends_on:
       irine-logserver:
-        condition: service_started
+        condition: service_healthy
       irine-dbserver:
-        condition: service_started
-    volumes:
-      - ./env/dist/config:/irinecore/env/dist/config
-      - ./env/dist/module:/irinecore/env/dist/module
-      - ./env/dist/systems:/irinecore/env/dist/systems
-      - ./env/dist/logs:/irinecore/env/dist/logs
+        condition: service_healthy
+    volumes: *server-gameres-volumes
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8000 && nc -z 127.0.0.1 9000 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    logging: *default-logging
     restart: unless-stopped
 
   irine-loginserver:
     build:
       context: .
       dockerfile: Dockerfile
+    image: "${IRINE_SERVER_IMAGE:-ghcr.io/irinecore/irinecore-server:latest}"
     container_name: irine-loginserver
     command: ["DNLoginServer64"]
-    environment:
-      IRINE_DB_HOST: irine-database
+    environment: *server-common-env
     depends_on:
       irine-database:
         condition: service_healthy
       irine-masterserver:
-        condition: service_started
+        condition: service_healthy
     ports:
-      - "14300:14300"
-    volumes:
-      - ./env/dist/config:/irinecore/env/dist/config
-      - ./env/dist/module:/irinecore/env/dist/module
-      - ./env/dist/systems:/irinecore/env/dist/systems
-      - ./env/dist/logs:/irinecore/env/dist/logs
+      - "${LOGIN_PORT:-14300}:14300"
+    volumes: *server-gameres-volumes
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 14300 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    logging: *default-logging
     restart: unless-stopped
 
   irine-villageserver:
     build:
       context: .
       dockerfile: Dockerfile
+    image: "${IRINE_SERVER_IMAGE:-ghcr.io/irinecore/irinecore-server:latest}"
     container_name: irine-villageserver
     command: ["DNVillageServer64"]
+    environment: *server-common-env
     depends_on:
       irine-dbserver:
-        condition: service_started
+        condition: service_healthy
       irine-cashserver:
-        condition: service_started
+        condition: service_healthy
       irine-masterserver:
-        condition: service_started
+        condition: service_healthy
     ports:
-      - "14400:14400"
-    volumes:
-      - ./env/dist/config:/irinecore/env/dist/config
-      - ./env/dist/module:/irinecore/env/dist/module
-      - ./env/dist/systems:/irinecore/env/dist/systems
-      - ./env/dist/logs:/irinecore/env/dist/logs
+      - "${VILLAGE_PORT:-14400}:14400"
+    volumes: *server-gameres-volumes
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 14400 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
     restart: unless-stopped
 
   irine-gameserver:
     build:
       context: .
       dockerfile: Dockerfile
+    image: "${IRINE_SERVER_IMAGE:-ghcr.io/irinecore/irinecore-server:latest}"
     container_name: irine-gameserver
     command: ["DNGameServer64"]
+    environment: *server-common-env
     depends_on:
       irine-dbserver:
-        condition: service_started
+        condition: service_healthy
       irine-cashserver:
-        condition: service_started
+        condition: service_healthy
       irine-masterserver:
-        condition: service_started
+        condition: service_healthy
     ports:
-      - "15100-15110:15100-15110/udp"
-    volumes:
-      - ./env/dist/config:/irinecore/env/dist/config
-      - ./env/dist/module:/irinecore/env/dist/module
-      - ./env/dist/systems:/irinecore/env/dist/systems
-      - ./env/dist/logs:/irinecore/env/dist/logs
+      - "${GAME_UDP_PORTS:-15100-15110}:15100-15110/udp"
+    volumes: *server-gameres-volumes
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -x DNGameServer64 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 25s
+    logging: *default-logging
     restart: unless-stopped
 
 volumes:

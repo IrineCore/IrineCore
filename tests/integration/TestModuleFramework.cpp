@@ -34,6 +34,21 @@ int RunIntegrationTests(const WCHAR* moduleConfigDirPath)
         check(!cfgPath.empty(), "Module config path auto-resolved from module registry");
     }
 
+    // Verify .ini.dist fallback resolution when only <Mod>.ini.dist exists
+    {
+        const std::wstring baseDir = (moduleConfigDirPath && moduleConfigDirPath[0]) ? moduleConfigDirPath : L".";
+        const std::wstring sep = (!baseDir.empty() && baseDir.back() != L'/' && baseDir.back() != L'\\') ? L"/" : L"";
+        const std::wstring distPath = baseDir + sep + L"__irine_dist_test__.ini.dist";
+        if (FILE* f = std::fopen(std::string(distPath.begin(), distPath.end()).c_str(), "wb"))
+        {
+            std::fputs("[Test]\nEnable=1\n", f);
+            std::fclose(f);
+            const std::wstring resolved = Irine::Modules::ResolveModuleConfigPath(moduleConfigDirPath, L"__irine_dist_test__", nullptr);
+            check(resolved == distPath, "ResolveModuleConfigPath falls back cleanly to <Mod>.ini.dist");
+            std::remove(std::string(distPath.begin(), distPath.end()).c_str());
+        }
+    }
+
 #ifdef IRINE_MOD_PLAYER_BOTS
     {
         using namespace Irine::Modules;

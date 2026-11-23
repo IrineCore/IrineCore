@@ -2,8 +2,8 @@
 # IrineCore — src/cmake/InstallLayout.cmake
 # Distribution install layout for env/dist:
 #   env/dist/
-#     ├── config/           (core server .ini and .dat files)
-#     ├── module/           (installed module .ini files)
+#     ├── config/           (core server .ini.dist defaults + user .ini overrides & .dat files)
+#     ├── module/           (installed module .ini.dist defaults + user .ini overrides + modules.manifest)
 #     ├── systems/          (ChannelInfo.xml and system definitions)
 #     ├── <server-binaries> (DN*Server64 executables)
 #     └── <dlls>            (any runtime dynamic libraries, if present)
@@ -15,13 +15,41 @@ function(irine_install_server_target TARGET_NAME)
 endfunction()
 
 function(irine_install_runtime_layout)
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/apps/template/config/"
-        DESTINATION "${CMAKE_INSTALL_PREFIX}/config"
-    )
+    # Install server .ini templates as *.ini.dist (always refreshed), and seed
+    # local *.ini files ONLY if they do not already exist so user customizations
+    # are never overwritten on reinstall/upgrade.
+    file(GLOB _tpl_inis "${CMAKE_SOURCE_DIR}/apps/template/config/*.ini")
+    foreach(_ini IN LISTS _tpl_inis)
+        get_filename_component(_ini_name "${_ini}" NAME)
+        install(FILES "${_ini}"
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/config"
+            RENAME "${_ini_name}.dist"
+        )
+        install(CODE "
+            if(NOT EXISTS \"\${CMAKE_INSTALL_PREFIX}/config/${_ini_name}\")
+                file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/config\" TYPE FILE FILES \"${_ini}\")
+            endif()
+        ")
+    endforeach()
+
+    # Install non-INI state/data files (*.dat, etc.) if missing
+    file(GLOB _tpl_other "${CMAKE_SOURCE_DIR}/apps/template/config/*")
+    foreach(_other IN LISTS _tpl_other)
+        if(_other MATCHES "\\.ini$")
+            continue()
+        endif()
+        get_filename_component(_other_name "${_other}" NAME)
+        install(CODE "
+            if(NOT EXISTS \"\${CMAKE_INSTALL_PREFIX}/config/${_other_name}\")
+                file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/config\" TYPE FILE FILES \"${_other}\")
+            endif()
+        ")
+    endforeach()
+
     install(DIRECTORY "${CMAKE_SOURCE_DIR}/apps/template/System/"
         DESTINATION "${CMAKE_INSTALL_PREFIX}/systems"
     )
-    install(CODE "file(MAKE_DIRECTORY \"${CMAKE_INSTALL_PREFIX}/module\")")
+    install(CODE "file(MAKE_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/module\")")
 
     # Install any runtime dynamic libraries (*.dll / *.so*) if present
     if(WIN32)

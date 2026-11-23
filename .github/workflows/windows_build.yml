@@ -30,9 +30,11 @@ jobs:
       - name: Install into env/dist
         run: cmake --install build --config Release
 
-      - name: Verify env/dist layout
+      - name: Verify env/dist layout, .ini.dist defaults & module manifests
         shell: pwsh
         run: |
+          python apps/module-manager/module_manager.py validate
+          if ($LASTEXITCODE -ne 0) { throw "Module manifest validation failed" }
           $required = @(
             "env/dist/DNLogServer64.exe",
             "env/dist/DNDBServer64.exe",
@@ -46,7 +48,9 @@ jobs:
             "env/dist/tools/PatchBuilder.exe",
             "env/dist/tools/DnClientCreator.exe",
             "env/dist/config/DNLogin.ini",
+            "env/dist/config/DNLogin.ini.dist",
             "env/dist/config/DNGame.ini",
+            "env/dist/config/DNGame.ini.dist",
             "env/dist/module/modules.manifest",
             "env/dist/systems/ChannelInfo.xml"
           )
@@ -57,4 +61,5 @@ jobs:
             $cfgPath = Join-Path "env/dist/module" $cfg
             if (-not (Test-Path $cfgPath)) { throw "Missing auto-discovered module config: $cfgPath" }
           }
+          .\irine.ps1 help | Out-Null
           Write-Host "Verified IrineCore env/dist layout successfully."

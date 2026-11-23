@@ -44,7 +44,7 @@ target_include_directories(DnLauncher PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Country/USA"
     "${CMAKE_CURRENT_SOURCE_DIR}/ResourceUSA"
     "${CMAKE_CURRENT_SOURCE_DIR}/ResourceUSA/res"
-    "${CMAKE_SOURCE_DIR}/Icons"
+    "${CMAKE_SOURCE_DIR}/data/icons"
     ${IRINE_CLIENT_COMMON_INCLUDES}
 )
 target_compile_definitions(DnLauncher PRIVATE

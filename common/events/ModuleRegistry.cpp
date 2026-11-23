@@ -46,7 +46,7 @@ bool HasModuleConfigExt(const std::wstring& name)
         }
         return true;
     };
-    return endsWith(L".ini") || endsWith(L".conf") || endsWith(L".conf.dist");
+    return endsWith(L".ini") || endsWith(L".ini.dist") || endsWith(L".conf") || endsWith(L".conf.dist");
 }
 
 } // namespace
@@ -65,10 +65,12 @@ std::wstring ResolveModuleConfigPath(const WCHAR* configDirPath,
     if (configFileName && configFileName[0])
     {
         candidateFiles.push_back(configFileName);
+        candidateFiles.push_back(std::wstring(configFileName) + L".dist");
     }
     if (!folder.empty())
     {
         candidateFiles.push_back(folder + L".ini");
+        candidateFiles.push_back(folder + L".ini.dist");
         candidateFiles.push_back(folder + L".conf");
         candidateFiles.push_back(folder + L".conf.dist");
     }
