@@ -28,9 +28,12 @@ target_link_libraries(irine_tests PRIVATE
     $<$<BOOL:${IRINE_BUILD_TOOLS}>:irine_etfilesystem>
     $<$<BOOL:${IRINE_BUILD_TOOLS}>:irine_utility>
     $<$<BOOL:${IRINE_BUILD_TOOLS}>:dep_zlib>
-    $<$<BOOL:${WIN32}>:ws2_32 mswsock winmm>
-    $<$<BOOL:${UNIX}>:pthread dl>
 )
+if(WIN32)
+    target_link_libraries(irine_tests PRIVATE ws2_32 mswsock winmm)
+elseif(UNIX)
+    target_link_libraries(irine_tests PRIVATE pthread dl)
+endif()
 if(IRINE_BUILD_TOOLS)
     set_target_properties(irine_tests PROPERTIES
         CXX_STANDARD 17

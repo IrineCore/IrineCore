@@ -47,8 +47,10 @@ add_executable(DNLoginServer
     "${CMAKE_SOURCE_DIR}/common/utilities/MiniDumpSet.cpp"
     "${CMAKE_SOURCE_DIR}/common/utilities/StringSet.cpp"
     "${CMAKE_SOURCE_DIR}/common/utilities/TimeSet.cpp"
-    $<$<BOOL:${WIN32}>:${CMAKE_SOURCE_DIR}/src/server/DNLoginServer/DNLoginServer.rc>
 )
+if(WIN32)
+    target_sources(DNLoginServer PRIVATE "${CMAKE_SOURCE_DIR}/src/server/DNLoginServer/DNLoginServer.rc")
+endif()
 set_target_properties(DNLoginServer PROPERTIES OUTPUT_NAME "DNLoginServer64")
 target_include_directories(DNLoginServer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -64,7 +66,12 @@ target_link_libraries(DNLoginServer PRIVATE
     irine_utility
     dep_tinyxml
     dep_zlib
-    $<$<BOOL:${WIN32}>:ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32>
-    $<$<BOOL:${UNIX}>:odbc pthread dl>
 )
+if(WIN32)
+    target_link_libraries(DNLoginServer PRIVATE
+        ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32
+    )
+elseif(UNIX)
+    target_link_libraries(DNLoginServer PRIVATE odbc pthread dl)
+endif()
 irine_install_server_target(DNLoginServer)

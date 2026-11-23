@@ -33,8 +33,10 @@ add_executable(DNLogServer
     "${CMAKE_SOURCE_DIR}/common/utilities/MiniDumpSet.cpp"
     "${CMAKE_SOURCE_DIR}/common/utilities/StringSet.cpp"
     "${CMAKE_SOURCE_DIR}/common/utilities/TimeSet.cpp"
-    $<$<BOOL:${WIN32}>:${CMAKE_SOURCE_DIR}/src/server/DNLogServer/DNLogServer.rc>
 )
+if(WIN32)
+    target_sources(DNLogServer PRIVATE "${CMAKE_SOURCE_DIR}/src/server/DNLogServer/DNLogServer.rc")
+endif()
 set_target_properties(DNLogServer PROPERTIES OUTPUT_NAME "DNLogServer64")
 target_include_directories(DNLogServer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -45,7 +47,12 @@ target_link_libraries(DNLogServer PRIVATE
     irine_modules
     irine_platform
     irine_utility
-    $<$<BOOL:${WIN32}>:ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32>
-    $<$<BOOL:${UNIX}>:odbc pthread dl>
 )
+if(WIN32)
+    target_link_libraries(DNLogServer PRIVATE
+        ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32
+    )
+elseif(UNIX)
+    target_link_libraries(DNLogServer PRIVATE odbc pthread dl)
+endif()
 irine_install_server_target(DNLogServer)

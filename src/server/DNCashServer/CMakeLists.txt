@@ -41,8 +41,10 @@ add_executable(DNCashServer
     "${CMAKE_SOURCE_DIR}/common/utilities/StringSet.cpp"
     "${CMAKE_SOURCE_DIR}/common/utilities/TimeSet.cpp"
     "${CMAKE_SOURCE_DIR}/game/inventory/DNLimitedCashItemRepository.cpp"
-    $<$<BOOL:${WIN32}>:${CMAKE_SOURCE_DIR}/src/server/DNCashServer/DNCashServer.rc>
 )
+if(WIN32)
+    target_sources(DNCashServer PRIVATE "${CMAKE_SOURCE_DIR}/src/server/DNCashServer/DNCashServer.rc")
+endif()
 set_target_properties(DNCashServer PROPERTIES OUTPUT_NAME "DNCashServer64")
 target_include_directories(DNCashServer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -58,7 +60,12 @@ target_link_libraries(DNCashServer PRIVATE
     irine_utility
     dep_tinyxml
     dep_zlib
-    $<$<BOOL:${WIN32}>:ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32>
-    $<$<BOOL:${UNIX}>:odbc pthread dl>
 )
+if(WIN32)
+    target_link_libraries(DNCashServer PRIVATE
+        ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32
+    )
+elseif(UNIX)
+    target_link_libraries(DNCashServer PRIVATE odbc pthread dl)
+endif()
 irine_install_server_target(DNCashServer)
