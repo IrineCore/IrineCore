@@ -1,0 +1,36 @@
+# =============================================================================
+# IrineCore — Docker Compose Local Override Template
+# =============================================================================
+# Copy this file to `docker-compose.override.yml` (gitignored) if you prefer
+# overriding bind mounts, ports, or environment variables via Compose YAML
+# instead of (or in addition to) `.env`.
+#
+# Docker Compose automatically merges `docker-compose.override.yml` with
+# `docker-compose.yml` whenever you run `docker compose up -d`.
+# =============================================================================
+
+x-gameres-override: &gameres-override
+  volumes:
+    # Point to any custom GameRes location on your host (read-only inside containers).
+    #   Linux example   : /srv/dragonnest/GameRes:/irinecore/GameRes:ro
+    #   Windows example : R:/Server/GameRes:/irinecore/GameRes:ro
+    - /path/to/your/GameRes:/irinecore/GameRes:ro
+
+services:
+  irine-dbserver:
+    <<: *gameres-override
+
+  irine-cashserver:
+    <<: *gameres-override
+
+  irine-masterserver:
+    <<: *gameres-override
+
+  irine-loginserver:
+    <<: *gameres-override
+
+  irine-villageserver:
+    <<: *gameres-override
+
+  irine-gameserver:
+    <<: *gameres-override

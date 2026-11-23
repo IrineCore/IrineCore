@@ -35,11 +35,14 @@ function(irine_sanitize_module_name RAW_NAME OUT_IDENT OUT_UPPER)
 endfunction()
 
 function(irine_install_module_configs MODULE_ROOT_DIR)
+    get_filename_component(_mod_folder_name "${MODULE_ROOT_DIR}" NAME)
+
     # Auto-discover all config files across both modules/ and conf/ layouts
     set(_all_cfgs "")
     if(EXISTS "${MODULE_ROOT_DIR}/modules")
         file(GLOB _mod_inis
             "${MODULE_ROOT_DIR}/modules/*.ini"
+            "${MODULE_ROOT_DIR}/modules/*.ini.dist"
             "${MODULE_ROOT_DIR}/modules/*.conf"
             "${MODULE_ROOT_DIR}/modules/*.conf.dist"
         )
@@ -48,22 +51,44 @@ function(irine_install_module_configs MODULE_ROOT_DIR)
     if(EXISTS "${MODULE_ROOT_DIR}/conf")
         file(GLOB _conf_files
             "${MODULE_ROOT_DIR}/conf/*.ini"
+            "${MODULE_ROOT_DIR}/conf/*.ini.dist"
             "${MODULE_ROOT_DIR}/conf/*.conf"
             "${MODULE_ROOT_DIR}/conf/*.conf.dist"
         )
         list(APPEND _all_cfgs ${_conf_files})
     endif()
     if(_all_cfgs)
-        install(FILES ${_all_cfgs} DESTINATION "${CMAKE_INSTALL_PREFIX}/module")
         foreach(_cfg IN LISTS _all_cfgs)
             get_filename_component(_cfg_name "${_cfg}" NAME)
-            set_property(GLOBAL APPEND PROPERTY IRINE_ENABLED_MODULE_CONFIGS "${_cfg_name}")
+            if(_cfg_name MATCHES "\\.dist$")
+                # Always refresh .dist defaults, and seed active config if absent
+                string(REGEX REPLACE "\\.dist$" "" _active_name "${_cfg_name}")
+                install(FILES "${_cfg}" DESTINATION "${CMAKE_INSTALL_PREFIX}/module")
+                install(CODE "
+                    if(NOT EXISTS \"\${CMAKE_INSTALL_PREFIX}/module/${_active_name}\")
+                        file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/module\" TYPE FILE RENAME \"${_active_name}\" FILES \"${_cfg}\")
+                    endif()
+                ")
+                set_property(GLOBAL APPEND PROPERTY IRINE_ENABLED_MODULE_CONFIGS "${_active_name}")
+            else()
+                # Install refreshed .dist backup AND seed active file only if absent (preserves user edits)
+                install(FILES "${_cfg}" DESTINATION "${CMAKE_INSTALL_PREFIX}/module" RENAME "${_cfg_name}.dist")
+                install(CODE "
+                    if(NOT EXISTS \"\${CMAKE_INSTALL_PREFIX}/module/${_cfg_name}\")
+                        file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/module\" TYPE FILE FILES \"${_cfg}\")
+                    endif()
+                ")
+                set_property(GLOBAL APPEND PROPERTY IRINE_ENABLED_MODULE_CONFIGS "${_cfg_name}")
+            endif()
         endforeach()
     endif()
     if(EXISTS "${MODULE_ROOT_DIR}/data/sql")
-        file(GLOB _sql_files "${MODULE_ROOT_DIR}/data/sql/*.sql")
+        file(GLOB_RECURSE _sql_files "${MODULE_ROOT_DIR}/data/sql/*.sql")
         if(_sql_files)
-            install(FILES ${_sql_files} DESTINATION "${CMAKE_INSTALL_PREFIX}/module/sql")
+            install(DIRECTORY "${MODULE_ROOT_DIR}/data/sql/"
+                DESTINATION "${CMAKE_INSTALL_PREFIX}/module/sql/${_mod_folder_name}"
+                FILES_MATCHING PATTERN "*.sql"
+            )
         endif()
     endif()
 endfunction()

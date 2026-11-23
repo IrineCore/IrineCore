@@ -1,0 +1,11 @@
+{
+  "name": "Player-Bots",
+  "version": "1.2.0",
+  "description": "Autonomous AI party companion bots with player-synced level, gear, heraldry, talisman, skill scaling, and tactical combat strategies.",
+  "author": "IrineCore",
+  "caps": ["Cap-60"],
+  "servers": ["DNGameServer"],
+  "config": "modules/Player-Bots.ini",
+  "sql_dir": "data/sql",
+  "dependencies": []
+}

@@ -8,6 +8,7 @@ public:
 
 private:
 	TCHAR	m_wszFileName[MAX_PATH];
+	TCHAR	m_wszDistFileName[MAX_PATH];
 
 public:
 	BOOL	Open(LPCTSTR fileName);

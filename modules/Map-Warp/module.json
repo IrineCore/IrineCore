@@ -1,0 +1,11 @@
+{
+  "name": "Map-Warp",
+  "version": "1.0.0",
+  "description": "Smart Zone-Map NPC and Portal click-to-warp module with combat, busy-state, navmesh, and obstacle safety checks.",
+  "author": "IrineCore",
+  "caps": ["Cap-60"],
+  "servers": ["DNVillageServer", "DNGameServer"],
+  "config": "modules/Map-Warp.ini",
+  "sql_dir": "data/sql",
+  "dependencies": []
+}
