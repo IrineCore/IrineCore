@@ -67,8 +67,10 @@ add_executable(DNDBServer
     "${CMAKE_SOURCE_DIR}/common/utilities/MiniDumpSet.cpp"
     "${CMAKE_SOURCE_DIR}/common/utilities/StringSet.cpp"
     "${CMAKE_SOURCE_DIR}/common/utilities/TimeSet.cpp"
-    $<$<BOOL:${WIN32}>:${CMAKE_SOURCE_DIR}/src/server/DNDBServer/DNDBServer.rc>
 )
+if(WIN32)
+    target_sources(DNDBServer PRIVATE "${CMAKE_SOURCE_DIR}/src/server/DNDBServer/DNDBServer.rc")
+endif()
 set_target_properties(DNDBServer PROPERTIES OUTPUT_NAME "DNDBServer64")
 target_include_directories(DNDBServer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -82,7 +84,12 @@ target_link_libraries(DNDBServer PRIVATE
     irine_etfilesystem
     irine_utility
     dep_zlib
-    $<$<BOOL:${WIN32}>:ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32>
-    $<$<BOOL:${UNIX}>:odbc pthread dl>
 )
+if(WIN32)
+    target_link_libraries(DNDBServer PRIVATE
+        ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32
+    )
+elseif(UNIX)
+    target_link_libraries(DNDBServer PRIVATE odbc pthread dl)
+endif()
 irine_install_server_target(DNDBServer)

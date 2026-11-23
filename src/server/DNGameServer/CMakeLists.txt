@@ -568,8 +568,10 @@ add_executable(DNGameServer
     "${CMAKE_SOURCE_DIR}/src/server/ServerCommon/DNEventSystem.cpp"
     "${CMAKE_SOURCE_DIR}/src/server/ServerCommon/DNMissionCommonAPI.cpp"
     "${CMAKE_SOURCE_DIR}/src/server/ServerCommon/DNStampSystem.cpp"
-    $<$<BOOL:${WIN32}>:${CMAKE_SOURCE_DIR}/src/server/DNGameServer/DNGameServer.rc>
 )
+if(WIN32)
+    target_sources(DNGameServer PRIVATE "${CMAKE_SOURCE_DIR}/src/server/DNGameServer/DNGameServer.rc")
+endif()
 set_target_properties(DNGameServer PROPERTIES OUTPUT_NAME "DNGameServer64")
 target_include_directories(DNGameServer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -590,8 +592,13 @@ target_link_libraries(DNGameServer PRIVATE
     irine_utility
     dep_tinyxml
     dep_zlib
-    $<$<BOOL:${WIN32}>:ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32>
-    $<$<BOOL:${UNIX}>:odbc pthread dl>
 )
+if(WIN32)
+    target_link_libraries(DNGameServer PRIVATE
+        ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32
+    )
+elseif(UNIX)
+    target_link_libraries(DNGameServer PRIVATE odbc pthread dl)
+endif()
 irine_link_gameserver_modules(DNGameServer)
 irine_install_server_target(DNGameServer)

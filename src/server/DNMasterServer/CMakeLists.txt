@@ -45,8 +45,10 @@ add_executable(DNMasterServer
     "${CMAKE_SOURCE_DIR}/src/server/DNMasterServer/DNWaitUserManager.cpp"
     "${CMAKE_SOURCE_DIR}/src/server/DNMasterServer/DNGuildWar.cpp"
     "${CMAKE_SOURCE_DIR}/src/server/DNMasterServer/DNGuildWarManager.cpp"
-    $<$<BOOL:${WIN32}>:${CMAKE_SOURCE_DIR}/src/server/DNMasterServer/DNMasterServer.rc>
 )
+if(WIN32)
+    target_sources(DNMasterServer PRIVATE "${CMAKE_SOURCE_DIR}/src/server/DNMasterServer/DNMasterServer.rc")
+endif()
 set_target_properties(DNMasterServer PROPERTIES OUTPUT_NAME "DNMasterServer64")
 target_include_directories(DNMasterServer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -62,7 +64,12 @@ target_link_libraries(DNMasterServer PRIVATE
     irine_utility
     dep_tinyxml
     dep_zlib
-    $<$<BOOL:${WIN32}>:ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32>
-    $<$<BOOL:${UNIX}>:odbc pthread dl>
 )
+if(WIN32)
+    target_link_libraries(DNMasterServer PRIVATE
+        ws2_32 mswsock odbc32 odbccp32 winmm dbghelp psapi version wininet mpr ole32 oleaut32 shell32 advapi32 gdi32 user32
+    )
+elseif(UNIX)
+    target_link_libraries(DNMasterServer PRIVATE odbc pthread dl)
+endif()
 irine_install_server_target(DNMasterServer)
