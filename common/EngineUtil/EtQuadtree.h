@@ -53,7 +53,7 @@ public:
 	{
 		return m_vecObjectList[ nIndex ];
 	}
-	void SetRange( EtVector2 &CenterPos, float fRadius )
+	void SetRange( const EtVector2 &CenterPos, float fRadius )
 	{
 		m_NodeCircle.Center = CenterPos;
 		m_NodeCircle.fRadius = fRadius;
@@ -139,7 +139,8 @@ public:
 			{
 				if( bInside[ i ] )
 				{
-					fDist = EtVec2LengthSq( &( Circle.Center - ChildCircle[ i ].Center ) );
+					EtVector2 vDiff = Circle.Center - ChildCircle[ i ].Center;
+					fDist = EtVec2LengthSq( &vDiff );
 					if( fDist < fMinDist )
 					{
 						fMinDist = fDist;
@@ -156,7 +157,7 @@ public:
 	}
 	bool Remove( T Object )
 	{
-		std::vector< T >::iterator Iter;
+		typename std::vector< T >::iterator Iter;
 		Iter = std::find( m_vecObjectList.begin(), m_vecObjectList.end(), Object );
 		if( Iter != m_vecObjectList.end() )
 		{
@@ -234,7 +235,7 @@ public:
 		}
 	}
 
-	void Pick( EtVector2 &vPoint, std::vector< T > &vecPickObject )
+	void Pick( const EtVector2 &vPoint, std::vector< T > &vecPickObject )
 	{
 		if( !m_NodeCircle.IsInside( vPoint ) )
 		{
@@ -260,7 +261,7 @@ public:
 		}
 	}
 
-	void Pick( EtVector2 &vPoint, T *pPickObject, int &nCurIndex, int nMaxSize )
+	void Pick( const EtVector2 &vPoint, T *pPickObject, int &nCurIndex, int nMaxSize )
 	{
 		if( !m_NodeCircle.IsInside( vPoint ) )
 		{
@@ -309,7 +310,7 @@ protected:
 	CEtQuadtreeNode< T > *m_pRootNode;
 
 public:
-	void Initialize( EtVector2 &CenterPos, float fWorldSize )
+	void Initialize( const EtVector2 &CenterPos, float fWorldSize )
 	{
 		m_bInit = true;
 		float fRootRadius = fWorldSize * 1.414214f * 0.5f;
@@ -379,7 +380,7 @@ public:
 		m_pRootNode->Pick( Circle, vecPickObject, bInside );
 	}
 
-	void Pick( EtVector2 &vPoint, std::vector< T > &vecPickObject )
+	void Pick( const EtVector2 &vPoint, std::vector< T > &vecPickObject )
 	{
 		if( !m_bInit )
 		{
@@ -388,7 +389,7 @@ public:
 		m_pRootNode->Pick( vPoint, vecPickObject );
 	}
 
-	int Pick( EtVector2 &vPoint, T* pPickObject, int nMaxSize )
+	int Pick( const EtVector2 &vPoint, T* pPickObject, int nMaxSize )
 	{
 		if( !m_bInit )
 		{
@@ -400,7 +401,7 @@ public:
 	}
 
 	template< int _Size>
-	int Pick( EtVector2 &vPoint, T (&pPickObject)[_Size] )
+	int Pick( const EtVector2 &vPoint, T (&pPickObject)[_Size] )
 	{
 		return Pick( vPoint, pPickObject, _Size);
 	}

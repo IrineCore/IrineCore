@@ -45,25 +45,25 @@ public:
 		m_hKick[3] = CDnWeapon::CreateWeapon( GetRoom(), 32, 0 );
 		for( int i=0; i<4; i++ ) m_hKick[i]->CreateObject();
 
-		m_nKickActionIndex[0] = GetElementIndex( "Attack_SideKick" );
-		m_nKickActionIndex[1] = GetElementIndex( "Attack_SoccerKick" );
-		m_nKickActionIndex[2] = GetElementIndex( "Attack_Down" );
-		m_nKickActionIndex[3] = GetElementIndex( "Jump_Kick" );
+		m_nKickActionIndex[0] = this->GetElementIndex( "Attack_SideKick" );
+		m_nKickActionIndex[1] = this->GetElementIndex( "Attack_SoccerKick" );
+		m_nKickActionIndex[2] = this->GetElementIndex( "Attack_Down" );
+		m_nKickActionIndex[3] = this->GetElementIndex( "Jump_Kick" );
 
 		for( int i=0; ; i++ ) {
 			if( s_RotateBoneDefine[i].szBoneName == NULL ) break;
-			s_RotateBoneDefine[i].nBoneIndex = GetBoneIndex( s_RotateBoneDefine[i].szBoneName );
+			s_RotateBoneDefine[i].nBoneIndex = this->GetBoneIndex( s_RotateBoneDefine[i].szBoneName );
 		}
 
 		return true;
 	}
 
-	virtual DnWeaponHandle GetStandardWeapon() { return m_hWeapon[1]; }
+	virtual DnWeaponHandle GetStandardWeapon() { return this->m_hWeapon[1]; }
 	virtual DnWeaponHandle GetWeapon( int nEquipIndex = 0 )
 	{
 		if( nEquipIndex == 0 ) {
 			for( int i=0; i<4; i++ ) {
-				if( m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
+				if( this->m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
 			}
 		}
 		return TDnPlayerCommon<T>::GetWeapon( nEquipIndex );
@@ -72,7 +72,7 @@ public:
 	{
 		if( nEquipIndex == 0 ) {
 			for( int i=0; i<4; i++ ) {
-				if( m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
+				if( this->m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
 			}
 		}
 

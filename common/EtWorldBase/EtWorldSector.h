@@ -120,7 +120,7 @@ public:
 
 	void ScanProp( EtVector3 &vPos, float fRadius, DNVector(CEtWorldProp*) *pVecResult );
 	void ScanDecal( EtVector2 &vPos, float fRadius, std::vector<CEtWorldDecal *> *pVecResult );
-	void ScanEventArea( EtVector2 &vPos, float fRadius, std::vector<CEtWorldEventArea *> *pVecResult );
+	void ScanEventArea( const EtVector2 &vPos, float fRadius, std::vector<CEtWorldEventArea *> *pVecResult );
 	void ScanEventArea( SAABox &Box, std::vector<CEtWorldEventArea *> *pVecResult );
 	void ScanEventArea( SOBB &Box, std::vector<CEtWorldEventArea *> *pVecResult );
 

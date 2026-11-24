@@ -7,11 +7,11 @@ struct SectorIndex {
 
 	SectorIndex() { nX = nY = -1; };
 	SectorIndex( int x, int y ) { nX = x; nY = y; };
-	bool operator == ( SectorIndex &p ) {
+	bool operator == ( const SectorIndex &p ) const {
 		if( p.nX == nX && p.nY == nY ) return true;
 		return false;
 	}
-	bool operator != ( SectorIndex &p ) {
+	bool operator != ( const SectorIndex &p ) const {
 		if( p.nX == nX && p.nY == nY ) return false;
 		return true;
 	}

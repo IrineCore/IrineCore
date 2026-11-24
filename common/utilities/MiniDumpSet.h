@@ -37,8 +37,8 @@ Copyright (c) 2002~2009 B4nFter (b4nfter@gmail.com) and Co-Writers. All Rights R
 //	INCLUDE
 ///////////////////////////////////////////////////////////////////
 
-#include <WINDOWS.H>
-#include <DBGHELP.H>
+#include <windows.h>
+#include <dbghelp.h>
 #include "StringSet.h"
 
 #pragma comment (lib, "DBGHELP.LIB")

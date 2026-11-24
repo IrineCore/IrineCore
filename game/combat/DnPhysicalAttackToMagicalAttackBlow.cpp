@@ -20,12 +20,12 @@ CDnPhysicalAttackToMagicalAttackBlow::~CDnPhysicalAttackToMagicalAttackBlow(void
 
 void CDnPhysicalAttackToMagicalAttackBlow::OnBegin(LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 }
 
 void CDnPhysicalAttackToMagicalAttackBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 
@@ -46,7 +46,7 @@ void CDnPhysicalAttackToMagicalAttackBlow::OnEnd( LOCAL_TIME LocalTime, float fD
 	// Refresh all stats.
 	m_hActor->RefreshState();
 
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 }
 
 #if defined(PRE_ADD_PREFIX_SYSTE_RENEW)

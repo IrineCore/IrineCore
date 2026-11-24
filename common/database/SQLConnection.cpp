@@ -666,7 +666,7 @@ void CSQLConnection::ConvertQuery(WCHAR *pSrc, int nSrcMaxSize, WCHAR *pResultSt
 		j -= 1;		
 	}
 
-	pResultStr[j] = NULL;
+	pResultStr[j] = L'\0';
 }
 
 void CSQLConnection::CheckColumnCount(int nBindCount, const char* pszQuery)

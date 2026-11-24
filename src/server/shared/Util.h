@@ -147,13 +147,16 @@ class map_wstr : public std::map <const WCHAR*, _Tx, less_str <const WCHAR*> >
 inline unsigned long _inet_addr(const char * cp)
 {
 	int s_b[4] = { 0, 0, 0, 0};
-	struct in_addr in;
 	sscanf(cp, "%d.%d.%d.%d", &s_b[0], &s_b[1], &s_b[2], &s_b[3]);
-	in.S_un.S_un_b.s_b1 = s_b[0];
-	in.S_un.S_un_b.s_b2 = s_b[1];
-	in.S_un.S_un_b.s_b3 = s_b[2];
-	in.S_un.S_un_b.s_b4 = s_b[3];
-	return in.S_un.S_addr;
+	unsigned char b[4] = {
+		static_cast<unsigned char>(s_b[0]),
+		static_cast<unsigned char>(s_b[1]),
+		static_cast<unsigned char>(s_b[2]),
+		static_cast<unsigned char>(s_b[3])
+	};
+	uint32_t addr = 0;
+	memcpy(&addr, b, sizeof(addr));
+	return static_cast<unsigned long>(addr);
 }
 
 inline void _inet_addr(unsigned long i, char * p)

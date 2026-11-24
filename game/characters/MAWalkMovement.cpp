@@ -594,7 +594,7 @@ void MAWalkMovement::PostProcess( LOCAL_TIME LocalTime )
 	m_vMovement = EtVector2( 0.f, 0.f );
 }
 
-bool MAWalkMovement::IsMovableBlock( CDnWorld* pWorld, EtVector3 &vPos )
+bool MAWalkMovement::IsMovableBlock( CDnWorld* pWorld, const EtVector3 &vPos )
 {
 	char cAttr = pWorld->GetAttribute( vPos.x, vPos.z );
 	int nBlockSize = pWorld->GetAttributeBlockSize( vPos.x, vPos.z );
@@ -1462,7 +1462,7 @@ void MAWalkMovement::SetMoveVectorX( EtVector3 &vVec )
 	m_vMoveVectorX = vVec;
 }
 
-void MAWalkMovement::SetMoveVectorZ( EtVector3 &vVec )
+void MAWalkMovement::SetMoveVectorZ( const EtVector3 &vVec )
 {
 	m_vMoveVectorZ = vVec;
 }
@@ -1533,7 +1533,7 @@ void MAWalkMovement::SetVelocityByMoveVector( EtVector3 &vVec )
 	m_bFloorForceVelocity = false;
 }
 
-void MAWalkMovement::SetVelocity( EtVector3 &vVec )
+void MAWalkMovement::SetVelocity( const EtVector3 &vVec )
 {
 	m_vVelocity = vVec;
 
@@ -1576,7 +1576,7 @@ void MAWalkMovement::SetVelocityZ( float fPower )
 	m_vLastVelocity.z = fPower;
 }
 
-void MAWalkMovement::SetResistance( EtVector3 &vVec )
+void MAWalkMovement::SetResistance( const EtVector3 &vVec )
 {
 #ifdef PRE_MOD_VELOCITYACCEL_SIGNAL
 	bool bKeepVelocityResistY = false;
@@ -1870,7 +1870,7 @@ void MAWalkMovement::GenerateAutoMovingPath( NavigationMesh* pNaviMesh, Navigati
 }
 #endif // PRE_MOD_NAVIGATION_PATH
 
-void MAWalkMovement::MoveToWorld( EtVector2 &vVec )
+void MAWalkMovement::MoveToWorld( const EtVector2 &vVec )
 {
 	m_vMovement += vVec;
 }
@@ -1884,7 +1884,7 @@ void MAWalkMovement::ResetMove()
 	m_bEnableNaviMode = false;
 }
 
-void MAWalkMovement::Look( EtVector2 &vVec, bool bForceRotate )
+void MAWalkMovement::Look( const EtVector2 &vVec, bool bForceRotate )
 {
 	if( bForceRotate ) {
 		if( EtVec2LengthSq( &vVec ) > 0.f ) {
@@ -1904,7 +1904,7 @@ EtVector3 *MAWalkMovement::GetLookDir()
 	return &m_pMatExWorld->m_vZAxis;
 }
 
-void MAWalkMovement::LookTarget( DnActorHandle &hActor )
+void MAWalkMovement::LookTarget( const DnActorHandle &hActor )
 {
 	m_hLookTarget = hActor;
 
@@ -1929,7 +1929,7 @@ DnActorHandle MAWalkMovement::GetLookTarget()
 	return m_hLookTarget;
 }
 
-void MAWalkMovement::SetMagnetDir( EtVector2 &vPos )
+void MAWalkMovement::SetMagnetDir( const EtVector2 &vPos )
 {
 	m_vMagnetDir = vPos;
 }

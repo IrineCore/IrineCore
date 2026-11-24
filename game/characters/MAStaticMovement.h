@@ -29,7 +29,7 @@ public:
 	virtual EtVector3 *GetLastVelocity() { return &m_vIdentity; }
 	virtual EtVector3 *GetVelocityValue() { return &m_vIdentity; }
 
-	virtual void ForceLook( EtVector2 &vVec );
+	virtual void ForceLook( const EtVector2 &vVec );
 
 	virtual void Process( LOCAL_TIME LocalTime, float fDelta );
 

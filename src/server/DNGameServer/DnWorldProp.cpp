@@ -235,7 +235,7 @@ void CDnWorldProp::EnableIgnoreBuildColMesh( bool bEnable )
 
 void* CDnWorldProp::AllocPropData(int& usingCount)
 {
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	usingCount = GetPropSignalDataUsingCount64(m_nClassID);
 #else
 	usingCount = GetPropSignalDataUsingCount(m_nClassID);

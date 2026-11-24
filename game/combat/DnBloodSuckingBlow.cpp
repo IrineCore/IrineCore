@@ -34,7 +34,7 @@ void CDnBloodSuckingBlow::OnSetParentSkillInfo()
 
 void CDnBloodSuckingBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 void CDnBloodSuckingBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
@@ -48,7 +48,7 @@ void CDnBloodSuckingBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnBloodSuckingBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug( "%s\n", __FUNCTION__ );
 }

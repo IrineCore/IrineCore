@@ -1,6 +1,6 @@
 #pragma once
 
-#include < vector >
+#include <vector>
 #include <algorithm>
 #include "SmartPtr.h"
 #include "MultiCommon.h"
@@ -33,12 +33,12 @@ public:
 			m_iRoomID = -1;
 	}
 	template< class T2 >
-	CMultiSmartPtr( CMultiSmartPtr< T2 > &Ptr ) 
+	CMultiSmartPtr( const CMultiSmartPtr< T2 > &Ptr ) 
 	{
 		m_nHandle = Ptr.m_nHandle;
 		m_pInstance = reinterpret_cast< T * >( Ptr.m_pInstance );
-		Initialize( Ptr.GetRoom() );
-		m_iRoomID = Ptr.GetRoomID();
+		Initialize( const_cast<CMultiSmartPtr< T2 >&>(Ptr).GetRoom() );
+		m_iRoomID = const_cast<CMultiSmartPtr< T2 >&>(Ptr).GetRoomID();
 	}
 	~CMultiSmartPtr() {}
 
@@ -413,6 +413,6 @@ public:
 };
 
 #define DECL_MULTISMART_PTR_STATIC( Name, MAXCOUNT, Count ) \
-	int CMultiSmartPtrMng< Name >::s_nDefaultPoolSize = Count; \
-	CMultiSmartPtrMng< Name > CMultiSmartPtrBase< Name, MAXCOUNT >::s_SmartPtrMng[MAXCOUNT]; \
-	CMultiSmartPtr< Name > CMultiSmartPtrBase< Name, MAXCOUNT >::s_Identity;
+	template<> int CMultiSmartPtrMng< Name >::s_nDefaultPoolSize = Count; \
+	template<> CMultiSmartPtrMng< Name > CMultiSmartPtrBase< Name, MAXCOUNT >::s_SmartPtrMng[MAXCOUNT]{}; \
+	template<> CMultiSmartPtr< Name > CMultiSmartPtrBase< Name, MAXCOUNT >::s_Identity{};

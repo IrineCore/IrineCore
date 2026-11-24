@@ -5,9 +5,9 @@
 ///////////////////////////////////////////////////////////////////
 
 //#include "MEMORYSHUFFLEDATATYPE.H" // P.S.> Used on compilers that support the 'export' keyword
-#include <WINDOWS.H>
-#include <BASETSD.H>
-#include <NEW>			// placement new
+#include <windows.h>
+#include <basetsd.h>
+#include <new>			// placement new
 
 
 ///////////////////////////////////////////////////////////////////

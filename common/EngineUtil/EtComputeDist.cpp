@@ -612,7 +612,8 @@ float DistSegToBox( SSegment &Segment, SCollisionBox &Box, float &fSegParam,
 		else
 		{
 			fSegParam = 1.0f;
-			fSqrDistance = DistPointToOBB( Segment.vOrigin + Segment.vDirection, Box, fBoxParam0, fBoxParam1, fBoxParam2 );
+			EtVector3 vSegEnd = Segment.vOrigin + Segment.vDirection;
+			fSqrDistance = DistPointToOBB( vSegEnd, Box, fBoxParam0, fBoxParam1, fBoxParam2 );
 		}
 	}
 	else

@@ -32,7 +32,7 @@ CDnTransmitDamageBlow::~CDnTransmitDamageBlow(void)
 
 void CDnTransmitDamageBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug( "%s\n", __FUNCTION__ );
 }
@@ -40,13 +40,13 @@ void CDnTransmitDamageBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnTransmitDamageBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 }
 
 void CDnTransmitDamageBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug( "%s\n", __FUNCTION__);
 }

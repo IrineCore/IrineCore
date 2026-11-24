@@ -50,7 +50,7 @@ target_include_directories(DNCashServer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     ${IRINE_COMMON_INCLUDES}
 )
-target_compile_definitions(DNCashServer PRIVATE WIN64 NDEBUG _CONSOLE _CASHSERVER _FINAL_BUILD UNICODE _UNICODE)
+target_compile_definitions(DNCashServer PRIVATE $<$<BOOL:${WIN32}>:WIN64> NDEBUG _CONSOLE _CASHSERVER _FINAL_BUILD UNICODE _UNICODE)
 target_link_libraries(DNCashServer PRIVATE
     irine_modules
     irine_platform

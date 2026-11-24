@@ -53,18 +53,18 @@ CDnAddStateBySkillGroupBlow::~CDnAddStateBySkillGroupBlow(void)
 
 void CDnAddStateBySkillGroupBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 }
 
 void CDnAddStateBySkillGroupBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 
 void CDnAddStateBySkillGroupBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #ifdef _GAMESERVER
 	RemoveAdditionalStateBlow();

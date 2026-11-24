@@ -56,11 +56,31 @@ static_assert(sizeof(WCHAR) == 2, "WCHAR must be 2-byte UTF-16LE on Windows");
 #define APIENTRY
 #endif
 
-// MSVC fixed-width integer aliases
-using __int8  = int8_t;
-using __int16 = int16_t;
-using __int32 = int32_t;
-using __int64 = int64_t;
+// MSVC fixed-width integer aliases (macros so "unsigned __int64" is valid and distinct from "long")
+#ifndef __int8
+#define __int8  char
+#endif
+#ifndef __int16
+#define __int16 short
+#endif
+#ifndef __int32
+#define __int32 int
+#endif
+#ifndef __int64
+#define __int64 long long
+#endif
+#ifndef _int8
+#define _int8   char
+#endif
+#ifndef _int16
+#define _int16  short
+#endif
+#ifndef _int32
+#define _int32  int
+#endif
+#ifndef _int64
+#define _int64  long long
+#endif
 
 using BYTE      = uint8_t;
 using WORD      = uint16_t;

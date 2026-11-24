@@ -827,7 +827,7 @@ bool CEtPackingFile::AddFile(const char* strName, char *pData, DWORD nSize)
 	if(nSize <= 0)
 		return true;
 
-	DWORD lDstSize = nSize + 12 + max( 1, ( nSize + 12 ) / 1000 );
+	DWORD lDstSize = nSize + 12 + std::max<DWORD>( 1, ( nSize + 12 ) / 1000 );
 	char *pDstData = new char[lDstSize];
 
 	if( g_bUseCompress )
@@ -1403,7 +1403,8 @@ void CEtFileSystem::AddPackingFolder( const WCHAR* szPackingFileName, const char
 			std::string szTempBufferPath;
 			std::string szTempBufferName;
 			ToMultiString( szFullPath, szTempBufferPath );
-			ToMultiString( std::wstring(szPackingFileName), szTempBufferName );
+			std::wstring szPackNameW(szPackingFileName);
+			ToMultiString( szPackNameW, szTempBufferName );
 			CEtFileSystem::AddPackingFile(szTempBufferPath.c_str(), szTempBufferName.c_str());
 		}
 		if( !FindNextFileW( hFind, &FindFileData ) ) break;

@@ -1,7 +1,9 @@
 
 #pragma once
 
+#if defined(_WIN32)
 typedef unsigned long long int  QWORD;
+#endif
 
 /* Hardware byte order */
 #define ORDER_DCBA

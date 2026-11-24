@@ -1,6 +1,6 @@
 #pragma once
 
-#include < vector >
+#include <vector>
 #include <algorithm>
 #include <windows.h>
 #include "CriticalSection.h"
@@ -23,7 +23,7 @@ public:
 		m_pInstance = pInstance;
 	}
 	template< class T2 >
-	CSmartPtr( CSmartPtr< T2 > &Ptr ) 
+	CSmartPtr( const CSmartPtr< T2 > &Ptr ) 
 	{
 		m_nHandle = Ptr.m_nHandle;
 		m_pInstance = reinterpret_cast< T * >( Ptr.m_pInstance );
@@ -55,7 +55,7 @@ public:
 	T *GetPointer() { return m_pInstance; }
 	operator T*()
 	{
-		if( m_pInstance == NULL ) return false;
+		if( m_pInstance == NULL ) return NULL;
 		if( !m_pInstance->IsValidSmartPtr( m_nHandle, m_pInstance ) )
 		{
 			return NULL;
@@ -394,6 +394,7 @@ public:
 };
 
 #define DECL_SMART_PTR_STATIC( Name, Count) \
-	int CSmartPtrMng< Name >::s_nDefaultPoolSize = Count; \
-	CSyncLock CSmartPtrBase< Name >::s_SmartPtrLock; \
-	CSmartPtrMng< Name > CSmartPtrBase< Name >::s_SmartPtrMng( Count ); CSmartPtr< Name > CSmartPtrBase< Name >::s_Identity;
+	template<> int CSmartPtrMng< Name >::s_nDefaultPoolSize = Count; \
+	template<> CSyncLock CSmartPtrBase< Name >::s_SmartPtrLock{}; \
+	template<> CSmartPtrMng< Name > CSmartPtrBase< Name >::s_SmartPtrMng( Count ); \
+	template<> CSmartPtr< Name > CSmartPtrBase< Name >::s_Identity{};

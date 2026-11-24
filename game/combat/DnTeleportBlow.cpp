@@ -36,7 +36,7 @@ CDnTeleportBlow::~CDnTeleportBlow(void)
 
 void CDnTeleportBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	if (!m_hActor)
@@ -112,14 +112,14 @@ void CDnTeleportBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnTeleportBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 	
 }
 
 
 void CDnTeleportBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 }
 

@@ -37,7 +37,7 @@
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
 #endif 
 
-float CEtQuadtreeNode< NavigationCell * >::s_fMinRadius = 1000.0f;
+template<> float CEtQuadtreeNode< NavigationCell * >::s_fMinRadius = 1000.0f;
 
 
 void NavigationMesh::CreateNaviCells( int iCount )

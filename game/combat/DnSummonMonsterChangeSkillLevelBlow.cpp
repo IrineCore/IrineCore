@@ -25,13 +25,13 @@ CDnSummonMonsterChangeSkillLevelBlow::~CDnSummonMonsterChangeSkillLevelBlow(void
 
 void CDnSummonMonsterChangeSkillLevelBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 }
 
 
 void CDnSummonMonsterChangeSkillLevelBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 }
 

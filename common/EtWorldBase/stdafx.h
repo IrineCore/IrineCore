@@ -13,7 +13,7 @@
 #define WIN32_LEAN_AND_MEAN		// Exclude rarely-used stuff from Windows headers
 
 // TODO: Reference additional headers your program requires here.
-#include <Windows.h>
+#include <windows.h>
 #include <stdio.h>
 
 #include <vector>

@@ -1110,7 +1110,7 @@ namespace CommonUtil
 void CopyShallow_ProjectileStruct(ProjectileStruct& dest, const ProjectileStruct* pSource)
 {
 	memset(&dest, 0, sizeof(ProjectileStruct));
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	memcpy_s(&dest, sizeof(ProjectileStruct), pSource, GetSignalDataUsingCount64(STE_Projectile) * sizeof(int));
 #else
 	memcpy_s(&dest, sizeof(ProjectileStruct), pSource, GetSignalDataUsingCount(STE_Projectile) * sizeof(int));
@@ -1120,7 +1120,7 @@ void CopyShallow_ProjectileStruct(ProjectileStruct& dest, const ProjectileStruct
 void CopyShallow_HitStruct(HitStruct& dest, const HitStruct* pSource)
 {
 	memset(&dest, 0, sizeof(HitStruct));
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	memcpy_s(&dest, sizeof(HitStruct), pSource, GetSignalDataUsingCount64(STE_Hit) * sizeof(int));
 #else
 	memcpy_s(&dest, sizeof(HitStruct), pSource, GetSignalDataUsingCount(STE_Hit) * sizeof(int));
@@ -1130,7 +1130,7 @@ void CopyShallow_HitStruct(HitStruct& dest, const HitStruct* pSource)
 void CopyShallow_SummonMonsterStruct(SummonMonsterStruct& dest, const SummonMonsterStruct* pSource)
 {
 	memset(&dest, 0, sizeof(SummonMonsterStruct));
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	memcpy_s(&dest, sizeof(SummonMonsterStruct), pSource, GetSignalDataUsingCount64(STE_SummonMonster) * sizeof(int));
 #else
 	memcpy_s(&dest, sizeof(SummonMonsterStruct), pSource, GetSignalDataUsingCount(STE_SummonMonster) * sizeof(int));
@@ -1140,7 +1140,7 @@ void CopyShallow_SummonMonsterStruct(SummonMonsterStruct& dest, const SummonMons
 void CopyShallow_HeadLook(HeadLookStruct& dest, const HeadLookStruct* pSource)
 {
 	memset(&dest, 0, sizeof(HeadLookStruct));
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	memcpy_s(&dest, sizeof(HeadLookStruct), pSource, GetSignalDataUsingCount64(STE_HeadLook) * sizeof(int));
 #else
 	memcpy_s(&dest, sizeof(HeadLookStruct), pSource, GetSignalDataUsingCount(STE_HeadLook) * sizeof(int));

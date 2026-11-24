@@ -76,7 +76,7 @@ void CDnDamageDuplicateBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnDamageDuplicateBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 }
 
 

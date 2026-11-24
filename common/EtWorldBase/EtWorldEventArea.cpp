@@ -86,7 +86,7 @@ bool CEtWorldEventArea::Load( CStream *pStream )
 	m_pData = new int[256];
 	memset( m_pData, 0, 1024 );
 	pStream->Read( m_pData, 1024 );
-#elif defined(WIN64)
+#elif defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	const int eventID = (GetControl() != NULL) ? GetControl()->GetUniqueID() : -1;
 	const int usingCount32 = (eventID >= 0) ? GetEventSignalDataUsingCount(eventID) : 256;
 	const int usingCount = (eventID >= 0) ? GetEventSignalDataUsingCount64(eventID) : 256;
@@ -164,7 +164,7 @@ bool CEtWorldEventArea::Load( CStream *pStream )
 		ReadStdString( szStr, pStream );
 		szVecList.push_back( szStr );
 	}
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	// For 64-bit, expand every schema pointer slot (even if empty/omitted in older maps)
 	// as well as serialized pointer table slots from 4 bytes to 8 bytes.
 	m_nVec2Index64.clear();
@@ -341,7 +341,7 @@ void CEtWorldEventArea::GetBoundingCircle( SCircle &Circle )
 }
 
 
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 char CEtWorldEventArea::IsPointerTable( int nIndex )
 {
 	if( std::find( m_nVec2Index.begin(), m_nVec2Index.end(), nIndex ) != m_nVec2Index.end() ) return 0;

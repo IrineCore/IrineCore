@@ -4082,7 +4082,7 @@ void CDNUserSession::ApplySourceEffect(CDnPlayerActor* pPlayerActor, const TSour
 	// Delete right now on the server as well what was requested to be deleted.
 	pPlayerActor->RemoveResetStateBlow();
 
-	for each (CDnSkill::StateEffectStruct stateEffect in stateEffects)
+	for (CDnSkill::StateEffectStruct stateEffect : stateEffects)
 	{
 		int iBlowID = pPlayerActor->CmdAddStateEffect(&skillInfo, static_cast<STATE_BLOW::emBLOW_INDEX>(stateEffect.nID), (source.nRemainTime*1000), stateEffect.szValue.c_str(), false, true);
 		pPlayerActor->SendRemoveStateEffectGraphic(static_cast<STATE_BLOW::emBLOW_INDEX>(stateEffect.nID));
@@ -4148,7 +4148,7 @@ void CDNUserSession::ApplyEffectSkill( CDnPlayerActor* pPlayerActor, TEffectSkil
 
 	skillInfo.hSkillUser = pPlayerActor->GetActorHandle();
 
-	for each (CDnSkill::StateEffectStruct stateEffect in stateEffects)
+	for (CDnSkill::StateEffectStruct stateEffect : stateEffects)
 	{
 		int nRemainTime = EffectSkill->nRemainTime * 1000;
 		if( EffectSkill->bEternity == true )

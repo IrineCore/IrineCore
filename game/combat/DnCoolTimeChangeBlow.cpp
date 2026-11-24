@@ -42,7 +42,7 @@ CDnCoolTimeChangeBlow::~CDnCoolTimeChangeBlow(void)
 
 void CDnCoolTimeChangeBlow::OnBegin(LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 	OutputDebug( "CDnCoolTimeChangeBlow::OnBegin\n");
 
 	DNVector(DnSkillHandle) vlSkillList;
@@ -70,13 +70,13 @@ void CDnCoolTimeChangeBlow::OnBegin(LOCAL_TIME LocalTime, float fDelta )
 
 void CDnCoolTimeChangeBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 
 void CDnCoolTimeChangeBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 	OutputDebug( "CDnCoolTimeChangeBlow::OnEnd\n");
 
 	ResetCoolTime();

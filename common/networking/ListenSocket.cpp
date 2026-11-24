@@ -25,16 +25,17 @@ CListenSocket::~CListenSocket()
 
 void CListenSocket::SetDefaultSocketOption( SOCKET s )
 {
-	DWORD dwMode = 1;
+	unsigned long dwMode = 1;
 	ioctlsocket( s, FIONBIO, &dwMode );
 
-	bool boNoDelay = true;
+	int boNoDelay = 1;
 	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (const char FAR*)&boNoDelay, sizeof(boNoDelay));
 	
-
+#if defined(_WIN32)
 	//Only Send does not use socket buffer, while Recv uses socket buffer.
 	INT32 iZero = 0;	
 	setsockopt( s, SOL_SOCKET, SO_SNDBUF, reinterpret_cast<char*>(&iZero), sizeof(iZero) );
+#endif
 	
 	int RecvBuf = INTERNALBUFFERLENMAX;
 	setsockopt(s, SOL_SOCKET, SO_RCVBUF, (char*)&RecvBuf, sizeof(RecvBuf));

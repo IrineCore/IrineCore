@@ -34,7 +34,7 @@ CDnPileAddEffectBlow::~CDnPileAddEffectBlow(void)
 
 void CDnPileAddEffectBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug( "%s\n", __FUNCTION__ );
 }
@@ -42,14 +42,14 @@ void CDnPileAddEffectBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnPileAddEffectBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 }
 
 
 void CDnPileAddEffectBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	m_hActor->RemoveStateBlowSignal(this->GetMySmartPtr());
 

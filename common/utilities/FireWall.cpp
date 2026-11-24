@@ -9,6 +9,18 @@ Sample code for the Windows Firewall COM interface.
 #include "stdafx.h"
 #include "FireWall.h"
 
+#if !defined(_WIN32)
+HRESULT WindowsFirewallInitialize(OUT INetFwProfile** fwProfile) { if (fwProfile) *fwProfile = NULL; return S_OK; }
+void WindowsFirewallCleanup(IN INetFwProfile*) {}
+HRESULT WindowsFirewallIsOn(IN INetFwProfile*, OUT BOOL* fwOn) { if (fwOn) *fwOn = FALSE; return S_OK; }
+HRESULT WindowsFirewallTurnOn(IN INetFwProfile*) { return S_OK; }
+HRESULT WindowsFirewallTurnOff(IN INetFwProfile*) { return S_OK; }
+HRESULT WindowsFirewallAppIsEnabled(IN INetFwProfile*, IN const wchar_t*, OUT BOOL* fwAppEnabled) { if (fwAppEnabled) *fwAppEnabled = TRUE; return S_OK; }
+HRESULT WindowsFirewallAddApp(IN INetFwProfile*, IN const wchar_t*, IN const wchar_t*) { return S_OK; }
+HRESULT WindowsFirewallPortIsEnabled(IN INetFwProfile*, IN LONG, IN NET_FW_IP_PROTOCOL, OUT BOOL* fwPortEnabled) { if (fwPortEnabled) *fwPortEnabled = TRUE; return S_OK; }
+HRESULT WindowsFirewallPortAdd(IN INetFwProfile*, IN LONG, IN NET_FW_IP_PROTOCOL, IN const wchar_t*) { return S_OK; }
+#else // _WIN32
+
 #ifdef _DEBUG
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
 #endif
@@ -599,6 +611,7 @@ error:
 
 	return hr;
 }
+#endif // _WIN32
 
 
 /*int __cdecl wmain(int argc, wchar_t* argv[])

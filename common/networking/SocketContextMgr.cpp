@@ -19,7 +19,7 @@ CSocketContextMgr::~CSocketContextMgr()
 	Thread::m_bRunning = false;
 	Thread::WaitForTerminate();
 
-	for each( CSocketContext* pContext in m_vSocketContext )
+	for (CSocketContext* pContext : m_vSocketContext)
 		delete pContext;
 	m_vSocketContext.clear();
 }

@@ -28,7 +28,7 @@ CDnFinalCriticalBlow::~CDnFinalCriticalBlow(void)
 
 void CDnFinalCriticalBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 #if defined(PRE_ADD_CHAR_STATUS_SECOND_RENEW) && defined (PRE_FIX_CHARSTATUS_REFRESH) && defined(_CLIENT)
 	// A bit tricky: CharStatus normally updates when stats change, but since this state effect does not touch stats, there is no clear refresh trigger.
@@ -41,13 +41,13 @@ void CDnFinalCriticalBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnFinalCriticalBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 
 void CDnFinalCriticalBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if defined(PRE_ADD_CHAR_STATUS_SECOND_RENEW) && defined (PRE_FIX_CHARSTATUS_REFRESH) && defined(_CLIENT)
 	if( m_hActor == CDnActor::s_hLocalActor )

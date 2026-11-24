@@ -23,20 +23,20 @@ CDnBasisAttackDmgUpBlow::~CDnBasisAttackDmgUpBlow(void)
 
 void CDnBasisAttackDmgUpBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 }
 
 void CDnBasisAttackDmgUpBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 	
 }
 
 
 void CDnBasisAttackDmgUpBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 }
 

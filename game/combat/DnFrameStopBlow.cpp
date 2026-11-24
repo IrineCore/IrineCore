@@ -111,7 +111,7 @@ void CDnFrameStopBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 #if defined(PRE_FIX_53274)
 void CDnFrameStopBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 #ifndef _GAMESERVER
 	if (m_fValue != 0.0f)

@@ -76,7 +76,7 @@ target_include_directories(DNDBServer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     ${IRINE_COMMON_INCLUDES}
 )
-target_compile_definitions(DNDBServer PRIVATE WIN64 NDEBUG _CONSOLE _DBSERVER _FINAL_BUILD UNICODE _UNICODE)
+target_compile_definitions(DNDBServer PRIVATE $<$<BOOL:${WIN32}>:WIN64> NDEBUG _CONSOLE _DBSERVER _FINAL_BUILD UNICODE _UNICODE)
 target_link_libraries(DNDBServer PRIVATE
     irine_modules
     irine_platform

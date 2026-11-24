@@ -131,7 +131,7 @@ bool CEtCollisionEntity::TestCollision( SCollisionPrimitive &Primitive )
 	return false;
 }
 
-bool CEtCollisionEntity::FindCollision( SCollisionPrimitive &TragetPrimitive, EtVector3 &vMove, SCollisionResponse &Response, bool bCalcContactTime )
+bool CEtCollisionEntity::FindCollision( SCollisionPrimitive &TragetPrimitive, const EtVector3 &vMove, SCollisionResponse &Response, bool bCalcContactTime )
 {
 	int i;
 
@@ -151,7 +151,7 @@ bool CEtCollisionEntity::FindCollision( SCollisionPrimitive &TragetPrimitive, Et
 	return false;
 }
 
-bool CEtCollisionEntity::FindCollision( std::vector< SCollisionPrimitive * > &vecTragetPrimitive, EtVector3 &vMove, DNVector(SCollisionResponse) &vecResponse, bool bCalcContactTime )
+bool CEtCollisionEntity::FindCollision( std::vector< SCollisionPrimitive * > &vecTragetPrimitive, const EtVector3 &vMove, DNVector(SCollisionResponse) &vecResponse, bool bCalcContactTime )
 {
 	int i, j;
 	SCollisionResponse Response;

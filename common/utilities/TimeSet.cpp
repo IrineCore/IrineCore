@@ -6,7 +6,7 @@
 
 #include "stdafx.h"
 #include "TimeSet.h"
-#include <TIME.H>
+#include <time.h>
 #include "CommonMacros.h"
 #include "BaseSet.h"
 #include "DebugUtil.h"

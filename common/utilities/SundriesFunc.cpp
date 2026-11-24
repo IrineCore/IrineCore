@@ -2,7 +2,7 @@
 #include "SundriesFunc.h"
 #include "Stream.h"
 #include <stdarg.h>
-#include <Windows.h>
+#include <windows.h>
 #include <boost/algorithm/string.hpp>
 
 #ifdef _DEBUG
@@ -1036,7 +1036,7 @@ int GetDateValue( int nYear, int nMonth, int nDay )
 
 bool DnLocalTime_s( struct tm * _Tm, const time_t * _Time )
 {
-	if( *_Time < 0 || *_Time > 0x793406fffi64 ) return false;
+	if( *_Time < 0 || *_Time > 0x793406fffLL ) return false;
 	return ( localtime_s( _Tm, _Time ) ) ? false : true;
 }
 

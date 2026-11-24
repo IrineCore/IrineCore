@@ -7,6 +7,7 @@
 #include <algorithm>
 #if !defined(_WIN32)
 #include <dirent.h>
+#include <sys/stat.h>
 #endif
 
 namespace Irine {
@@ -16,8 +17,14 @@ namespace {
 
 bool FileExistsRegularW(const std::wstring& path)
 {
+#if defined(_WIN32)
     DWORD attr = ::GetFileAttributesW(path.c_str());
     return (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY));
+#else
+    std::string narrow = Irine::Platform::NormalizePath(Irine::Platform::WideToUtf8(path.c_str()));
+    struct stat sb{};
+    return (::stat(narrow.c_str(), &sb) == 0 && !S_ISDIR(sb.st_mode));
+#endif
 }
 
 std::wstring AsciiToWide(const char* s)

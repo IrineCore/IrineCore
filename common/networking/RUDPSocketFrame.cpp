@@ -2,13 +2,16 @@
 #include "stdafx.h"
 #include <crtdbg.h>
 #include <process.h>
-#include <MMSystem.h>
+#include <mmsystem.h>
 #include "RUDPSocketFrame.h"
 #include "Log.h"
 #include "MemPool.h"
 #include "PerfCheck.h"
 
 #include <fstream>
+#if !defined(_WIN32)
+#include <ifaddrs.h>
+#endif
 
 #ifdef _DEBUG
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
@@ -83,7 +86,12 @@ void CRUDPSocketFrame::ThreadMain()
 #endif		//#ifdef PRE_ADD_THREADAFFINITY
 
 	char buffer[1024*4];
-	int readbytes, addrlen;
+	int readbytes;
+#if defined(_WIN32)
+	int addrlen;
+#else
+	socklen_t addrlen;
+#endif
 	unsigned long totalbytes, i;
 	unsigned long busytime;
 	SOCKADDR_IN addr;
@@ -102,13 +110,19 @@ void CRUDPSocketFrame::ThreadMain()
 		FD_SET(m_hSocket, &fdset);
 
 		m_nCurTick = GetTimeTick();
-		if (select(FD_SETSIZE, (fd_set*)&fdset, (fd_set*)0, (fd_set*)0, &tm) != SOCKET_ERROR)
+#if defined(_WIN32)
+		int selectNfds = FD_SETSIZE;
+#else
+		int selectNfds = static_cast<int>(m_hSocket) + 1;
+#endif
+		if (select(selectNfds, (fd_set*)&fdset, (fd_set*)0, (fd_set*)0, &tm) != SOCKET_ERROR)
 		{
 			busytime = GetCurTick() + _SELECT_BUSYTIME;		//Create a loop to speed up processing in case data arrives during processing. 
 																								//However, spinning too fast is undesirable, so add an appropriate delay.
-			if (fdset.fd_count > 0)
+			if (FD_ISSET(m_hSocket, &fdset))
 			{
 				do {	
+					totalbytes = 0;
 					ioctlsocket(m_hSocket, FIONREAD, &totalbytes);	
 
 					for (i = 0; i < totalbytes && m_bAlive == true;)
@@ -118,29 +132,23 @@ void CRUDPSocketFrame::ThreadMain()
 
 						if (readbytes == SOCKET_ERROR)
 						{
-							int lasterr = GetLastError();
+							int lasterr = WSAGetLastError();
 							if (lasterr == WSAECONNRESET)
 							{
 								Enter();
 								std::map <SOCKADDR_IN*, CRUDPConnect*, _addr_less_>::iterator ii = m_ConnectRef.find(&addr);
 								if (ii != m_ConnectRef.end() && 
-									(*ii).first->sin_addr.S_un.S_addr == addr.sin_addr.S_un.S_addr && (*ii).first->sin_port == addr.sin_port)
+									(*ii).first->sin_addr.s_addr == addr.sin_addr.s_addr && (*ii).first->sin_port == addr.sin_port)
 									DisConnectPtr((*ii).second, false);
 								Leave();
 #ifdef _DEBUG
-								_tprintf(_T("RUDP connection disconnected, %d (%d.%d.%d.%d)\n"), lasterr, 
-									addr.sin_addr.S_un.S_un_b.s_b1, addr.sin_addr.S_un.S_un_b.s_b2,
-									addr.sin_addr.S_un.S_un_b.s_b3, addr.sin_addr.S_un.S_un_b.s_b4, 
-									addr.sin_port);
+								_tprintf(_T("RUDP connection disconnected, %d (%S:%d)\n"), lasterr, inet_ntoa(addr.sin_addr), addr.sin_port);
 #endif
 							}
 							else
 							{
 #ifdef _DEBUG
-								_tprintf(_T("RUDP unreachable/error, %d (%d.%d.%d.%d)\n"), lasterr, 
-									addr.sin_addr.S_un.S_un_b.s_b1, addr.sin_addr.S_un.S_un_b.s_b2,
-									addr.sin_addr.S_un.S_un_b.s_b3, addr.sin_addr.S_un.S_un_b.s_b4, 
-									addr.sin_port);			//oops!
+								_tprintf(_T("RUDP unreachable/error, %d (%S:%d)\n"), lasterr, inet_ntoa(addr.sin_addr), addr.sin_port);			//oops!
 #endif
 							}
 							break;
@@ -242,7 +250,7 @@ void CRUDPSocketFrame::EnableAffinitySetting()
 }
 #endif		//#ifdef PRE_ADD_THREADAFFINITY
 
-#include <Iprtrmib.h>
+#include <iprtrmib.h>
 
 #define CXIP_A(IP)	((IP&0xFF000000)>>24)
 #define CXIP_B(IP)	((IP&0x00FF0000)>>16)
@@ -251,6 +259,44 @@ void CRUDPSocketFrame::EnableAffinitySetting()
 
 void CRUDPSocketFrame::GetHostAddr()
 {
+#if !defined(_WIN32)
+	DWORD dwPrivateIP = 0;
+	DWORD dwPublicIP  = 0;
+	struct ifaddrs* ifaddr = nullptr;
+	if (::getifaddrs(&ifaddr) == 0)
+	{
+		for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+		{
+			if (!ifa->ifa_addr || ifa->ifa_addr->sa_family != AF_INET) continue;
+			DWORD dwIP = ntohl(reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr)->sin_addr.s_addr);
+			if (CXIP_A(dwIP) == 127 || dwIP == 0) continue;
+			bool bPrivate = (CXIP_A(dwIP) == 10) ||
+			                (CXIP_A(dwIP) == 172 && CXIP_B(dwIP) >= 16 && CXIP_B(dwIP) <= 31) ||
+			                (CXIP_A(dwIP) == 192 && CXIP_B(dwIP) == 168);
+			if (bPrivate)
+			{
+				if (!dwPrivateIP || dwPrivateIP > dwIP) dwPrivateIP = dwIP;
+			}
+			else if (!dwPublicIP)
+			{
+				dwPublicIP = dwIP;
+			}
+		}
+		::freeifaddrs(ifaddr);
+	}
+	if (!dwPublicIP) dwPublicIP = dwPrivateIP ? dwPrivateIP : ntohl(inet_addr("127.0.0.1"));
+	if (!dwPrivateIP) dwPrivateIP = dwPublicIP;
+	in_addr pubAddr{}, privAddr{};
+	pubAddr.s_addr  = htonl(dwPublicIP);
+	privAddr.s_addr = htonl(dwPrivateIP);
+	const char* pubStr  = inet_ntoa(pubAddr);
+	const char* privStr = inet_ntoa(privAddr);
+	if (pubStr)  _strcpy(m_szPublicIP,  _countof(m_szPublicIP),  pubStr,  (int)strlen(pubStr));
+	if (privStr) _strcpy(m_szPrivateIP, _countof(m_szPrivateIP), privStr, (int)strlen(privStr));
+	printf("public [ip:%s]\n", m_szPublicIP);
+	printf("private [ip:%s]\n", m_szPrivateIP);
+	return;
+#else
 	DWORD dwPrivateIP		= 0;
 	DWORD dwPrivateIPMask	= 0;
 	DWORD dwPublicIP		= 0;
@@ -431,6 +477,7 @@ void CRUDPSocketFrame::GetHostAddr()
 
 	printf("public [ip:%s]\n", m_szPublicIP);
 	printf("private [ip:%s]\n", m_szPrivateIP);
+#endif
 }
 
 bool CRUDPSocketFrame::Open(int nID, int nAffinity, int iPort, bool bIsClient, bool bUseAffinity)
@@ -443,18 +490,22 @@ bool CRUDPSocketFrame::Open(int nID, int nAffinity, int iPort, bool bIsClient, b
 	ZeroMemory(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(iPort);
-	addr.sin_addr.S_un.S_addr = htonl(INADDR_ANY);
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	if (::bind(m_hSocket, (struct sockaddr *)&addr, sizeof(addr)) == INVALID_SOCKET)
+	if (::bind(m_hSocket, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
 		return false;
 
-	DWORD dwMode = 1;
+	unsigned long dwMode = 1;
 	if (bIsClient)
 		dwMode = 0;
 	::ioctlsocket( m_hSocket, FIONBIO, &dwMode );
 
 #ifdef _DEBUG
+#if defined(_WIN32)
 	int len = sizeof(addr);
+#else
+	socklen_t len = sizeof(addr);
+#endif
 	getsockname(m_hSocket, (struct sockaddr*)&addr, &len);
 	_tprintf(_T("UDP(port:%d)\n"), ntohs(addr.sin_port));
 #endif
@@ -513,8 +564,8 @@ void CRUDPSocketFrame::Close()
 
 bool CRUDPSocketFrame::_SetThreadAffinityMask(DWORD dwAffinityMask)
 {
-	DWORD_PTR dwMask = SetThreadAffinityMask(m_hThread, 1 << dwAffinityMask);
-	if (dwMask == ERROR)
+	DWORD_PTR dwMask = SetThreadAffinityMask(m_hThread, (DWORD_PTR)1 << dwAffinityMask);
+	if (dwMask == 0)
 	{
 		DWORD dwError = GetLastError();
 		if (dwError == ERROR_INVALID_PARAMETER)
@@ -705,7 +756,7 @@ void CRUDPSocketFrame::Recv(void * pData, int iLen, SOCKADDR_IN * pAddr)
 
 	Enter();
 	ii = m_ConnectRef.find(pAddr);
-	if (ii != m_ConnectRef.end() && (*ii).first->sin_addr.S_un.S_addr == pAddr->sin_addr.S_un.S_addr && (*ii).first->sin_port == pAddr->sin_port)
+	if (ii != m_ConnectRef.end() && (*ii).first->sin_addr.s_addr == pAddr->sin_addr.s_addr && (*ii).first->sin_port == pAddr->sin_port)
 		con = (*ii).second;
 	Leave();
 
@@ -717,7 +768,7 @@ void CRUDPSocketFrame::Recv(void * pData, int iLen, SOCKADDR_IN * pAddr)
 #endif
 #endif
 		if (Accept(m_iNetIDCnt, pAddr, pData, iLen) == false)		return;
-		con = Connect(pAddr->sin_addr.S_un.S_addr, pAddr->sin_port);
+		con = Connect(pAddr->sin_addr.s_addr, pAddr->sin_port);
 	}
 
 	_ASSERT(con);
@@ -825,7 +876,7 @@ CRUDPConnect::CRUDPConnect(unsigned long iIP, int iPort, int iNetID)
 	memset(&m_TargetAddr, 0, sizeof(SOCKADDR_IN));
 	m_TargetAddr.sin_family = AF_INET;
 	m_TargetAddr.sin_port = iPort;
-	m_TargetAddr.sin_addr.S_un.S_addr = iIP;
+	m_TargetAddr.sin_addr.s_addr = iIP;
 
 	m_iNetID = iNetID;
 	m_cUnreachableCnt = 0;

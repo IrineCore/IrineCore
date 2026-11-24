@@ -40,10 +40,7 @@ namespace MasterSystem
 	class CRewardSystem;
 }
 #if defined(PRE_ADD_ACTIVEMISSION)
-namespace EventSystem
-{
-	enum EventTypeEnum;
-}
+#include "DNEventSystem.h"
 #endif
 
 class CDnChatTask;

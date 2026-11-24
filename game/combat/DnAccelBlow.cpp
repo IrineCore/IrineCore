@@ -84,7 +84,7 @@ void CDnAccelBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnAccelBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 	if (m_pMoveSpeedBlow)
 		m_pMoveSpeedBlow->Process(LocalTime, fDelta);

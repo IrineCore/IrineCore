@@ -153,7 +153,7 @@ void CDNDLGameRoom::OnDBRecvDarkLair(int nSubCmd, char *pData, int iLen)
 
 void CDNDLGameRoom::OnDie( DnActorHandle hActor, DnActorHandle hHitter )
 {
-	__super::OnDie( hActor, hHitter );
+	CDNGameRoom::OnDie( hActor, hHitter );
 }
 
 void CDNDLGameRoom::OnDelPartyMember( UINT iDelMemberSessionID, char cKickKind )

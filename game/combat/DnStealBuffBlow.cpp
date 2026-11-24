@@ -42,7 +42,7 @@ CDnStealBuffBlow::~CDnStealBuffBlow(void)
 
 void CDnStealBuffBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	StealBuffProcess(LocalTime);
@@ -52,13 +52,13 @@ void CDnStealBuffBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnStealBuffBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 }
 
 
 void CDnStealBuffBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 }
 
 

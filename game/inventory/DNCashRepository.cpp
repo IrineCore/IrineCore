@@ -198,7 +198,7 @@ bool CDNEffectRepository::Remove( INT64 biItemSerial )
 #if defined (PRE_ADD_VIP_FARM)
 void CDNEffectRepository::SendEffectItem()
 {
-	for each (std::map<INT64, CDNEffectItem*>::value_type v in m_mRepository)
+	for (const std::map<INT64, CDNEffectItem*>::value_type& v : m_mRepository)
 	{
 		const TItemData* pItemData = v.second->GetItemData();
 		switch (pItemData->nType)

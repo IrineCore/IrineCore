@@ -71,7 +71,7 @@ void CDnComboDamageLimitBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnComboDamageLimitBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	if (m_ParentSkillInfo.hSkillUser)

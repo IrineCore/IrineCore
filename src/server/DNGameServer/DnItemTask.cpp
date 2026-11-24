@@ -1247,7 +1247,7 @@ CDnItem* CDnItemTask::FindRebirthItem(CDNUserSession* pSession, int nAllowMapTyp
 	std::vector<CDnItem *> rebirthItems;
 	ScanItemFromID(pSession->GetActorHandle(), nItemID, &rebirthItems);
 	if (rebirthItems.empty())
-		return false;
+		return NULL;
 
 	std::vector<CDnItem *>::iterator iter = rebirthItems.begin();
 	std::vector<CDnItem *>::iterator endIter = rebirthItems.end();
@@ -2211,7 +2211,7 @@ CDnItem *CDnItemTask::GetVehicleEquipItem( CDNUserSession * pSession, int nEquip
 {
 	CDNGameRoom::PartyStruct *pStruct = GetPartyData( pSession );
 	if( pStruct == NULL ) return NULL;
-	if( nEquipIndex < Vehicle::Slot::Body || nEquipIndex >= Vehicle::Slot::Max ) return false;
+	if( nEquipIndex < Vehicle::Slot::Body || nEquipIndex >= Vehicle::Slot::Max ) return NULL;
 	return pStruct->pVehicleEquip[nEquipIndex];
 }
 

@@ -3,12 +3,12 @@
 #pragma once
 
 
-#include <TCHAR.H>
-#include <WINDOWS.H>
-#include <WININET.H>
-#include <BASETSD.H>
+#include <tchar.h>
+#include <windows.h>
+#include <wininet.h>
+#include <basetsd.h>
 #define	_CONVERSION_DONT_USE_THREAD_LOCALE	// Use CP_THREAD_ACP macro like legacy ATL 3.0 instead of getting per-thread code page introduced in ATL 7.0
-#include <ATLCONV.H>		// A2T()
+#include <atlconv.h>		// A2T()
 #include "HttpClient.h"
 #include "ConsoleOutput.h"
 #include <boost/shared_ptr.hpp>

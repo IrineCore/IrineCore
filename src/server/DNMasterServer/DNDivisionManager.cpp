@@ -3515,7 +3515,7 @@ void CDivisionManager::SendSetGuildWarTournamentWin(MASetGuildWarTournamentWin* 
 
 void CDivisionManager::SendResetGuildWarBuyedItemCount()
 {
-	for each (CDNVillageConnection* pConnection in m_VillageServerConList)
+	for (CDNVillageConnection* pConnection : m_VillageServerConList)
 	{
 		pConnection->SendResetGuildWarBuyedItemCount();
 	}

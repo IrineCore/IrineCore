@@ -228,8 +228,8 @@ public:
 	inline void SetSpiritRatio( float fValue ) { m_fSpiritRatio = fValue; }
 	inline void SetSafeZoneMoveSpeedRatio( float fValue ) { m_fSafeZoneMoveSpeedRatio = fValue; }
 
-	CDnState &operator += ( CDnState & e );
-	CDnState &operator -= ( CDnState & e );
+	CDnState &operator += ( const CDnState & e );
+	CDnState &operator -= ( const CDnState & e );
 
 	void MergeState( CDnState &State, ValueType eType );
 	void CalculateRatioValue( CDnState &State );

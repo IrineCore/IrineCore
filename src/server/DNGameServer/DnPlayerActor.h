@@ -331,7 +331,7 @@ public:
 	virtual void CmdChangeJob( int nJobID );
 	virtual void CmdPickupItem( PickupItemStruct* pStruct, DnDropItemHandle hDropItem=CDnDropItem::Identity() );
 	virtual void CmdEscape( EtVector3 &vPos );
-	virtual void CmdWarp( EtVector3 &vPos, EtVector2 &vLook, CDNUserSession* pGameSession=NULL, bool bCheckPlayerFollowSummonedMonster=false );
+	virtual void CmdWarp( const EtVector3 &vPos, const EtVector2 &vLook, CDNUserSession* pGameSession=NULL, bool bCheckPlayerFollowSummonedMonster=false );
 
 	int GetLevelUpSkillPoint( int nPrevLevel, int nCurLevel );
 

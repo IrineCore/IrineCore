@@ -39,7 +39,7 @@ bool QuestCondition::Check( CDNUserBase * pUserBase )
 //////////////////////////////////////////////////////////////////////////
 // __HaveNormalItem
 //////////////////////////////////////////////////////////////////////////
-void __HaveNormalItem::Init(std::wstring& data) 
+void __HaveNormalItem::Init(const std::wstring& data) 
 {
 	nItemTableNumber = 0;
 	nItemNumber = 0;
@@ -85,7 +85,7 @@ bool __HaveNormalItem::Check(CDNUserBase * pUserBase)
 //////////////////////////////////////////////////////////////////////////
 // __UserLevel
 //////////////////////////////////////////////////////////////////////////
-void __UserLevel::Init(std::wstring& data) 
+void __UserLevel::Init(const std::wstring& data) 
 {
 	nMinUserLevel = 0;
 	nMaxUserLevel = 0;
@@ -131,7 +131,7 @@ bool __UserLevel::Check(CDNUserBase * pUserBase)
 //////////////////////////////////////////////////////////////////////////
 // __UserClass
 //////////////////////////////////////////////////////////////////////////
-void __UserClass::Init(std::wstring& data) 
+void __UserClass::Init(const std::wstring& data) 
 {
 	if( data.empty() )
 	{
@@ -173,7 +173,7 @@ bool __UserClass::Check(CDNUserBase * pUserBase)
 //////////////////////////////////////////////////////////////////////////
 // __PrevQuest
 //////////////////////////////////////////////////////////////////////////
-void __PrevQuest::Init(std::wstring& data) 
+void __PrevQuest::Init(const std::wstring& data) 
 {
 	if( data.empty() )
 	{
@@ -212,7 +212,7 @@ bool __PrevQuest::Check(CDNUserBase * pUserBase)
 //////////////////////////////////////////////////////////////////////////
 // __CompleteMission
 //////////////////////////////////////////////////////////////////////////
-void __CompleteMission::Init(std::wstring& data)
+void __CompleteMission::Init(const std::wstring& data)
 {
 	if( data.empty() )
 	{
@@ -269,7 +269,7 @@ bool __CompleteMission::Check(CDNUserBase * pUserBase)
 //////////////////////////////////////////////////////////////////////////
 // __Reputation_Favor
 //////////////////////////////////////////////////////////////////////////
-void __Reputation_Favor::Init(std::wstring& data) 
+void __Reputation_Favor::Init(const std::wstring& data) 
 {
 	nNpcID = 0;
 	nReputationValue_Min = 0;
@@ -320,7 +320,7 @@ bool __Reputation_Favor::Check(CDNUserBase * pUserBase)
 //////////////////////////////////////////////////////////////////////////
 // __Reputation_Hatred
 //////////////////////////////////////////////////////////////////////////
-void __Reputation_Hatred::Init(std::wstring& data) 
+void __Reputation_Hatred::Init(const std::wstring& data) 
 {
 	nNpcID = 0;
 	nReputationValue_Min = 0;
@@ -372,7 +372,7 @@ bool __Reputation_Hatred::Check(CDNUserBase * pUserBase)
 //////////////////////////////////////////////////////////////////////////
 // __HaveCashItem
 //////////////////////////////////////////////////////////////////////////
-void __HaveCashItem::Init(std::wstring& data) 
+void __HaveCashItem::Init(const std::wstring& data) 
 {
 	nItemTableNumber = 0;
 	nItemNumber = 0;

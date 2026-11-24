@@ -2,7 +2,7 @@
 #include "DnNLPAArcher.h"
 #include "DnWeapon.h"
 
-TDnPlayerArcher< CDnPlayerActor >::RotateBoneStruct TDnPlayerArcher< CDnPlayerActor >::s_RotateBoneDefine[] = { 
+template<> TDnPlayerArcher< CDnPlayerActor >::RotateBoneStruct TDnPlayerArcher< CDnPlayerActor >::s_RotateBoneDefine[] = { 
 	{ "Bip01 Spine", -1, 0.3f },
 	{ "Bip01 Spine1", -1, 0.3f },
 	{ "Bip01 Neck", -1, 0.4f },

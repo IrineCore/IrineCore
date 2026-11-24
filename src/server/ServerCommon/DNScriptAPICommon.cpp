@@ -578,7 +578,9 @@ namespace DNScriptAPI
 
 		pUser->SetCalledNpcResponse(true, true);
 
-		pNpc->Talk(pUser, nNpcObjectID, std::wstring(wszTalkIndex), std::wstring(wszTargetFile) );
+		std::wstring strTalkIndex(wszTalkIndex);
+		std::wstring strTargetFile(wszTargetFile);
+		pNpc->Talk(pUser, nNpcObjectID, strTalkIndex, strTargetFile );
 	}
 
 	int api_npc_SetParamString(CDNUserBase* pUser, const char* szParamKey, int nParamID)

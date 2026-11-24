@@ -49,7 +49,7 @@ public:
 
 	std::vector< EtMatrix > &GetInvWorldMatList() { return m_vecInvWorldMat; }
 
-	bool CEtMesh::HasCollisionBone();
+	bool HasCollisionBone();
 	void LinkToAni( EtResourceHandle hAni );
 
 	int LoadResource( CStream *pStream );

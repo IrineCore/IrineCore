@@ -15,7 +15,7 @@
 #pragma warning(disable:4819)
 
 // TODO: reference additional headers your program requires here
-#include <Windows.h>
+#include <windows.h>
 
 #include <vector>
 #include <string>

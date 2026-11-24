@@ -40,7 +40,7 @@ CDnMaxDamageAddBlow::~CDnMaxDamageAddBlow(void)
 
 void CDnMaxDamageAddBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 }
 
 void CDnMaxDamageAddBlow::Process( LOCAL_TIME LocalTime, float fDelta )
@@ -82,7 +82,7 @@ void CDnMaxDamageAddBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnMaxDamageAddBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if !defined(_GAMESERVER)
 	_DetachGraphicEffect();

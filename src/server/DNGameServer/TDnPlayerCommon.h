@@ -31,7 +31,7 @@ public:
 	{
 		DNTableFileFormat *pSox = GetDNTable( CDnTableDB::TEQUIPMATCHACTION );
 		std::vector<int> nVecList;
-		pSox->GetItemIDListFromField( "_Class", m_nClassID, nVecList );
+		pSox->GetItemIDListFromField( "_Class", this->m_nClassID, nVecList );
 
 		for( DWORD i=0; i<nVecList.size(); i++ ) {
 			int nEquipType = pSox->GetFieldFromLablePtr( nVecList[i], "_WeaponType" )->GetInteger();
@@ -40,7 +40,7 @@ public:
 			m_szMapEquipMatchActionMap.insert( make_pair( szChangeAction, nEquipType ) );
 		}
 	}
-	virtual DnWeaponHandle GetStandardWeapon() { return m_hWeapon[0]; }
+	virtual DnWeaponHandle GetStandardWeapon() { return this->m_hWeapon[0]; }
 
 	bool IsValidEquipMatchAction( const char *szActionName )
 	{

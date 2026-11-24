@@ -60,7 +60,7 @@ void MAMovementBase::OnEndLook()
 	m_pActor->OnEndLook(); 
 }
 
-void MAMovementBase::OnMoveNavi( EtVector3 &vPosition ) 
+void MAMovementBase::OnMoveNavi( const EtVector3 &vPosition ) 
 { 
 	m_pActor->OnMoveNavi( vPosition ); 
 }

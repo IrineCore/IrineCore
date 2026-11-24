@@ -19,7 +19,7 @@
 
 DECL_DN_SMART_PTR_STATIC( CDnDropItem, MAX_SESSION_COUNT, 100 )
 
-float CEtOctreeNode<DnDropItemHandle>::s_fMinRadius = 500.0f;
+template<> float CEtOctreeNode<DnDropItemHandle>::s_fMinRadius = 500.0f;
 
 STATIC_DECL_INIT( CDnDropItem, bool, s_bActive ) = { false, };
 STATIC_DECL_INIT( CDnDropItem, DWORD, s_dwUniqueCount ) = { 0, };
@@ -489,7 +489,8 @@ bool CDnDropItem::PreInitializeItem( CMultiRoom *pRoom, int nItemID )
 	}
 
 	CDnDropItem *pDropItem = new CDnDropItem( pRoom, -1, false );
-	if( pDropItem->Initialize( EtVector3( 0.f, 0.f, 0.f ), nItemID, 0, 0, 1, 0, true ) == false ) {
+	EtVector3 vZero( 0.f, 0.f, 0.f );
+	if( pDropItem->Initialize( vZero, nItemID, 0, 0, 1, 0, true ) == false ) {
 		SAFE_DELETE( pDropItem );
 		return false;
 	}

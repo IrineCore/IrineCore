@@ -47,7 +47,7 @@ CDnTimeBoomBlow::~CDnTimeBoomBlow(void)
 
 void CDnTimeBoomBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	if( m_fLimitRadius == 0.0f || m_nBoomDamage == 0.0f)
 	{
@@ -65,7 +65,7 @@ void CDnTimeBoomBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnTimeBoomBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	if (m_hActor && !m_hActor->IsDie())

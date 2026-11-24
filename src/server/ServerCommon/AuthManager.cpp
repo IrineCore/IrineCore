@@ -59,7 +59,7 @@ const int CAuthManager::CalculateServerID()
 	in_addr aInAddr;
 	::memset(&aInAddr, 0, sizeof(aInAddr));
 	GetLocalIp(&aInAddr);
-	WORD aLowID = ::htons(static_cast<WORD>(aInAddr.s_imp));
+	WORD aLowID = ::htons(static_cast<WORD>((aInAddr.s_addr >> 16) & 0xFFFF));
 	DN_ASSERT(0 != aLowID,	"Check!");
 
 #if defined(_LOGINSERVER)

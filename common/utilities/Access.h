@@ -21,7 +21,7 @@ Copyright (c) 2002~2009 B4nFter (b4nfter@gmail.com) and Co-Writers. All Rights R
 
 #include "CriticalSection.h"
 #if defined(_DEBUG)
-#include <MAP>
+#include <map>
 #define	DF_DEBUG_COUNT	(1000)	// Allowed Access count range for Access/Detach integrity check
 #endif // _DEBUG
 

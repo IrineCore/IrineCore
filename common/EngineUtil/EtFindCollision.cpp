@@ -106,7 +106,8 @@ bool FindBoxToBox( SCollisionBox &Box1, SCollisionBox &Box2, EtVector3 &Move, SC
 		return false;
 	}
 
-	FindPointToBox( Box1.vCenter - Move, Box2, Response.vNormal );
+	EtVector3 vRelBox = Box1.vCenter - Move;
+	FindPointToBox( vRelBox, Box2, Response.vNormal );
 
 	if( !bCalcContactTime )
 	{
@@ -294,7 +295,8 @@ bool FindSphereToBox( SCollisionSphere &Sphere, SCollisionBox &Box, EtVector3 &M
 		return false;
 	}
 
-	FindPointToBox( Sphere.vCenter - Move, Box, Response.vNormal );
+	EtVector3 vRelSphere = Sphere.vCenter - Move;
+	FindPointToBox( vRelSphere, Box, Response.vNormal );
 
 	if( !bCalcContactTime )
 	{
@@ -536,7 +538,8 @@ bool FindCapsuleToBox( SCollisionCapsule &Capsule, SCollisionBox &Box, EtVector3
 	}
 	else
 	{
-		FindPointToBox( vSegmentPoint - Move, Box, Response.vNormal );
+		EtVector3 vRelSeg = vSegmentPoint - Move;
+		FindPointToBox( vRelSeg, Box, Response.vNormal );
 	}
 
 	if( !bCalcContactTime )

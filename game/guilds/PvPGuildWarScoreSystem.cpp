@@ -11,7 +11,7 @@
 #include "DnPlayerActor.h"
 #include "DnMonsterActor.h"
 #include "DnInterface.h"
-#include <MMSystem.h>
+#include <mmsystem.h>
 #endif // #if defined( _GAMESERVER )
 
 #ifdef _DEBUG

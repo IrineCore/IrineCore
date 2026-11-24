@@ -40,7 +40,7 @@ INT64 CDNStampSystem::_ConvertToStampTableTime( time_t tTime )
 
 bool CDNStampSystem::_CheckQuestAllComplete( const std::set<int> & rSetAssignmentID ) const
 {
-	for each( const std::set<int>::value_type nAssignmentID in rSetAssignmentID )
+	for (const std::set<int>::value_type nAssignmentID : rSetAssignmentID)
 	{
 		if( !m_pUserSession->GetQuest()->IsClearQuest( nAssignmentID ) )
 		{
@@ -59,7 +59,7 @@ bool CDNStampSystem::_CheckMissionComplete( const std::set<int> & rSetAssignment
 	int nClassID = m_pUserSession->GetClassID();
 	int nMissionID = m_pUserSession->GetMissionData()->DailyMission[nArrayIndex].nMissionID;
 
-	for each( const std::set<int>::value_type nMissionGroupID in rSetAssignmentID )
+	for (const std::set<int>::value_type nMissionGroupID : rSetAssignmentID)
 	{
 		bool bCheckGroup = CDNMissionScheduler::GetInstance().IsDailyMissionGroup( nLevel, nClassID, nMissionGroupID, nMissionID);
 		if( true == bCheckGroup )
@@ -287,7 +287,7 @@ void CDNStampSystem::SendInitData()
 		int nChallengeIndex = iter->first;
 		const SlotSet & rSlotSet = iter->second;
 
-		for each( const SlotSet::value_type & nWeekDay in rSlotSet )
+		for (const SlotSet::value_type & nWeekDay : rSlotSet)
 		{
 			if( nChallengeIndex < 1 || nChallengeIndex > StampSystem::Common::MaxChallengeCount || nWeekDay < 1 || nWeekDay > StampSystem::Common::MaxWeekDayCount )
 				continue;

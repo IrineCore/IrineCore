@@ -215,7 +215,11 @@ int CDNIocpManager::CreateThread()
 
 void CDNIocpManager::PostDisconnect(CSocketContext *pSocketContext)
 {
+#if !defined(_WIN32)
+	PostCustomCompletion( 4, pSocketContext, &pSocketContext->m_RecvIO );
+#else
 	PostQueuedCompletionStatus( m_hIOCP, 4, (ULONG_PTR)pSocketContext, &pSocketContext->m_RecvIO );
+#endif
 }
 
 void CDNIocpManager::ThreadStop()

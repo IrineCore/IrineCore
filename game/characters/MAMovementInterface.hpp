@@ -34,7 +34,7 @@ public:
 	virtual void OnFall( float fCurVelocity ) {}
 	virtual void OnBeginLook() { }
 	virtual void OnEndLook() { }
-	virtual void OnMoveNavi( EtVector3 &vPosition ) {}
+	virtual void OnMoveNavi( const EtVector3 &vPosition ) {}
 #ifdef PRE_MOD_NAVIGATION_PATH
 	virtual void OnAutoMoving( EtVector3& vPosition, EtVector3& vCurrentPosition ) {}
 #endif // PRE_MOD_NAVIGATION_PATH
@@ -43,7 +43,7 @@ public:
 	void PushAndCollisionCheck( EtVector3 &vPush ) { m_pMovement->PushAndCollisionCheck( vPush ); }
 
 	void SetMoveVectorX( EtVector3 &vVec ){ m_pMovement->SetMoveVectorX( vVec ); }
-	void SetMoveVectorZ( EtVector3 &vVec ){ m_pMovement->SetMoveVectorZ( vVec ); }
+	void SetMoveVectorZ( const EtVector3 &vVec ){ m_pMovement->SetMoveVectorZ( vVec ); }
 	EtVector3 *GetMoveVectorX(){ return m_pMovement->GetMoveVectorX(); }
 	EtVector3 *GetMoveVectorZ(){ return m_pMovement->GetMoveVectorZ(); }
 
@@ -54,13 +54,13 @@ public:
 	void MoveTargetNavi( DnActorHandle &hActor, float fMinDistance, const char* szActionName ){ m_pMovement->MoveTargetNavi( hActor, fMinDistance, szActionName ); }
 	void MoveTargetNavi( EtVector3& vTargetPos, float fMinDistance, const char* szActionName ){ m_pMovement->MoveTargetNavi( vTargetPos, fMinDistance, szActionName ); }
 	int  GetNaviType(){ return m_pMovement->GetNaviType(); }
-	void MoveToWorld( EtVector2 &vVec ){ m_pMovement->MoveToWorld(vVec); }
+	void MoveToWorld( const EtVector2 &vVec ){ m_pMovement->MoveToWorld(vVec); }
 	EtVector3 *GetMovePos() { return m_pMovement->GetMovePos(); }
 	void ResetMove(){ m_pMovement->ResetMove(); }
 	DnActorHandle GetMoveTarget(){ return m_pMovement->GetMoveTarget(); }
 	DnActorHandle	GetNaviTarget(){ return m_pMovement->GetNaviTarget(); }
 
-	void SetVelocity( EtVector3 &vVec ) { m_pMovement->SetVelocity(vVec); }
+	void SetVelocity( const EtVector3 &vVec ) { m_pMovement->SetVelocity(vVec); }
 	void SetVelocityX( float fPower ) { m_pMovement->SetVelocityX(fPower); }
 	void SetVelocityY( float fPower ) { m_pMovement->SetVelocityY(fPower); }
 	void SetVelocityZ( float fPower ) { m_pMovement->SetVelocityZ(fPower); }
@@ -70,14 +70,14 @@ public:
 	EtVector3 *GetLastVelocity(){ return m_pMovement->GetLastVelocity(); }
 	EtVector3 *GetVelocityValue(){ return m_pMovement->GetVelocityValue(); }
 
-	void SetMagnetDir( EtVector2 &vPos ){ m_pMovement->SetMagnetDir(vPos); }
+	void SetMagnetDir( const EtVector2 &vPos ){ m_pMovement->SetMagnetDir(vPos); }
 	void SetMagnetLength( float fLength ){ m_pMovement->SetMagnetLength(fLength); }
 	bool IsNaviMode() { return m_pMovement->IsNaviMode(); }
 
 	void SetMoveYDistancePerSec( float fMoveYDistancePerSec, float fWholeMoveYDistance, bool bMaintainYDistance ) { m_pMovement->SetMoveYDistancePerSec(fMoveYDistancePerSec, fWholeMoveYDistance, bMaintainYDistance); };
 	void ResetMoveYDistance( void ) { m_pMovement->ResetMoveYDistance(); };
 
-	void SetResistance( EtVector3 &vVec ) { m_pMovement->SetResistance(vVec); }
+	void SetResistance( const EtVector3 &vVec ) { m_pMovement->SetResistance(vVec); }
 	void SetResistanceX( float fPower ) { m_pMovement->SetResistanceX(fPower); }
 	void SetResistanceY( float fPower ) { m_pMovement->SetResistanceY(fPower); }
 	void SetResistanceZ( float fPower ) { m_pMovement->SetResistanceZ(fPower); }
@@ -94,8 +94,8 @@ public:
 
 	bool IsFloorCollision() { return m_pMovement->IsFloorCollision(); }
 
-	virtual void Look( EtVector2 &vVec, bool bForceRotate = true ){ m_pMovement->Look( vVec, bForceRotate ); }
-	void LookTarget( DnActorHandle &hActor ){ m_pMovement->LookTarget( hActor ); }
+	virtual void Look( const EtVector2 &vVec, bool bForceRotate = true ){ m_pMovement->Look( vVec, bForceRotate ); }
+	void LookTarget( const DnActorHandle &hActor ){ m_pMovement->LookTarget( hActor ); }
 	EtVector3 *GetLookDir(){ return m_pMovement->GetLookDir(); }
 	EtVector2 *GetLookDirTarget(){ return m_pMovement->GetLookDirTarget(); }
 	DnActorHandle GetLookTarget(){ return m_pMovement->GetLookTarget(); }
@@ -107,7 +107,7 @@ public:
 
 	size_t			GetWayPointSize(){ return m_pMovement->GetWayPointSize(); }
 
-	void			SetJumpMovement( EtVector2& vVec ){ m_pMovement->SetJumpMovement(vVec); }
+	void			SetJumpMovement( const EtVector2& vVec ){ m_pMovement->SetJumpMovement(vVec); }
 
 	void			EnableDebugDraw(bool bDebugRender ) { m_pMovement->EnableDebugDraw(bDebugRender); }
 

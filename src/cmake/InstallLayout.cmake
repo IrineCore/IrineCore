@@ -15,19 +15,20 @@ function(irine_install_server_target TARGET_NAME)
 endfunction()
 
 function(irine_install_runtime_layout)
-    # Install server .ini templates as *.ini.dist (always refreshed), and seed
-    # local *.ini files ONLY if they do not already exist so user customizations
-    # are never overwritten on reinstall/upgrade.
-    file(GLOB _tpl_inis "${CMAKE_SOURCE_DIR}/apps/template/config/*.ini")
-    foreach(_ini IN LISTS _tpl_inis)
-        get_filename_component(_ini_name "${_ini}" NAME)
-        install(FILES "${_ini}"
+    # Install server .ini.dist templates (always refreshed), and seed local *.ini
+    # files ONLY if they do not already exist so user customizations are never
+    # overwritten on reinstall/upgrade.
+    file(GLOB _tpl_inis "${CMAKE_SOURCE_DIR}/apps/template/config/*.ini.dist")
+    foreach(_ini_dist IN LISTS _tpl_inis)
+        get_filename_component(_dist_name "${_ini_dist}" NAME)
+        string(REGEX REPLACE "\\.dist$" "" _ini_name "${_dist_name}")
+        install(FILES "${_ini_dist}"
             DESTINATION "${CMAKE_INSTALL_PREFIX}/config"
-            RENAME "${_ini_name}.dist"
         )
         install(CODE "
             if(NOT EXISTS \"\${CMAKE_INSTALL_PREFIX}/config/${_ini_name}\")
-                file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/config\" TYPE FILE FILES \"${_ini}\")
+                message(STATUS \"Seeding: \${CMAKE_INSTALL_PREFIX}/config/${_ini_name}\")
+                configure_file(\"${_ini_dist}\" \"\${CMAKE_INSTALL_PREFIX}/config/${_ini_name}\" COPYONLY)
             endif()
         ")
     endforeach()
@@ -35,7 +36,7 @@ function(irine_install_runtime_layout)
     # Install non-INI state/data files (*.dat, etc.) if missing
     file(GLOB _tpl_other "${CMAKE_SOURCE_DIR}/apps/template/config/*")
     foreach(_other IN LISTS _tpl_other)
-        if(_other MATCHES "\\.ini$")
+        if(_other MATCHES "\\.ini(\\.dist)?$")
             continue()
         endif()
         get_filename_component(_other_name "${_other}" NAME)

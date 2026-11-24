@@ -6,11 +6,21 @@
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
 #endif
 
+#if defined(_WIN32)
 #ifdef  __cplusplus
 extern "C" {
 #endif
 	_CRTIMP void __cdecl _wassert(__in_z const wchar_t * _Message, __in_z const wchar_t *_File, __in unsigned _Line);
 #ifdef  __cplusplus
+}
+#endif
+#else
+static void _wassert(const wchar_t* _Message, const wchar_t* _File, unsigned _Line)
+{
+	fprintf(stderr, "[Assert] %s at %s:%u\n",
+		_Message ? Irine::Platform::WideToUtf8(_Message).c_str() : "",
+		_File ? Irine::Platform::WideToUtf8(_File).c_str() : "",
+		_Line);
 }
 #endif
 

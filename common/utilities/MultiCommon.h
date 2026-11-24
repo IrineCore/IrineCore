@@ -14,4 +14,4 @@
 	//type[ pRoom->GetSessionID() ]
 
 #define STATIC_DECL_INIT( cls, type, val ) \
-	type cls::##val[MAX_SESSION_COUNT]
+	type cls::val[MAX_SESSION_COUNT]

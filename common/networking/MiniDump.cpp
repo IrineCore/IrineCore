@@ -11,6 +11,18 @@ LPTOP_LEVEL_EXCEPTION_FILTER pOldPointer = NULL;
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
 #endif
 
+#if !defined(_WIN32)
+LONG __stdcall Exception_Minidump(_EXCEPTION_POINTERS*) { return 0; }
+void SetMiniDump()
+{
+	Irine::Platform::InstallCrashHandler("IrineCore");
+}
+void StoreMiniDump(const TCHAR*, _MINIDUMP_TYPE) {}
+LONG StoreMiniDump(_DUMPTYPE, EXCEPTION_POINTERS*) { return 0; }
+BOOL CALLBACK MiniDumpCallBack(PVOID, const PMINIDUMP_CALLBACK_INPUT, PMINIDUMP_CALLBACK_OUTPUT) { return FALSE; }
+bool IsDataSectionNeeded(const WCHAR*) { return false; }
+#else
+
 LONG __stdcall Exception_Minidump(_EXCEPTION_POINTERS* pExceptionInfo)
 {
 	TCHAR fileName[MAX_PATH];
@@ -230,3 +242,4 @@ bool IsDataSectionNeeded(const WCHAR* pModuleName)
 	// Complete
 	return false;
 }
+#endif // _WIN32

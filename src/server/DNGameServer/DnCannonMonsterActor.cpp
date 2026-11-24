@@ -47,7 +47,7 @@ void CDnCannonMonsterActor::ClearMasterPlayerActor( void )
 	SlaveRelease();
 }
 
-void CDnCannonMonsterActor::Look( EtVector2& vVec, bool bForceRotate)
+void CDnCannonMonsterActor::Look( const EtVector2& vVec, bool bForceRotate)
 {
 	if( bForceRotate ) 
 	{

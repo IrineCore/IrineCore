@@ -752,25 +752,26 @@ void CDnWorld::SetPermitGate( char cGateIndex, EWorldEnum::PermitGateEnum Permit
 
 // 2009.7.30 hanki
 // Return y position accounting for prop height
-float CDnWorld::GetHeightWithProp( EtVector3 &vPos, NavigationCell *pCurCell, EtVector3 *pNormal/* = NULL */)
+float CDnWorld::GetHeightWithProp( const EtVector3 &vPos, NavigationCell *pCurCell, EtVector3 *pNormal/* = NULL */)
 {
 	float fPropHeight = 0.f;
+	EtVector3 pos = vPos;
 
-	NavigationMesh *pNavMesh = INSTANCE(CDnWorld).GetNavMesh( vPos );
+	NavigationMesh *pNavMesh = INSTANCE(CDnWorld).GetNavMesh( pos );
 	bool bFindCollision = false;
 	if( pNavMesh ) 
 	{
-		if( !pCurCell ) pCurCell = pNavMesh->FindCell( vPos );
+		if( !pCurCell ) pCurCell = pNavMesh->FindCell( pos );
 		if( pCurCell )
 		{
 			if( pCurCell->GetType() == NavigationCell::CT_PROP ) {
-				fPropHeight = pCurCell->GetPlane()->SolveForY( vPos.x, vPos.z );
+				fPropHeight = pCurCell->GetPlane()->SolveForY( pos.x, pos.z );
 				bFindCollision = true;
 			}
 		}
 	}
 
-	float fTerrainHeight = CEtWorld::GetHeight( vPos );
+	float fTerrainHeight = CEtWorld::GetHeight( pos );
 	float fResult;
 	if( bFindCollision ) {
 		float fValue1 = abs(vPos.y - fPropHeight);
@@ -903,9 +904,10 @@ void CDnWorld::RevisionPosByNaviMesh( MatrixEx& Cross, const EtVector3& vPrevPos
 	}
 }
 
-bool CDnWorld::IsOnNavigationMesh( EtVector3& vPos )
+bool CDnWorld::IsOnNavigationMesh( const EtVector3& vPos )
 {
-	NavigationMesh *pNavMesh = GetNavMesh( vPos );
+	EtVector3 pos = vPos;
+	NavigationMesh *pNavMesh = GetNavMesh( pos );
 	if( !pNavMesh )
 	{
 		return false;
@@ -915,8 +917,8 @@ bool CDnWorld::IsOnNavigationMesh( EtVector3& vPos )
 		NavigationCell* pCurCell = NULL;
 		if( pCurCell == NULL ) 
 		{
-			pCurCell = pNavMesh->FindClosestCell( vPos );
-			if( ( pCurCell == NULL ) || ( !pCurCell->IsPointInCellCollumn( vPos ) ) ) 
+			pCurCell = pNavMesh->FindClosestCell( pos );
+			if( ( pCurCell == NULL ) || ( !pCurCell->IsPointInCellCollumn( pos ) ) ) 
 			{
 				return false;
 			}

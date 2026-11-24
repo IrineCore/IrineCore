@@ -46,19 +46,19 @@ CDnPartyFinishAttackBlow::~CDnPartyFinishAttackBlow(void)
 
 void CDnPartyFinishAttackBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 }
 
 
 void CDnPartyFinishAttackBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 }
 
 
 void CDnPartyFinishAttackBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 }
 
 #if defined(_GAMESERVER)

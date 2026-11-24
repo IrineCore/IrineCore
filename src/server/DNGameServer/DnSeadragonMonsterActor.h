@@ -24,7 +24,7 @@ public:
 
 	virtual void OnBreakSkillSuperAmmor( SHitParam &HitParam );
 	virtual void CheckDamageVelocity( DnActorHandle hActor );
-	virtual void Look( EtVector2 &vVec, bool bForceRotate=true )
+	virtual void Look( const EtVector2 &vVec, bool bForceRotate=true )
 	{
 		MAMovementInterface::Look( vVec, bForceRotate );
 

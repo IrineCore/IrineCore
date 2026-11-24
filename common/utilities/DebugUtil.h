@@ -28,7 +28,7 @@ Copyright (c) 2002~2009 B4nFter (b4nfter@gmail.com) and Co-Writers. All Rights R
 
 #if defined(_DEBUG)
 //#include <STRSAFE.H>
-#include <CRTDBG.H>		// Must be included last for DCRT
+#include <crtdbg.h>		// Must be included last for DCRT
 #endif	// _DEBUG
 
 
@@ -131,9 +131,9 @@ Copyright (c) 2002~2009 B4nFter (b4nfter@gmail.com) and Co-Writers. All Rights R
 	#define	DN_CONTINUE								{DN_ASSERT(0, "DN_CONTINUE!");continue;}
 	#define	DN_LEAVE								{DN_ASSERT(0, "DN_LEAVE!");__leave;}
 #else	// _DEBUG
-	#define DN_TRACE								/##/	// Note: when compiling in Release mode, a single-line comment may cause 'C1075' (end of file found before the left brace was matched) error
-	#define DN_MESSAGEBOX							/##/	// Note: when compiling in Release mode, a single-line comment may cause 'C1075' (end of file found before the left brace was matched) error
-	#define	DN_CHECK_MEMORYLEAK						/##/	// Note: when compiling in Release mode, a single-line comment may cause 'C1075' (end of file found before the left brace was matched) error
+	#define DN_TRACE(...)							((void)0)
+	#define DN_MESSAGEBOX(...)						((void)0)
+	#define	DN_CHECK_MEMORYLEAK(...)				((void)0)
 	#define	DN_ASSERT_CMP(pEXP)
 	#define	DN_ASSERT(pEXP, pMSG)
 	#define DN_VERIFY(pEXP, pTRUEVAL, pMSG)			((void)(pEXP))

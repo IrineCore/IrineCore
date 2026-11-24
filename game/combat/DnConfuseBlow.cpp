@@ -34,7 +34,7 @@ CDnConfuseBlow::~CDnConfuseBlow(void)
 
 void CDnConfuseBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 #if defined(_CLIENT)
 	if (m_hActor && m_hActor->IsPlayerActor())
@@ -57,13 +57,13 @@ void CDnConfuseBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnConfuseBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 
 void CDnConfuseBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if defined(_CLIENT)
 	if (m_hActor && m_hActor->IsPlayerActor())

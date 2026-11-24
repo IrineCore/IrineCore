@@ -10,11 +10,47 @@
 #include "Directory.h"
 #include "StringSet.h"
 #include "IniFile.h"
-#include <IO.H>
-#include <SHELLAPI.H>
+#include <io.h>
+#include <shellapi.h>
 
 CPsUpdater* g_PsUpdater = NULL;
 
+#if !defined(_WIN32)
+CPsUpdater::CPsUpdater()
+    : m_CurPsVersionNo(0), m_NewPsVersionNo(0), m_IsOpen(false),
+      m_hInternet(NULL), m_hInternetConnection(NULL), m_IsUpdate(false)
+{
+    Close();
+}
+CPsUpdater::~CPsUpdater() { Close(); }
+void CPsUpdater::Close()
+{
+    m_PsVersionFileName[0] = _T('\0');
+    m_PsVersionFileUrl[0] = _T('\0');
+    m_PsDownloadRootUrl[0] = _T('\0');
+    m_PsDownloadPathUrl[0] = _T('\0');
+    m_PsDownloadAccountId[0] = _T('\0');
+    m_PsDownloadPassword[0] = _T('\0');
+    m_CurPsVersion[0] = _T('\0');
+    m_NewPsVersion[0] = _T('\0');
+    m_CurPsVersionNo = 0;
+    m_NewPsVersionNo = 0;
+    m_IsOpen = false;
+    m_IsUpdate = false;
+    m_hInternet = NULL;
+    m_hInternetConnection = NULL;
+}
+bool CPsUpdater::Open() { return false; }
+bool CPsUpdater::LoadVersion() { return false; }
+bool CPsUpdater::DoCheck() { return false; }
+void CPsUpdater::DoUpdate(eNotifyType) {}
+bool CPsUpdater::ParseVersion(LPCSTR, WORD&, BYTE&, BYTE&, WORD&) { return false; }
+DWORD CPsUpdater::DeleteOldFile(LPCTSTR) { return NOERROR; }
+void CPsUpdater::AsyncUpdate() {}
+void CPsUpdater::UpdateProcess(LPBYTE) {}
+DWORD CPsUpdater::CopyNewFile(TP_COPYFAILLIST&, TP_CONSOLEOUTPUT&, LPCTSTR, LPCTSTR) { return NOERROR; }
+void CPsUpdater::ExecInternetFunc() {}
+#else
 void __stdcall Internet_Status_Callback (HINTERNET hSession, DWORD Context, DWORD Status, LPVOID pInformation, DWORD InfoLength);
 
 CPsUpdater::CPsUpdater()
@@ -978,3 +1014,4 @@ void CPsUpdater::UpdateProcess(LPBYTE pVersionBuff)
 	SAFE_DELETE(g_PsUpdater);
 	::ExitProcess(0);
 }
+#endif // _WIN32
