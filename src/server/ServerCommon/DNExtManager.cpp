@@ -670,8 +670,7 @@ bool CDNExtManager::LoadCashCommodity(bool bReload)
 	int nJob	= 0;
 
 	for (int i = 0; i < pSox->GetItemCount(); i++){
-		TCashCommodityData *pCashData = new TCashCommodityData;
-		memset(pCashData, 0, sizeof(TCashCommodityData));
+		TCashCommodityData *pCashData = new TCashCommodityData();
 
 		int nID = pSox->GetItemID(i);
 		int nIdx = pSox->GetIDXprimary(nID);
@@ -1039,8 +1038,7 @@ bool CDNExtManager::LoadCashPackage(bool bReload)
 	//##################################################################
 
 	for (int i = 0; i < pSox->GetItemCount(); i++){
-		TCashPackageData *pCashData = new TCashPackageData;
-		memset(pCashData, 0, sizeof(TCashPackageData));
+		TCashPackageData *pCashData = new TCashPackageData();
 
 		int nID = pSox->GetItemID(i);
 		int nIdx = pSox->GetIDXprimary(nID);
