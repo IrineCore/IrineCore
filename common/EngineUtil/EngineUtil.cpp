@@ -6,18 +6,18 @@
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
 #endif
 
-EtVector2 EtVec3toVec2( EtVector3 &vVec )
+EtVector2 EtVec3toVec2( const EtVector3 &vVec )
 {
 	return EtVector2( vVec.x, vVec.z );
 }
 
-EtVector3 EtVec2toVec3( EtVector2 &vVec )
+EtVector3 EtVec2toVec3( const EtVector2 &vVec )
 {
 	return EtVector3( vVec.x, 0.f, vVec.y );
 }
 
 
-bool CheckRect( float x, float y, EtVector2 &VecMin, EtVector2 &VecMax ) 
+bool CheckRect( float x, float y, const EtVector2 &VecMin, const EtVector2 &VecMax ) 
 {
 	if( x >= VecMin.x && x <= VecMax.x && y >= VecMin.y && y <= VecMax.y ) return true;
 	return false;

@@ -34,7 +34,7 @@ void CDnKillBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnKillBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 }
 
 #if defined(PRE_ADD_PREFIX_SYSTE_RENEW)

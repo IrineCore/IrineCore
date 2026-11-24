@@ -19,10 +19,10 @@ Copyright (c) 2002~2009 B4nFter (b4nfter@gmail.com) and Co-Writers. All Rights R
 //	INCLUDE
 ///////////////////////////////////////////////////////////////////
 
-#include <WINDOWS.H>
+#include <windows.h>
 #include "VarArg.h"
-#include <MEMORY>
-#include <LIMITS.H>
+#include <memory>
+#include <limits.h>
 
 #pragma comment(lib, "VERSION.LIB")
 

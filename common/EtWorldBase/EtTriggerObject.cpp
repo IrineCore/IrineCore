@@ -2,7 +2,7 @@
 #include "EtTriggerObject.h"
 #include "EtTriggerElement.h"
 #include "PerfCheck.h"
-#include <MMSystem.h>
+#include <mmsystem.h>
 #include <map>
 using namespace std;
 

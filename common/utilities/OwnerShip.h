@@ -20,7 +20,7 @@ public:
 
 	virtual ~GiveOwnerShip() 
 	{
-		for each( AcquireOwnerShip *pElement in m_OwnerShipList ) {
+		for (AcquireOwnerShip *pElement : m_OwnerShipList) {
 			pElement->ReleaseOwnerShip();
 		}
 	}

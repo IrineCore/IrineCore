@@ -21,6 +21,41 @@
 //	IMPLEMENTATION
 ///////////////////////////////////////////////////////////////////
 
+#if !defined(_WIN32)
+CMiniDumpSet::CMiniDumpSet() : m_hDebugHelp(NULL), m_lpfnMiniDumpWriteDump(NULL), m_lpfnMiniDumpReadDumpStream(NULL),
+	m_lpMapping(NULL), m_hMap(NULL), m_hFile(INVALID_HANDLE_VALUE),
+	m_dwProcessTime(0), m_dwUserTime(0), m_dwKernelTime(0), m_uExceptionCode(0), m_uExceptionAddress(0)
+{
+	::memset(m_szUserMessage, 0, sizeof(m_szUserMessage));
+	::memset(m_szFilePath, 0, sizeof(m_szFilePath));
+	::memset(m_szFileName, 0, sizeof(m_szFileName));
+	::memset(m_szModuleName, 0, sizeof(m_szModuleName));
+	::memset(m_szProcessorArchitecture, 0, sizeof(m_szProcessorArchitecture));
+	::memset(m_szWindowVersion, 0, sizeof(m_szWindowVersion));
+	::memset(m_szExceptionDesc, 0, sizeof(m_szExceptionDesc));
+}
+CMiniDumpSet::~CMiniDumpSet() { Close(); }
+DWORD CMiniDumpSet::Open() { return NOERROR; }
+VOID CMiniDumpSet::Close() {}
+DWORD CMiniDumpSet::Read(LPCTSTR) { return NOERROR; }
+DWORD CMiniDumpSet::Write(LPEXCEPTION_POINTERS, MINIDUMP_TYPE, LPCTSTR) { return NOERROR; }
+VOID CMiniDumpSet::SetUserMessage(LPCTSTR lpszUserMessage)
+{
+	if (lpszUserMessage) { STRNCPY(m_szUserMessage, COUNT_OF(m_szUserMessage), lpszUserMessage); }
+	else { ::memset(m_szUserMessage, 0, sizeof(m_szUserMessage)); }
+}
+VOID CMiniDumpSet::GetExceptionCause(DWORD dwExceptionCode, LPTSTR lpszDesc, DWORD)
+{
+	if (lpszDesc) ::wsprintf(lpszDesc, _T("0x%08X"), dwExceptionCode);
+}
+LPVOID CMiniDumpSet::GetDumpInfo(ULONG) { return NULL; }
+BOOL CMiniDumpSet::ReadMiscInfo() { return FALSE; }
+BOOL CMiniDumpSet::ReadMouleName() { return FALSE; }
+BOOL CMiniDumpSet::ReadSystemInfo() { return FALSE; }
+BOOL CMiniDumpSet::ReadException() { return FALSE; }
+BOOL CMiniDumpSet::ReadUserData() { return FALSE; }
+#else
+
 
 //*---------------------------------------------------------------
 // TYPE : FUNCTION
@@ -729,3 +764,4 @@ BOOL CMiniDumpSet::ReadUserData()
 	
 	return TRUE;
 }
+#endif // _WIN32

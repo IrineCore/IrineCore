@@ -76,7 +76,7 @@ void CDNDonationScheduler::QueryTopRanker()
 	}
 
 #if defined (PRE_ADD_DONATION)
-	for each (char cWorldID in m_WorldIDs)
+	for (char cWorldID : m_WorldIDs)
 	{
 		pDBCon->QueryDonationTopRanker(cThreadID, cWorldID);
 	}

@@ -21,12 +21,12 @@ CDnIgnoreRestoreHPBlow::~CDnIgnoreRestoreHPBlow(void)
 
 void CDnIgnoreRestoreHPBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 void CDnIgnoreRestoreHPBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin( LocalTime, fDelta );
+	CDnBlow::OnBegin( LocalTime, fDelta );
 
 	if( m_hActor->IsDie() )
 	{
@@ -37,7 +37,7 @@ void CDnIgnoreRestoreHPBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnIgnoreRestoreHPBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd( LocalTime, fDelta );
+	CDnBlow::OnEnd( LocalTime, fDelta );
 }
 
 bool CDnIgnoreRestoreHPBlow::CanBegin( void )

@@ -1,6 +1,47 @@
 #include "stdafx.h"
-#include <windows.h>
 #include "LuaDebugger.h"
+
+#if !defined(_WIN32)
+
+CLuaDebugger *g_Console = NULL;
+volatile bool CLuaDebugger::m_bWinIsActive = false;
+volatile HWND CLuaDebugger::m_hWnd = NULL;
+volatile HWND CLuaDebugger::m_hEditControl = NULL;
+char CLuaDebugger::m_CommandBuffer[4096] = { 0 };
+
+HWND CLuaDebugger::StartConsole(HINSTANCE, lua_State *pScriptContext)
+{
+	if (!g_Console) g_Console = new CLuaDebugger();
+	g_Console->m_pScriptContext = pScriptContext;
+	return NULL;
+}
+
+void CLuaDebugger::StopConsole()
+{
+	if (g_Console) { delete g_Console; g_Console = NULL; }
+}
+
+CLuaDebugger::CLuaDebugger() : m_pScriptContext(NULL), m_hInstance(NULL), m_ScrollyPos(0), m_textAreaHeight(0)
+{
+	m_hWnd = NULL;
+	memset(m_CommandBuffer, 0, sizeof(m_CommandBuffer));
+}
+
+CLuaDebugger::~CLuaDebugger() { m_hWnd = NULL; }
+void CLuaDebugger::AdjustScrollBar(void) {}
+void CLuaDebugger::ResizeControls(void) {}
+void CLuaDebugger::Paint(HDC) {}
+LRESULT WINAPI CLuaDebugger::MsgProc(HWND, unsigned, WPARAM, LPARAM) { return 0; }
+LRESULT CALLBACK CLuaDebugger::SubclassInputEditProc(HWND, UINT, WPARAM, LPARAM) { return 0; }
+void CLuaDebugger::Init(HINSTANCE hInstance) { m_hInstance = hInstance; }
+void CLuaDebugger::Write(const char *pString)
+{
+	if (pString) fprintf(stderr, "[LuaDebugger] %s", pString);
+}
+
+#else // _WIN32
+
+#include <windows.h>
 
 #ifdef _DEBUG
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
@@ -422,3 +463,5 @@ luaL_reg DebugGlue[] =
 
 	{NULL, NULL}
 };
+
+#endif // _WIN32

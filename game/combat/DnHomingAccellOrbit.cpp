@@ -30,7 +30,7 @@ void CDnHomingAccellOrbit::ProcessOrbit( /*IN OUT*/ MatrixEx& Cross, EtVector3& 
 {
 	if( m_hTargetActor )
 	{
-		m_vTargetPosition = __super::FindTargetPosition(m_hTargetActor, m_nTargetPartsIndex, m_nTargetPartsBoneIndex);
+		m_vTargetPosition = IDnOrbitProcessor::FindTargetPosition(m_hTargetActor, m_nTargetPartsIndex, m_nTargetPartsBoneIndex);
 	}
 
 	if( m_bFirstProcess )

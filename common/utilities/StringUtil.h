@@ -186,7 +186,7 @@ private:
 
 public:
 	void Clear() {
-		std::vector<T*>::iterator it = m_BufferList.begin();
+		typename std::vector<T*>::iterator it = m_BufferList.begin();
 		while( it != m_BufferList.end() ) {
 			delete [] (*it);
 			++it;
@@ -228,8 +228,8 @@ public:
 	}
 };
 
-bool ToMultiString(IN std::wstring& wstr, OUT std::string& str );
-bool ToWideString(IN std::string& str, OUT std::wstring& wstr );
+bool ToMultiString(IN const std::wstring& wstr, OUT std::string& str );
+bool ToWideString(IN const std::string& str, OUT std::wstring& wstr );
 
 bool ToMultiString(IN WCHAR* wstr, OUT std::string& str );
 bool ToWideString(IN CHAR* str, OUT std::wstring& wstr );
@@ -263,8 +263,8 @@ void TokenizeW_NewLine( const std::wstring& str, std::vector<std::wstring>& toke
 	std::string str("{user_nick} {user_class}", );
 Tokenize( str, tokens, "{", "}" ); // last argument specifies whether to include delimiters
 */
-void TokenizeW( std::wstring& str, std::vector<std::wstring>& tokens, std::wstring& szBegin, std::wstring& szEnd, bool bIncludeDelimiters );
-void TokenizeA( std::string& str, std::vector<std::string>& tokens, std::string& szBegin, std::string& szEnd, bool bIncludeDelimiters  );
+void TokenizeW( const std::wstring& str, std::vector<std::wstring>& tokens, const std::wstring& szBegin, const std::wstring& szEnd, bool bIncludeDelimiters );
+void TokenizeA( const std::string& str, std::vector<std::string>& tokens, const std::string& szBegin, const std::string& szEnd, bool bIncludeDelimiters  );
 
 
 // Remove all whitespace from the string.

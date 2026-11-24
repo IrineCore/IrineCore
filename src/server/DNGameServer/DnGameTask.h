@@ -260,8 +260,8 @@ public:
 	void RequestGenerationNpc( int nNpcID, float x, float y, float z, float fRotate, int nAreaUniqueID = -1 );
 	void RequestDestroyNpc(int nAreaUniqueID);
 
-	DnActorHandle RequestGenerationMonsterFromMonsterID( int nMonsterID, EtVector3 &vPosition, EtVector3& vVel, EtVector3& vResistance, SOBB *pGenerationArea = NULL, int nAreaUniqueID = -1, int nTeamSetting = -1 );
-	DnActorHandle RequestGenerationMonsterFromActorID( int nMonsterID, int nActorID, EtVector3 &vPosition, EtVector3& vVel, EtVector3& vResistance, SOBB *pGenerationArea = NULL, int nAreaUniqueID = -1, int nTeamSetting = -1, bool bRandomFrameSummon = true, EtQuat* pqRotation = NULL, int nForceSkillLevel = -1 );
+	DnActorHandle RequestGenerationMonsterFromMonsterID( int nMonsterID, const EtVector3 &vPosition, const EtVector3& vVel, const EtVector3& vResistance, SOBB *pGenerationArea = NULL, int nAreaUniqueID = -1, int nTeamSetting = -1 );
+	DnActorHandle RequestGenerationMonsterFromActorID( int nMonsterID, int nActorID, const EtVector3 &vPosition, const EtVector3& vVel, const EtVector3& vResistance, SOBB *pGenerationArea = NULL, int nAreaUniqueID = -1, int nTeamSetting = -1, bool bRandomFrameSummon = true, EtQuat* pqRotation = NULL, int nForceSkillLevel = -1 );
 	void RequestGenerationMonsterFromMonsterGroupID( int nMonsterGroupID, int nCount, SOBB &GenerationArea, int nAreaUniqueID = -1, DNVector(DnActorHandle) *pVecResult = NULL, int nTeamSetting = -1 );
 	void RequestGenerationMonsterFromSetMonsterID( int nSetMonsterID, int nPositionID, SOBB &GenerationArea, int nAreaUniqueID = -1, DNVector(DnActorHandle) *pVecResult = NULL, int nTeamSetting = -1, bool bResetReference = false );
 	void RequestGenerationMonsterFromSetMonsterID( int nSetMonsterID, int nPositionID, std::vector<CEtWorldEventArea *> &pVecAreaUniqueList, DNVector(DnActorHandle) *pVecResult = NULL, int nTeamSetting = -1, bool bResetReference = false );

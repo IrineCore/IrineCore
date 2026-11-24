@@ -64,7 +64,7 @@ bool CDnPuppetBlow::CanBegin( void )
 
 void CDnPuppetBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	SummonMonsterStruct Struct;
@@ -116,7 +116,7 @@ void CDnPuppetBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnPuppetBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 #if defined(_GAMESERVER)
 	if (m_fLimitRange >= 0.0f)
@@ -172,7 +172,7 @@ void CDnPuppetBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnPuppetBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	if (m_hSummonMonster)

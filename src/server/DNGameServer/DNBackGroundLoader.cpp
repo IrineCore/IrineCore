@@ -200,12 +200,12 @@ void CDNBackGroundLoader::Run()
 
 			if (m_pStandbyList[nCallID].pRoom != NULL)
 			{
-#ifdef _FINAL_BUILD
+#if defined(_FINAL_BUILD) && defined(_MSC_VER)
 				__try
 				{
 #endif
 				m_pStandbyList[nCallID].bIsInitFail = m_pStandbyList[nCallID].pRoom->LoadData( m_pStandbyList[nCallID].bIsContinue );
-#ifdef _FINAL_BUILD
+#if defined(_FINAL_BUILD) && defined(_MSC_VER)
 				}
 
 				__except(CExceptionReport::GetInstancePtr()->Proc(GetExceptionInformation(), MiniDumpNormal)) 

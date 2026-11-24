@@ -3,7 +3,7 @@
 #include "DnNLPAKali.h"
 #include "DnWeapon.h"
 
-TDnPlayerKali< CDnPlayerActor >::RotateBoneStruct TDnPlayerKali< CDnPlayerActor >::s_RotateBoneDefine[] = { 
+template<> TDnPlayerKali< CDnPlayerActor >::RotateBoneStruct TDnPlayerKali< CDnPlayerActor >::s_RotateBoneDefine[] = { 
 	{ "Bip01 Spine", -1, 0.3f },
 	{ "Bip01 Spine1", -1, 0.3f },
 	{ "Bip01 Neck", -1, 0.4f },

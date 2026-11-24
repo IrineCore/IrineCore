@@ -14,8 +14,8 @@
 #include <tchar.h>
 #include <time.h>
 #include <sql.h>
-#include <sqlucode.h>
 #include <sqlext.h>
+#include <sqlucode.h>
 #include <sqltypes.h>
 #include <assert.h>
 #include <conio.h>

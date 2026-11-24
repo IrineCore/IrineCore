@@ -21,7 +21,7 @@ void CDnTerrainHomingOrbit::ProcessOrbit( /*IN OUT*/ MatrixEx& Cross, EtVector3&
 	// Homing processing.
 	if( m_hTargetActor )
 	{
-		m_vTargetPosition = __super::FindTargetPosition(m_hTargetActor, m_nTargetPartsIndex, m_nTargetPartsBoneIndex);
+		m_vTargetPosition = IDnOrbitProcessor::FindTargetPosition(m_hTargetActor, m_nTargetPartsIndex, m_nTargetPartsBoneIndex);
 	}
 
 	EtVector3 vDir = m_vTargetPosition - Cross.m_vPosition;

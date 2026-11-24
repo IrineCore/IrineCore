@@ -106,7 +106,7 @@ CDNBaseObject* CDNBaseObject::GetViewObject(UINT nObjUID, bool bIgnoreDangling/*
 	CDNBaseObject *pObj = NULL;
 	TMapObjects::iterator iter;
 	if (g_IDGenerator.IsUser(nObjUID)){
-		if (m_UserViewObjects.empty()) return false;
+		if (m_UserViewObjects.empty()) return NULL;
 
 		ScopeLock<CSyncLock> lock(m_UserLock);
 #if defined( PRE_FIX_SOCKETCONTEXT_DANGLINGPTR )

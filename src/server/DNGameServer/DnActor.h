@@ -442,7 +442,7 @@ public:
 	
 	virtual void CmdSuicide( bool bDropItem, bool bDropExp ) {}
 	virtual void CmdWarp();
-	virtual void CmdWarp( EtVector3 &vPos, EtVector2 &vLook, CDNUserSession* pGameSession=NULL, bool bCheckPlayerFollowSummonedMonster=false );
+	virtual void CmdWarp( const EtVector3 &vPos, const EtVector2 &vLook, CDNUserSession* pGameSession=NULL, bool bCheckPlayerFollowSummonedMonster=false );
 	virtual void CmdMixedAction( const char *szActionBone, const char *szMaintenanceBone, const char *szActionName, float fFrame, float fBlendFrame = 3.f ) { }
 	virtual void CmdChangeTeam( int nTeam );
 	virtual void CmdForceVelocity( EtVector3 &vVelocity, EtVector3 &vResistance );

@@ -253,6 +253,6 @@ void CDnWorldActProp::OnDispatchMessage( CDNUserSession *pSession, DWORD dwProto
 			break;
 	};
 
-	__super::OnDispatchMessage( pSession, dwProtocol, pPacket );
+	CDnWorldProp::OnDispatchMessage( pSession, dwProtocol, pPacket );
 }
 #endif // #ifdef PRE_FIX_PROP_RANDOM_VISIBLE

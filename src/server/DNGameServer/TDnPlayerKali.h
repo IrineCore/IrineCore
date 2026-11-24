@@ -41,20 +41,20 @@ public:
 	{
 		TDnPlayerCommon<T>::Initialize();
 
-		m_hKick[0] = CDnWeapon::CreateWeapon( GetRoom(), 5036, 0 );
-		m_hKick[1] = CDnWeapon::CreateWeapon( GetRoom(), 5037, 0 );
-		m_hKick[2] = CDnWeapon::CreateWeapon( GetRoom(), 5038, 0 );
-		m_hKick[3] = CDnWeapon::CreateWeapon( GetRoom(), 5036, 0 );
+		m_hKick[0] = CDnWeapon::CreateWeapon( this->GetRoom(), 5036, 0 );
+		m_hKick[1] = CDnWeapon::CreateWeapon( this->GetRoom(), 5037, 0 );
+		m_hKick[2] = CDnWeapon::CreateWeapon( this->GetRoom(), 5038, 0 );
+		m_hKick[3] = CDnWeapon::CreateWeapon( this->GetRoom(), 5036, 0 );
 		for( int i=0; i<4; i++ ) m_hKick[i]->CreateObject();
 
-		m_nKickActionIndex[0] = GetElementIndex( "Skill_SlightTurn" );
-		m_nKickActionIndex[1] = GetElementIndex( "Skill_ReturnSpin" );
-		m_nKickActionIndex[2] = GetElementIndex( "Skill_SoulKiss" );
-		m_nKickActionIndex[3] = GetElementIndex( "Skill_Ghostkick" );
+		m_nKickActionIndex[0] = this->GetElementIndex( "Skill_SlightTurn" );
+		m_nKickActionIndex[1] = this->GetElementIndex( "Skill_ReturnSpin" );
+		m_nKickActionIndex[2] = this->GetElementIndex( "Skill_SoulKiss" );
+		m_nKickActionIndex[3] = this->GetElementIndex( "Skill_Ghostkick" );
 
 		for( int i=0; ; i++ ) {
 			if( s_RotateBoneDefine[i].szBoneName == NULL ) break;
-			s_RotateBoneDefine[i].nBoneIndex = GetBoneIndex( s_RotateBoneDefine[i].szBoneName );
+			s_RotateBoneDefine[i].nBoneIndex = this->GetBoneIndex( s_RotateBoneDefine[i].szBoneName );
 		}
 		return true;
 	}
@@ -63,7 +63,7 @@ public:
 	{
 		if( nEquipIndex == 0 ) {
 			for( int i=0; i<4; i++ ) {
-				if( m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
+				if( this->m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
 			}
 		}
 
@@ -73,7 +73,7 @@ public:
 	{
 		if( nEquipIndex == 0 ) {
 			for( int i=0; i<4; i++ ) {
-				if( m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
+				if( this->m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
 			}
 		}
 

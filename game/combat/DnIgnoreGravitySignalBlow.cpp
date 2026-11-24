@@ -18,12 +18,12 @@ CDnIgnoreGravitySignalBlow::~CDnIgnoreGravitySignalBlow(void)
 
 void CDnIgnoreGravitySignalBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 void CDnIgnoreGravitySignalBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin( LocalTime, fDelta );
+	CDnBlow::OnBegin( LocalTime, fDelta );
 
 	if( !m_hActor->IsAppliedThisStateBlow( STATE_BLOW::BLOW_273 ) )
 	{
@@ -45,7 +45,7 @@ void CDnIgnoreGravitySignalBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnIgnoreGravitySignalBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd( LocalTime, fDelta );
+	CDnBlow::OnEnd( LocalTime, fDelta );
 }
 
 bool CDnIgnoreGravitySignalBlow::CanBegin( void )

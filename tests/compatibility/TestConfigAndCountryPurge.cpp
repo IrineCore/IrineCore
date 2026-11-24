@@ -4,6 +4,7 @@
 // =============================================================================
 #include "Platform.h"
 #include <cstdio>
+#include <fstream>
 #include <string>
 
 int RunCompatibilityTests(const WCHAR* configDirPath)
@@ -19,11 +20,13 @@ int RunCompatibilityTests(const WCHAR* configDirPath)
         base.push_back(L'/');
 
     std::wstring loginIni = base + L"DNLogin.ini";
+    if (!std::ifstream(Irine::Platform::WideToUtf8(loginIni.c_str())).good())
+        loginIni = base + L"DNLogin.ini.dist";
     UINT ver = ::GetPrivateProfileIntW(L"Info", L"Version", 0, loginIni.c_str());
     UINT nation = ::GetPrivateProfileIntW(L"Info", L"Nation", 99999, loginIni.c_str());
 
-    check(ver > 0, "DNLogin.ini [Info] Version loaded via GetPrivateProfileIntW");
-    check(nation == 99999, "DNLogin.ini contains zero legacy Nation= configuration keys");
+    check(ver > 0, "DNLogin.ini(.dist) [Info] Version loaded via GetPrivateProfileIntW");
+    check(nation == 99999, "DNLogin.ini(.dist) contains zero legacy Nation= configuration keys");
 
     return failures;
 }

@@ -91,7 +91,8 @@ void CEtTerrainArea::Initialize( STerrainInfo *pInfo )
 	fWorldSizeX = m_TerrainInfo.nSizeX * m_TerrainInfo.fTileSize;
 	fWorldSizeY = m_TerrainInfo.nSizeY * m_TerrainInfo.fTileSize;
 	fWorldSizeZ = pInfo->fHeightMultiply * 65535.f;
-	CEtObject::SetWorldSize( GetRoom(), EtVector3( fWorldSizeX * 0.5f, 0.0f, fWorldSizeY * 0.5f ), max( max( fWorldSizeX, fWorldSizeY ), fWorldSizeZ ) );
+	EtVector3 vWorldCenter( fWorldSizeX * 0.5f, 0.0f, fWorldSizeY * 0.5f );
+	CEtObject::SetWorldSize( GetRoom(), vWorldCenter, (std::max)( (std::max)( fWorldSizeX, fWorldSizeY ), fWorldSizeZ ) );
 
 	CalcBoundingBox();
 }

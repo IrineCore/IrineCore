@@ -19,8 +19,8 @@ Copyright (c) 2002~2007 B4nFter (b4nfter@gmail.com) and Co-Writers. All Rights R
 //	INCLUDE
 ///////////////////////////////////////////////////////////////////
 
-#include <WINDOWS.H>
-#include <TCHAR.H>
+#include <windows.h>
+#include <tchar.h>
 
 
 ///////////////////////////////////////////////////////////////////

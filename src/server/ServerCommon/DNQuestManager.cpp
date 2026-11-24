@@ -131,7 +131,7 @@ bool CDNQuestManager::AddQuest(int nQuestIndex, CDNQuest* pQuest)
 	return true;
 }
 
-bool CDNQuestManager::AddQuest(std::wstring& szTalkFile, CDNQuest* pQuest)
+bool CDNQuestManager::AddQuest(const std::wstring& szTalkFile, CDNQuest* pQuest)
 {
 	if( !pQuest )
 		return false;
@@ -182,7 +182,7 @@ CDNQuest* CDNQuestManager::GetQuest(int nQuestIndex)
 }
 
 
-CDNQuest* CDNQuestManager::GetQuest(std::wstring& szTalkFile)
+CDNQuest* CDNQuestManager::GetQuest(const std::wstring& szTalkFile)
 {
 	STRKEY_QUEST_MAP_ITR iter = m_StrKeyQuestMap.find(szTalkFile);
 	if( iter == m_StrKeyQuestMap.end() )
@@ -240,7 +240,7 @@ void CDNQuestManager::ResetRepeatQuest(CDNUserQuest* pQuest)
 	if(!pQuest)
 		return;
 
-	for each(int index in m_RepeatQuests)
+	for (int index : m_RepeatQuests)
 	{
 		pQuest->SetCompleteQuestFlag(index, false);
 	}

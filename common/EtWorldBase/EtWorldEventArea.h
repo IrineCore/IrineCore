@@ -27,7 +27,7 @@ protected:
 	std::vector<int> m_nVec3Index;
 	std::vector<int> m_nVec4Index;
 	std::vector<int> m_nVecStrIndex;
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	std::vector<int> m_nVec2Index64;
 	std::vector<int> m_nVec3Index64;
 	std::vector<int> m_nVec4Index64;
@@ -38,7 +38,7 @@ protected:
 	SCircle m_Circle;
 
 protected:
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	char IsPointerTable( int nIndex );
 	void IncreasePointerTableIndex( int nValue );
 #endif

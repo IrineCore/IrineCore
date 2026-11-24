@@ -30,7 +30,7 @@ CDnIgnoreHitSignalBlow::~CDnIgnoreHitSignalBlow(void)
 
 void CDnIgnoreHitSignalBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 #if defined(_CLIENT)
 	if (m_bTrigger)
@@ -63,7 +63,7 @@ void CDnIgnoreHitSignalBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnIgnoreHitSignalBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	if( m_hActor->IsDie() )
 	{
@@ -74,7 +74,7 @@ void CDnIgnoreHitSignalBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnIgnoreHitSignalBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 	OutputDebug( "%s\n", __FUNCTION__ );
 
 #if defined(_CLIENT)

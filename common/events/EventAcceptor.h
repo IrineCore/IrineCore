@@ -21,6 +21,9 @@ private:
 
 	HANDLE						m_hAddListenPort;	
 	HANDLE						m_hEndThread;	
+#if !defined(_WIN32)
+	int							m_wakeFd;
+#endif
 	CSyncLock					m_Lock;
 
 	std::list<CListenSocket*>	m_listListenSocket;	

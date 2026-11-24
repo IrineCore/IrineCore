@@ -8,7 +8,7 @@ if(IRINE_BUILD_CLIENT AND NOT IRINE_BUILD_SERVERS)
     set(_COMMON_ARCH_DEFS WIN32 $<$<EQUAL:${CMAKE_SIZEOF_VOID_P},8>:WIN64>)
 else()
     set(_COMMON_ACTIVE_INCLUDES ${IRINE_COMMON_INCLUDES})
-    set(_COMMON_ARCH_DEFS $<$<EQUAL:${CMAKE_SIZEOF_VOID_P},8>:WIN64>)
+    set(_COMMON_ARCH_DEFS $<$<AND:$<BOOL:${WIN32}>,$<EQUAL:${CMAKE_SIZEOF_VOID_P},8>>:WIN64>)
 endif()
 
 if(WIN32)
@@ -19,8 +19,11 @@ if(WIN32)
 elseif(UNIX)
     add_library(irine_platform STATIC
         "${CMAKE_SOURCE_DIR}/common/core/IrineApp.cpp"
+        "${CMAKE_SOURCE_DIR}/common/platform/linux/LinuxWideCrt.c"
         "${CMAKE_SOURCE_DIR}/common/platform/linux/LinuxPlatform.cpp"
         "${CMAKE_SOURCE_DIR}/common/platform/linux/LinuxIniAndStringCompat.cpp"
+        "${CMAKE_SOURCE_DIR}/common/platform/linux/LinuxPosixCompat.cpp"
+        "${CMAKE_SOURCE_DIR}/common/platform/linux/LinuxWmainEntry.cpp"
     )
 endif()
 target_include_directories(irine_platform PUBLIC
@@ -30,10 +33,7 @@ target_include_directories(irine_platform PUBLIC
 )
 target_compile_definitions(irine_platform PRIVATE UNICODE _UNICODE)
 
-add_library(irine_utility STATIC
-    "${CMAKE_SOURCE_DIR}/common/utilities/LiteHTMLAttributes.cpp"
-    "${CMAKE_SOURCE_DIR}/common/utilities/LiteHTMLEntityResolver.cpp"
-    "${CMAKE_SOURCE_DIR}/common/utilities/LiteHTMLReader.cpp"
+set(_IRINE_UTILITY_SOURCES
     "${CMAKE_SOURCE_DIR}/common/synchronization/MultiSync.cpp"
     "${CMAKE_SOURCE_DIR}/common/memory/MemPool.cpp"
     "${CMAKE_SOURCE_DIR}/common/utilities/ExceptionReport.cpp"
@@ -64,6 +64,14 @@ add_library(irine_utility STATIC
     "${CMAKE_SOURCE_DIR}/common/utilities/SundriesFunc.cpp"
     "${CMAKE_SOURCE_DIR}/common/utilities/TimeSet.cpp"
 )
+if(WIN32)
+    list(APPEND _IRINE_UTILITY_SOURCES
+        "${CMAKE_SOURCE_DIR}/common/utilities/LiteHTMLAttributes.cpp"
+        "${CMAKE_SOURCE_DIR}/common/utilities/LiteHTMLEntityResolver.cpp"
+        "${CMAKE_SOURCE_DIR}/common/utilities/LiteHTMLReader.cpp"
+    )
+endif()
+add_library(irine_utility STATIC ${_IRINE_UTILITY_SOURCES})
 target_include_directories(irine_utility PRIVATE
     "${CMAKE_SOURCE_DIR}/common/utilities"
     ${_COMMON_ACTIVE_INCLUDES}

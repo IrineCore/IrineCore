@@ -969,7 +969,7 @@ void CDnTableDB::Finalize()
 		CItemCategoryInfo::DestroyInstance();
 #endif
 
-	for each (std::map<TableEnum, DNTableFileFormat*>::value_type v in m_MapTables)
+	for (const std::map<TableEnum, DNTableFileFormat*>::value_type& v : m_MapTables)
 	{
 		delete v.second;
 	}

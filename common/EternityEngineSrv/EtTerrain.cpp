@@ -182,5 +182,5 @@ float CEtTerrain::TestLintToTile( EtVector3 &Origin, EtVector3 &Direction, int n
 	V2 = EtVector3( nTileX * fTileSize, GetHeight( nTileX, nTileY ), nTileY * fTileSize );
 	TestLineToTriangle( ExtraOrigin, Direction, V1, V3, V2, fDist2, fBary1, fBary2 );
 
-	return min( fDist1, fDist2 );
+	return (std::min)( fDist1, fDist2 );
 }

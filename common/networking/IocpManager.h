@@ -13,6 +13,16 @@ typedef std::list<CSocketContext*> TSocketContextList;
 
 class CIocpManager
 {
+#if !defined(_WIN32)
+public:
+	struct LinuxEpollContext;
+	void PostCustomCompletion(DWORD dwBytesTransferred, CSocketContext* pSocketContext, TIOContext* pIOContext);
+#ifdef _USE_ACCEPTEX
+	void OnAcceptLinux(CSocketContext* pSocketContext, const sockaddr_in* pPeerAddr);
+#endif
+private:
+	LinuxEpollContext* m_pLinuxEpoll;
+#endif
 private:
 	LONG			m_WaitThreadCount;
 	LONG			m_SendIOCount;

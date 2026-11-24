@@ -196,7 +196,7 @@ bool CDNPeriodQuestSystem::Initialize()
 
 void CDNPeriodQuestSystem::BuildCompletedPeriodQuests(CDNUserQuest* pQuest)
 {
-	for each (int questID in m_PeriodQuestIDs)
+	for (int questID : m_PeriodQuestIDs)
 	{
 		if (pQuest->IsClearQuest(questID))
 			pQuest->AddCompletedPeriodQuest(questID);
@@ -208,7 +208,7 @@ void CDNPeriodQuestSystem::GetResetQuestList(CDNUserQuest* pQuest, int nType, st
 	if(!IsValidType(nType))
 		return;
 
-	for each(int questID in m_vQuestIDs[nType])
+	for (int questID : m_vQuestIDs[nType])
 	{
 		if(pQuest->HasQuest(questID) != -2)
 		{
@@ -230,7 +230,7 @@ void CDNPeriodQuestSystem::MarkingSelectQuest(CDNUserQuest* pQuest)
 {	
 	RefreshQuestKey(PERIODQUEST_RESET_MAX);
 
-	for each(const CDNPeriodQuest& periodQuest in m_vBaseQuest)
+	for (const CDNPeriodQuest& periodQuest : m_vBaseQuest)
 	{
 		int nType = periodQuest.GetType();
 		int nSelectedID = periodQuest.SelectQuestID(m_nKeys[nType]);
@@ -261,7 +261,7 @@ void CDNPeriodQuestSystem::RefreshEventQuest(CDNUserQuest* pQuest, int nCount, c
 {	
 	RefreshQuestKey(PERIODQUEST_RESET_MAX);
 
-	for each(const CDNPeriodQuest& periodQuest in m_vBaseQuest)
+	for (const CDNPeriodQuest& periodQuest : m_vBaseQuest)
 	{
 		int nType = periodQuest.GetType();
 		int nSelectedID = periodQuest.SelectQuestID(m_nKeys[nType]);
@@ -298,7 +298,7 @@ void CDNPeriodQuestSystem::RefreshEventQuest(CDNUserQuest* pQuest, int nCount, c
 
 		// Marking process
 		const std::vector<int>& periodQuestIDs = periodQuest.GetQuestIDs();
-		for each(int questID in periodQuestIDs)
+		for (int questID : periodQuestIDs)
 		{
 			pQuest->OnPeriodEvent(questID, bMarking);
 		}
@@ -314,7 +314,7 @@ void CDNPeriodQuestSystem::RefreshPeriodQuest(int nType, CDNUserQuest* pQuest)
 
 	RefreshQuestKey(nType);
 
-	for each(const CDNPeriodQuest& periodQuest in m_vBaseQuest)
+	for (const CDNPeriodQuest& periodQuest : m_vBaseQuest)
 	{
 		if(!periodQuest.IsType(nType))
 			continue;

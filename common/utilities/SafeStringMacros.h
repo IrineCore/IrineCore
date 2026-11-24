@@ -27,8 +27,8 @@ Copyright (c) 2002~2009 B4nFter (b4nfter@gmail.com) and Co-Writers. All Rights R
 
 // The headers below were not previously included and are unrelated to safe string CRT functions
 #define	_CONVERSION_DONT_USE_THREAD_LOCALE	// Use CP_THREAD_ACP macro like legacy ATL 3.0 instead of getting per-thread code page introduced in ATL 7.0
-#include <ATLBASE.H>	// For ATL 7.0 string conversion classes and macros
-#include <ATLCONV.H>
+#include <atlbase.h>	// For ATL 7.0 string conversion classes and macros
+#include <atlconv.h>
 
 
 ///////////////////////////////////////////////////////////////////

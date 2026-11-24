@@ -29,16 +29,16 @@ public:
 	{
 		TDnPlayerCommon<T>::Initialize();
 
-		m_hKick[0] = CDnWeapon::CreateWeapon( GetRoom(), 35, 0 );
-		m_hKick[1] = CDnWeapon::CreateWeapon( GetRoom(), 36, 0 );
-		m_hKick[2] = CDnWeapon::CreateWeapon( GetRoom(), 37, 0 );
-		m_hKick[3] = CDnWeapon::CreateWeapon( GetRoom(), 35, 0 );
+		m_hKick[0] = CDnWeapon::CreateWeapon( this->GetRoom(), 35, 0 );
+		m_hKick[1] = CDnWeapon::CreateWeapon( this->GetRoom(), 36, 0 );
+		m_hKick[2] = CDnWeapon::CreateWeapon( this->GetRoom(), 37, 0 );
+		m_hKick[3] = CDnWeapon::CreateWeapon( this->GetRoom(), 35, 0 );
 		for( int i=0; i<4; i++ ) m_hKick[i]->CreateObject();
 
-		m_nKickActionIndex[0] = GetElementIndex( "Attack_SideKick" );
-		m_nKickActionIndex[1] = GetElementIndex( "Attack_SoccerKick" );
-		m_nKickActionIndex[2] = GetElementIndex( "Attack_Down" );
-		m_nKickActionIndex[3] = GetElementIndex( "Jump_Kick" );
+		m_nKickActionIndex[0] = this->GetElementIndex( "Attack_SideKick" );
+		m_nKickActionIndex[1] = this->GetElementIndex( "Attack_SoccerKick" );
+		m_nKickActionIndex[2] = this->GetElementIndex( "Attack_Down" );
+		m_nKickActionIndex[3] = this->GetElementIndex( "Jump_Kick" );
 
 		return true;
 	}
@@ -47,7 +47,7 @@ public:
 	{
 		if( nEquipIndex == 0 ) {
 			for( int i=0; i<4; i++ ) {
-				if( m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
+				if( this->m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
 			}
 		}
 
@@ -57,7 +57,7 @@ public:
 	{
 		if( nEquipIndex == 0 ) {
 			for( int i=0; i<4; i++ ) {
-				if( m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
+				if( this->m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
 			}
 		}
 

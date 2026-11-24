@@ -23,19 +23,19 @@ CDnAddAttackPDamageBlow::~CDnAddAttackPDamageBlow(void)
 
 void CDnAddAttackPDamageBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 }
 
 
 void CDnAddAttackPDamageBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 }
 
 
 void CDnAddAttackPDamageBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 }
 
 #if defined(PRE_ADD_PREFIX_SYSTE_RENEW)

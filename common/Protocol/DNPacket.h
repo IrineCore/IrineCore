@@ -506,7 +506,7 @@ public:
 	bool operator!=(UINT64 pUid) const			{ return(ui64UID != pUid); }
 	bool operator<(const TGuildUID& pRhv) const		{ return(ui64UID < pRhv.ui64UID); }		// for stdext::hash_map etc.
 
-private:
+public:
 	union {
 		UINT64 ui64UID;		// Guild UID
 		struct {

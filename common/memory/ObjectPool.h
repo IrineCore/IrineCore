@@ -45,7 +45,7 @@ public:
 	MemPool()
 		: m_pReserveData(NULL), m_nReserveSize(0), m_nUsedReserveSize(0), m_nInitCapacity(0), m_nTotalAllocatedSize(0)
 	{
-		Guard<SyncObject>  Sync(m_CS);
+		SyncObjectGuard<SyncObject>  Sync(m_CS);
 		if ( RESERVE_SIZE > 0 )
 		{
 			Reserve( RESERVE_SIZE );

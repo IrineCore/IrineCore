@@ -145,7 +145,7 @@ inline void SendGameDropItemMsg(CDNUserSession * pSession, UINT nUID, USHORT nPr
 }
 
 inline void SendGameGenerationMonsterMsg( CDNUserSession *pSession, int nSeed, UINT nMonsterID, 
-										 UINT nUniqueID, EtVector3 &vPos, EtVector3 &vVel, EtVector3 &vResistance, 
+										 UINT nUniqueID, const EtVector3 &vPos, const EtVector3 &vVel, const EtVector3 &vResistance, 
 										 int nEventAreaUniqueID, int nTeam, bool bRandomFrameSummon, EtQuat* pqRotation )
 {
 	SCGenerationMonster packet;

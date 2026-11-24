@@ -63,7 +63,7 @@ public:
 	{
 		return m_vecObjectList[ nIndex ];
 	}
-	void SetRange( EtVector3 &CenterPos, float fRadius )
+	void SetRange( const EtVector3 &CenterPos, float fRadius )
 	{
 		m_NodeSphere.Center = CenterPos;
 		m_NodeSphere.fRadius = fRadius;
@@ -166,7 +166,8 @@ public:
 			{
 				if( bInside[ i ] )
 				{
-					fDist = EtVec3LengthSq( &( Sphere.Center - ChildSphere[ i ].Center ) );
+					EtVector3 vDiff = Sphere.Center - ChildSphere[ i ].Center;
+					fDist = EtVec3LengthSq( &vDiff );
 					if( fDist < fMinDist )
 					{
 						fMinDist = fDist;
@@ -189,7 +190,7 @@ public:
 	};
 	bool Remove( T Object )
 	{
-		DNVector(T)::iterator Iter;
+		typename DNVector(T)::iterator Iter;
 		Iter = std::find_if( m_vecObjectList.begin(), m_vecObjectList.end(), ValidCheckFind(Object) );
 		if( Iter != m_vecObjectList.end() )
 		{
@@ -281,7 +282,8 @@ public:
 			if( TestSegmentToOBB( Segment, ObjectBox ) )
 			{
 //				if( TestLineToBox( Position, Direction, AABox, fDist ) == false ) {
-				fDist = EtVec3Length( &( Position - ObjectBox.Center ) ) + max( max( ObjectBox.Extent[0], ObjectBox.Extent[1] ), ObjectBox.Extent[2] );
+				EtVector3 vDiffPos = Position - ObjectBox.Center;
+				fDist = EtVec3Length( &vDiffPos ) + std::max( std::max( ObjectBox.Extent[0], ObjectBox.Extent[1] ), ObjectBox.Extent[2] );
 //				}
 				fSize = ( ObjectBox.Extent[0] / 100.f ) * ( ObjectBox.Extent[1] / 100.f ) * ( ObjectBox.Extent[2] / 100.f );
 				if( fDist < fMinDist ) {
@@ -483,7 +485,7 @@ protected:
 
 public:
 	void UseLock( bool bUse ) { m_bUseLock = bUse; }
-	void Initialize( EtVector3 &CenterPos, float fWorldSize )
+	void Initialize( const EtVector3 &CenterPos, float fWorldSize )
 	{
 		m_bInit = true;
 		float fRootRadius = fWorldSize * 1.414214f * 0.5f;

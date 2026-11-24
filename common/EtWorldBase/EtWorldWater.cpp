@@ -12,7 +12,7 @@
 #endif
 #endif // #if !defined( USE_BOOST_MEMPOOL )
 
-float CEtQuadtreeNode<CEtWorldWaterRiver *>::s_fMinRadius = 1000.f;
+template<> float CEtQuadtreeNode<CEtWorldWaterRiver *>::s_fMinRadius = 1000.f;
 
 CEtWorldWater::CEtWorldWater( CEtWorldSector *pSector )
 : m_vUVRatio( 5.f, 5.f )
@@ -158,7 +158,8 @@ bool CEtWorldWater::GetHeight( float fX, float fZ, float *pfHeight )
 {
 	std::vector<CEtWorldWaterRiver *> vecResult;
 
-	ScanRiver( EtVector2( fX + m_vOffset.x, fZ + m_vOffset.y ), 100.f, &vecResult );
+	EtVector2 vRiverPos( fX + m_vOffset.x, fZ + m_vOffset.y );
+	ScanRiver( vRiverPos, 100.f, &vecResult );
 	if( !vecResult.empty() ) {
 		CEtWorldWaterRiver *pRiver;
 		for( DWORD i=0; i<vecResult.size(); i++ ) {
@@ -191,7 +192,8 @@ bool CEtWorldWater::Pick( EtVector3 &vOrig, EtVector3 &vDir, EtVector3 &vPickPos
 	Box.Reset();
 
 	std::vector<CEtWorldWaterRiver *> pVecList;
-	ScanRiver( EtVec3toVec2( vOrig ), EtVec3Length( &vDir ), &pVecList );
+	EtVector2 vOrig2D = EtVec3toVec2( vOrig );
+	ScanRiver( vOrig2D, EtVec3Length( &vDir ), &pVecList );
 
 	float fDistance;
 	float fMinDist = FLT_MAX;

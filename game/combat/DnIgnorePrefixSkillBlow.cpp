@@ -24,20 +24,20 @@ CDnIgnorePrefixSkillBlow::~CDnIgnorePrefixSkillBlow(void)
 
 void CDnIgnorePrefixSkillBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 }
 
 void CDnIgnorePrefixSkillBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 	
 }
 
 
 void CDnIgnorePrefixSkillBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 }
 

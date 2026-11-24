@@ -74,7 +74,7 @@ void CDnCantActionBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnCantActionBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 	// [2010/11/26 semozz]
 	// For StateBlow requiring server sync, receive packet from server to remove it

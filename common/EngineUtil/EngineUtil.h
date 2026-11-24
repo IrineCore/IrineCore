@@ -1,8 +1,8 @@
 #pragma once
 
-EtVector2 EtVec3toVec2( EtVector3 &vVec );
-EtVector3 EtVec2toVec3( EtVector2 &vVec );
-bool CheckRect( float x, float y, EtVector2 &VecMin, EtVector2 &VecMax );
+EtVector2 EtVec3toVec2( const EtVector3 &vVec );
+EtVector3 EtVec2toVec3( const EtVector2 &vVec );
+bool CheckRect( float x, float y, const EtVector2 &VecMin, const EtVector2 &VecMax );
 float RandomNumberInRange( float fMin, float fMax );
 
 #ifndef EtClamp

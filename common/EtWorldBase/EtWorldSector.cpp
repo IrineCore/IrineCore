@@ -18,9 +18,9 @@
 #endif
 #endif // #if !defined( USE_BOOST_MEMPOOL )
 
-float CEtOctreeNode<CEtWorldProp *>::s_fMinRadius = 1000.f;
-float CEtQuadtreeNode<CEtWorldDecal *>::s_fMinRadius = 1000.f;
-float CEtQuadtreeNode<CEtWorldEventArea *>::s_fMinRadius = 1000.f;
+template<> float CEtOctreeNode<CEtWorldProp *>::s_fMinRadius = 1000.f;
+template<> float CEtQuadtreeNode<CEtWorldDecal *>::s_fMinRadius = 1000.f;
+template<> float CEtQuadtreeNode<CEtWorldEventArea *>::s_fMinRadius = 1000.f;
 
 CEtWorldSector::CEtWorldSector()
 {
@@ -644,7 +644,8 @@ CEtWorldProp *CEtWorldSector::AddProp( const char *szPropName, EtVector3 &vPos, 
 	vOffset.y = 0.f;
 
 	pProp->SetCustomParam( pCustomParam );
-	if( pProp->Initialize( this, szPropName, (EtVector3)( vPos - vOffset ), vRotate, vScale ) == false ) {
+	EtVector3 vLocalPos = vPos - vOffset;
+	if( pProp->Initialize( this, szPropName, vLocalPos, vRotate, vScale ) == false ) {
 		SAFE_DELETE( pProp );
 		return NULL;
 	}
@@ -943,7 +944,7 @@ void CEtWorldSector::ScanDecal( EtVector2 &vPos, float fRadius, std::vector<CEtW
 	m_pDecalQuadtree->Pick( Circle, *pVecResult );
 }
 
-void CEtWorldSector::ScanEventArea( EtVector2 &vPos, float fRadius, std::vector<CEtWorldEventArea *> *pVecResult )
+void CEtWorldSector::ScanEventArea( const EtVector2 &vPos, float fRadius, std::vector<CEtWorldEventArea *> *pVecResult )
 {
 	if( !m_pEventAreaQuadtree ) return;
 
@@ -1122,7 +1123,8 @@ bool CEtWorldSector::GenerationCollisionHeight( short *pCollisionHeight )
 			fX -= vOffset.x;
 			fZ -= vOffset.z;
 
-			ScanProp( EtVector3( fX, fHeight, fZ ), 100.f, &pVecProp );
+			EtVector3 vScanPos( fX, fHeight, fZ );
+			ScanProp( vScanPos, 100.f, &pVecProp );
 
 			float fPropHeight = 0.f;
 			if( pNavMesh ) {

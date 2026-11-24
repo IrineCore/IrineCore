@@ -21,18 +21,18 @@ CDnDestroySuperArmorBlow::~CDnDestroySuperArmorBlow(void)
 
 void CDnDestroySuperArmorBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 }
 
 void CDnDestroySuperArmorBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 
 void CDnDestroySuperArmorBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 }
 

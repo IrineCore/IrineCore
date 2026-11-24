@@ -35,12 +35,16 @@ int CDNUserConnection::InitWrap(int nRecvLen, int nSendLen, int nCompLen)
 {
 	int iRetVal = 0;
 
+#if defined(_MSC_VER)
 	__try {	// Start exception filter
 		iRetVal = Init(nRecvLen, nSendLen, nCompLen);
 	}
 	__except(CExceptionCodeLog(GetExceptionCode(), L"CDNUserConnection::InitWrap()"), EXCEPTION_CONTINUE_SEARCH) {	// End exception filter // Do not handle exception here; look for upper exception handler
 		// This code block is never executed
 	}
+#else
+	iRetVal = Init(nRecvLen, nSendLen, nCompLen);
+#endif
 
 	return iRetVal;
 }
@@ -1724,7 +1728,9 @@ TDBListCharData* CDNUserConnection::GetCharacterData(INT64 biCharacterDBID)
 
 int CDNUserConnection::MessageProcess(int nMainCmd, int nSubCmd, char *pData, int nLen)
 {
+#if defined(_MSC_VER)
 	__try {
+#endif
 		DWORD dwCurTick = timeGetTime();
 		if ((m_cLastMainCmd == nMainCmd) && (m_cLastSubCmd == nSubCmd)){
 			if (dwCurTick - m_dwLastMessageTick <= 5){
@@ -1747,6 +1753,7 @@ int CDNUserConnection::MessageProcess(int nMainCmd, int nSubCmd, char *pData, in
 		}
 
 		g_Log.Log(LogType::_ERROR, this, L"CDNUserConnection::MessageProcess (%d, %d)\n", nMainCmd, nSubCmd);
+#if defined(_MSC_VER)
 	}
 #if defined( PRE_LOGINDUMP_LOG )
 	__except(CExceptionCodeLogLoginServer(GetExceptionCode(), L"CDNUserConnection::MessageProcess()", nMainCmd, nSubCmd, m_nReconnectLoginStep, &m_ReconnectData), EXCEPTION_CONTINUE_SEARCH) {	// Do not handle exception here; look for an upper-level exception handler.
@@ -1756,6 +1763,7 @@ int CDNUserConnection::MessageProcess(int nMainCmd, int nSubCmd, char *pData, in
 	__except(CExceptionCodeLog(GetExceptionCode(), L"CDNUserConnection::MessageProcess()", nMainCmd, nSubCmd), EXCEPTION_CONTINUE_SEARCH) {	// Do not handle exception here; look for an upper-level exception handler.
 		// This code block is never executed
 	}
+#endif
 #endif
 
 	return ERROR_UNKNOWN_HEADER;

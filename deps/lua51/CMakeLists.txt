@@ -36,4 +36,4 @@ add_library(dep_lua51 STATIC
     "src_514/lzio.c"
 )
 target_include_directories(dep_lua51 PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" ${IRINE_COMMON_INCLUDES})
-target_compile_definitions(dep_lua51 PRIVATE WIN64 NDEBUG _LIB UNICODE _UNICODE)
+target_compile_definitions(dep_lua51 PRIVATE $<$<BOOL:${WIN32}>:WIN64> NDEBUG _LIB UNICODE _UNICODE)

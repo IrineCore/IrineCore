@@ -30,7 +30,7 @@ public:
 
 	virtual void OnDie( DnActorHandle hHitter );
 	virtual void OnSignal( SignalTypeEnum Type, void *pPtr, LOCAL_TIME LocalTime, LOCAL_TIME SignalStartTime, LOCAL_TIME SignalEndTime, int nSignalIndex );
-	virtual void Look( EtVector2& vVec, bool bForceRotate=true);
+	virtual void Look( const EtVector2& vVec, bool bForceRotate=true);
 
 	virtual void OnHitSuccess( LOCAL_TIME LocalTime, DnActorHandle hActor, HitStruct *pStruct );
 	virtual void OnHitFinish( LOCAL_TIME LocalTime, HitStruct *pStruct );

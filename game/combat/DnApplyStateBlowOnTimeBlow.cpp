@@ -31,7 +31,7 @@ CDnApplyStateBlowOnTimeBlow::~CDnApplyStateBlowOnTimeBlow(void)
 
 void CDnApplyStateBlowOnTimeBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 #if defined(_GAMESERVER)
 	m_IntervalChecker.Process( LocalTime, fDelta );
@@ -40,7 +40,7 @@ void CDnApplyStateBlowOnTimeBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnApplyStateBlowOnTimeBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	m_hSkill = CDnSkill::CreateSkill(m_hActor, m_nSkillID, 1);
@@ -51,7 +51,7 @@ void CDnApplyStateBlowOnTimeBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnApplyStateBlowOnTimeBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	if (m_hSkill)

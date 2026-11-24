@@ -11,7 +11,7 @@ DECL_MULTISMART_PTR_STATIC( CEtObject, MAX_SESSION_COUNT, 1000 )
 
 STATIC_DECL_INIT( CEtObject, CEtOctree< CEtObject * >, s_DynamicOctree );
 
-float CEtOctreeNode< CEtObject * >::s_fMinRadius = 1000.0f;
+template<> float CEtOctreeNode< CEtObject * >::s_fMinRadius = 1000.0f;
 
 CEtObject::CEtObject( CMultiRoom *pRoom )
 : CMultiSmartPtrBase< CEtObject, MAX_SESSION_COUNT >(pRoom)
@@ -151,7 +151,7 @@ void CEtObject::UpdateBoundingPrimitive()
 
 	m_BoundingSphere = m_OriginalBoundingSphere;
 	EtVec3TransformCoord( &m_BoundingSphere.Center, &m_OriginalBoundingSphere.Center, &m_WorldMat );
-	m_BoundingSphere.fRadius *= max( max( m_vScale.x, m_vScale.y ), m_vScale.z );
+	m_BoundingSphere.fRadius *= (std::max)( (std::max)( m_vScale.x, m_vScale.y ), m_vScale.z );
 }
 
 void CEtObject::UpdateCollisionPrimitive( EtMatrix &WorldMat )

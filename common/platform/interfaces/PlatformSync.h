@@ -49,6 +49,29 @@ inline LONG InterlockedCompareExchange(volatile LONG* Destination, LONG ExChange
     __atomic_compare_exchange_n(Destination, &expected, ExChange, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
     return expected;
 }
+// LP64 overloads for legacy Win32 code declaring 'long' instead of 'LONG'
+inline long InterlockedIncrement(volatile long* Addend) noexcept
+{
+    return __atomic_add_fetch(Addend, 1L, __ATOMIC_SEQ_CST);
+}
+inline long InterlockedDecrement(volatile long* Addend) noexcept
+{
+    return __atomic_sub_fetch(Addend, 1L, __ATOMIC_SEQ_CST);
+}
+inline long InterlockedExchange(volatile long* Target, long Value) noexcept
+{
+    return __atomic_exchange_n(Target, Value, __ATOMIC_SEQ_CST);
+}
+inline long InterlockedExchangeAdd(volatile long* Addend, long Value) noexcept
+{
+    return __atomic_fetch_add(Addend, Value, __ATOMIC_SEQ_CST);
+}
+inline long InterlockedCompareExchange(volatile long* Destination, long ExChange, long Comperand) noexcept
+{
+    long expected = Comperand;
+    __atomic_compare_exchange_n(Destination, &expected, ExChange, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    return expected;
+}
 inline LONGLONG InterlockedIncrement64(volatile LONGLONG* Addend) noexcept
 {
     return __atomic_add_fetch(Addend, 1, __ATOMIC_SEQ_CST);

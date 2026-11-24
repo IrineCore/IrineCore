@@ -44,7 +44,7 @@ CDnActionChangeRatioBlow::~CDnActionChangeRatioBlow(void)
 
 void CDnActionChangeRatioBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	OnChangeAction();
@@ -53,14 +53,14 @@ void CDnActionChangeRatioBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnActionChangeRatioBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 	
 }
 
 
 void CDnActionChangeRatioBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 }
 

@@ -3,7 +3,7 @@
 #include "EtActionSignal.h"
 #include "EtResourceMng.h"
 #ifdef PRE_ADD_ACTION_DYNAMIC_OPTIMIZE
-#include <MMSystem.h>
+#include <mmsystem.h>
 #endif
 
 #if !defined( USE_BOOST_MEMPOOL )

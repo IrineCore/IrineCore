@@ -3,7 +3,7 @@
 #ifdef _USE_VOICECHAT
 #include "Singleton.h"
 #include "iceclientlib.h"
-#include <MMSystem.h>
+#include <mmsystem.h>
 
 enum VOICE_CHAT_CODEC
 {

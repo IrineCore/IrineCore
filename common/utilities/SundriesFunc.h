@@ -1,6 +1,6 @@
 #pragma once
 #include <tuple>
-#include <Windows.h>
+#include <windows.h>
 #include "AssertX.h"
 #include "SmartPtr.h"
 #include "StringUtil.h"
@@ -18,7 +18,8 @@ void SAFE_DELETE_VEC( T &vecDel, bool bClearly = true )
 { 
 	vecDel.clear();  
 	if( bClearly ) {
-		vecDel.swap( T() );	// Must do it this way so capacity becomes 0.. x.swap(x) does nothing.
+		T empty;
+		vecDel.swap( empty );	// Must do it this way so capacity becomes 0.. x.swap(x) does nothing.
 	}
 } 
 #endif // SAFE_DELETE_VEC

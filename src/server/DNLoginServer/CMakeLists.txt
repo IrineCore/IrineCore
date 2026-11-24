@@ -56,7 +56,7 @@ target_include_directories(DNLoginServer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     ${IRINE_COMMON_INCLUDES}
 )
-target_compile_definitions(DNLoginServer PRIVATE WIN64 NDEBUG _CONSOLE _LOGINSERVER _FINAL_BUILD UNICODE _UNICODE)
+target_compile_definitions(DNLoginServer PRIVATE $<$<BOOL:${WIN32}>:WIN64> NDEBUG _CONSOLE _LOGINSERVER _FINAL_BUILD UNICODE _UNICODE)
 target_link_libraries(DNLoginServer PRIVATE
     irine_modules
     irine_platform

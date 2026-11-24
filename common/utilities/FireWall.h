@@ -1,11 +1,18 @@
 #pragma  once
 
+#if defined(_WIN32)
 #include <windows.h>
 #include <crtdbg.h>
 #include "netfw.h"
 #include <objbase.h>
 #include <oleauto.h>
 #include <stdio.h>
+#else
+#include <windows.h>
+#include <stdio.h>
+struct INetFwProfile {};
+enum NET_FW_IP_PROTOCOL { NET_FW_IP_PROTOCOL_TCP = 6, NET_FW_IP_PROTOCOL_UDP = 17, NET_FW_IP_PROTOCOL_ANY = 256 };
+#endif
 
 HRESULT WindowsFirewallInitialize(OUT INetFwProfile** fwProfile);
 void WindowsFirewallCleanup(IN INetFwProfile* fwProfile);

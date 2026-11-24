@@ -12,7 +12,7 @@ struct SSegment
 
 struct SCircle
 {
-	bool IsInside( EtVector2 &vPoint )
+	bool IsInside( const EtVector2 &vPoint )
 	{
 		if( EtVec2LengthSq( &( vPoint - Center ) ) < fRadius * fRadius )
 		{
@@ -62,12 +62,12 @@ struct SAABox2D
 		Min = EtVector2( FLT_MAX, FLT_MAX );
 		Max = EtVector2( -FLT_MAX, -FLT_MAX );
 	}
-	void AddPoint( EtVector2 &Point )
+	void AddPoint( const EtVector2 &Point )
 	{
-		Min.x = min( Point.x, Min.x );
-		Max.x = max( Point.x, Max.x );
-		Min.y = min( Point.y, Min.y );
-		Max.y = max( Point.y, Max.y );
+		Min.x = (std::min)( Point.x, Min.x );
+		Max.x = (std::max)( Point.x, Max.x );
+		Min.y = (std::min)( Point.y, Min.y );
+		Max.y = (std::max)( Point.y, Max.y );
 	}
 	bool IsInside( SCircle &Circle )
 	{
@@ -130,7 +130,7 @@ struct SSphere
 
 		return EtVec3LengthSq( &CenterDist ) <= fRadiusDist * fRadiusDist;
 	}
-	bool IsInside( EtVector3 &Point )
+	bool IsInside( const EtVector3 &Point )
 	{
 		if( EtVec3LengthSq( &( Point - Center ) ) < fRadius * fRadius )
 		{
@@ -218,14 +218,14 @@ struct SAABox
 		Min = EtVector3( FLT_MAX, FLT_MAX, FLT_MAX );
 		Max = EtVector3( -FLT_MAX, -FLT_MAX, -FLT_MAX );
 	}
-	void AddPoint( EtVector3 &Point )
+	void AddPoint( const EtVector3 &Point )
 	{
-		Min.x = min( Point.x, Min.x );
-		Max.x = max( Point.x, Max.x );
-		Min.y = min( Point.y, Min.y );
-		Max.y = max( Point.y, Max.y );
-		Min.z = min( Point.z, Min.z );
-		Max.z = max( Point.z, Max.z );
+		Min.x = (std::min)( Point.x, Min.x );
+		Max.x = (std::max)( Point.x, Max.x );
+		Min.y = (std::min)( Point.y, Min.y );
+		Max.y = (std::max)( Point.y, Max.y );
+		Min.z = (std::min)( Point.z, Min.z );
+		Max.z = (std::max)( Point.z, Max.z );
 	}
 
 	void GetPlanes( DNVector(EtVector4) &vVecResult)

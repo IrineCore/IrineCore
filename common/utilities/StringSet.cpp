@@ -6,8 +6,8 @@
 
 #include "stdafx.h"
 #include "StringSet.h"
-#include <ALGORITHM>
-#include <SET>
+#include <algorithm>
+#include <set>
 #include "CommonMacros.h"
 #include "BaseSet.h"
 #include "DebugUtil.h"

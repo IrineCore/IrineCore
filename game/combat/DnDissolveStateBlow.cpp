@@ -30,7 +30,7 @@ void CDnDissolveStateBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnDissolveStateBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 	// Should only need to run on the server. [2010/12/17 semozz]
 	// State effects to remove on server.. modified to send packet.

@@ -118,11 +118,12 @@ bool CEtWorldWaterRiver::GetHeight( float fX, float fZ, float &fHeight )
 	EtVector3 vPosTemp = EtVector3( fX, fMinHeight, fZ );
 	float fDist, fBary1, fBary2;
 
+	EtVector3 vUpDir( 0.f, 1.f, 0.f );
 	for( DWORD i=0; i<m_vVecPrimitiveList.size() - 3; i+=2 ) {
 		vVertex[0] = m_vVecPrimitiveList[i];
 		vVertex[1] = m_vVecPrimitiveList[i+2];
 		vVertex[2] = m_vVecPrimitiveList[i+1];
-		if( TestLineToTriangle( vPosTemp, EtVector3( 0.f, 1.f, 0.f ), vVertex[0], vVertex[1], vVertex[2], fDist, fBary1, fBary2 ) == true ) {
+		if( TestLineToTriangle( vPosTemp, vUpDir, vVertex[0], vVertex[1], vVertex[2], fDist, fBary1, fBary2 ) == true ) {
 			fHeight = vPosTemp.y + fDist;
 			return true;
 		}
@@ -130,7 +131,7 @@ bool CEtWorldWaterRiver::GetHeight( float fX, float fZ, float &fHeight )
 		vVertex[0] = m_vVecPrimitiveList[i+1];
 		vVertex[1] = m_vVecPrimitiveList[i+2];
 		vVertex[2] = m_vVecPrimitiveList[i+3];
-		if( TestLineToTriangle( vPosTemp, EtVector3( 0.f, 1.f, 0.f ), vVertex[0], vVertex[1], vVertex[2], fDist, fBary1, fBary2 ) == true ) {
+		if( TestLineToTriangle( vPosTemp, vUpDir, vVertex[0], vVertex[1], vVertex[2], fDist, fBary1, fBary2 ) == true ) {
 			fHeight = vPosTemp.y + fDist;
 			return true;
 		}

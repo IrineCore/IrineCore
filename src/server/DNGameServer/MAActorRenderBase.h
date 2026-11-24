@@ -41,7 +41,7 @@ public:
 	bool GetBoundingBox( SAABox &Box );
 	bool GetOriginalBoundingBox( SAABox &Box );
 
-	void SetScale( EtVector3 &vScale ) { m_vScale = vScale; }
+	void SetScale( const EtVector3 &vScale ) { m_vScale = vScale; }
 	EtVector3 *GetScale() { return &m_vScale; }
 
 	virtual void AddAniDistance( EtVector3 &vVec );

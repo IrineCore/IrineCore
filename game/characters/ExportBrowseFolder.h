@@ -40,7 +40,7 @@ VERSION HISTORY:
 #endif
 
 #ifndef __ATLCONV_H__
-#include < AtlConv.h >	// MBCS/Unicode Conversion Macros
+#include <atlconv.h>	// MBCS/Unicode Conversion Macros
 #endif
 
 // Uncomment if using GetRootFolder

@@ -80,7 +80,7 @@ bool DnScriptManager::LoadScript(const char* szLuaFile, bool bIsCheckServer, int
 		DN_ASSERT(0 < pScriptRangeStx.GetLength(),	"Invalid!");
 		DN_ASSERT(0 < pScriptRangeEtx.GetLength(),	"Invalid!");
 
-		CStringSet LuaChunk = CA2T(pBuffer);
+		CStringSet LuaChunk(static_cast<LPCTSTR>(CA2T(pBuffer)));
 
 		int nP1 = LuaChunk.Find(pScriptRangeStx.Get(), 0);
 		if (0 > nP1) {

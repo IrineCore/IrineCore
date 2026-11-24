@@ -116,7 +116,7 @@ protected:
 public:
 
 	virtual void EnableDebugDraw(bool bDebugRender ) { m_bDebugRenderAttr = bDebugRender;}
-	static bool IsMovableBlock( CDnWorld* World, EtVector3 &vPos );
+	static bool IsMovableBlock( CDnWorld* World, const EtVector3 &vPos );
 	void ProcessBlock( EtVector3 vPrevPos );
 	void ProcessProp( EtVector3 vPrevPos );
 	void ProcessCommon( LOCAL_TIME LocalTime, float fDelta );
@@ -128,7 +128,7 @@ public:
 	virtual void PushAndCollisionCheck( EtVector3 &vPush );
 
 	virtual void SetMoveVectorX( EtVector3 &vVec );
-	virtual void SetMoveVectorZ( EtVector3 &vVec );
+	virtual void SetMoveVectorZ( const EtVector3 &vVec );
 	virtual EtVector3 *GetMoveVectorX() { return &m_vMoveVectorX; }
 	virtual EtVector3 *GetMoveVectorZ() { return &m_vMoveVectorZ; }
 
@@ -143,24 +143,24 @@ public:
 	virtual void AutoMoving( EtVector3& vTargetPos, float fMinDistance, const char* szActionName, bool bGeneratePath );
 	void GenerateAutoMovingPath( NavigationMesh* pNaviMesh, NavigationCell* pStartCell, NavigationCell* pEndCell, EtVector3& vStartPos, EtVector3& vEndPos );
 #endif // PRE_MOD_NAVIGATION_PATH
-	virtual void MoveToWorld( EtVector2 &vVec );
+	virtual void MoveToWorld( const EtVector2 &vVec );
 	virtual EtVector3 *GetMovePos() { return &m_vMovePos; }
 	virtual void ResetMove();
 	virtual DnActorHandle GetMoveTarget();
 
-	virtual void Look( EtVector2 &vVec, bool bForceRotate = true );
+	virtual void Look( const EtVector2 &vVec, bool bForceRotate = true );
 	virtual EtVector3 *GetLookDir();
 	virtual EtVector2 *GetLookDirTarget() { return &m_vTargetLookVec; }
-	virtual void LookTarget( DnActorHandle &hActor );
+	virtual void LookTarget( const DnActorHandle &hActor );
 	virtual DnActorHandle GetLookTarget();
 	virtual void ResetLook();
 
-	virtual void SetVelocity( EtVector3 &vVec );
+	virtual void SetVelocity( const EtVector3 &vVec );
 	virtual void SetVelocityX( float fPower );
 	virtual void SetVelocityY( float fPower );
 	virtual void SetVelocityZ( float fPower );
 
-	virtual void SetResistance( EtVector3 &vVec );
+	virtual void SetResistance( const EtVector3 &vVec );
 	virtual void SetResistanceX( float fPower );
 	virtual void SetResistanceY( float fPower );
 	virtual void SetResistanceZ( float fPower );
@@ -173,7 +173,7 @@ public:
 	virtual void SetAppliedYDistance( bool bAppliedYDistance ) { m_bAppliedYDistance = bAppliedYDistance; }
 #endif // PRE_ADD_GRAVITY_PROPERTY
 
-	virtual void SetMagnetDir( EtVector2 &vPos );
+	virtual void SetMagnetDir( const EtVector2 &vPos );
 	virtual void SetMagnetLength( float fLength );
 
 	float GetAngleAssistValue() { return m_fAngleAssist; }
@@ -206,7 +206,7 @@ public:
 	virtual float			GetNaviTargetMinDistance(){ return m_fNaviTargetMinDistance; }
 	virtual const char*		GetNaviTargetActionName(){ return m_szNaviTargetActionName.c_str(); }
 	virtual EtVector2*		GetJumpMovement() { return &m_vJumpMovement; }
-	virtual void			SetJumpMovement( EtVector2& vVec ){ m_vJumpMovement= vVec; }
+	virtual void			SetJumpMovement( const EtVector2& vVec ){ m_vJumpMovement= vVec; }
 	virtual bool			GetFloorForceVelocity(){ return m_bFloorForceVelocity; }
 	virtual bool			GetLastFloorForceVelocity(){ return m_bLastFloorForceVelocity; }
 

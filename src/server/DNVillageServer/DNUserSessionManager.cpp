@@ -620,7 +620,7 @@ void CDNUserSessionManager::ResetGuildWarBuyedItems()
 		return;
 
 	ScopeLock<CSyncLock> Lock(m_AccountLock);
-	for each (TMapSession::value_type v in m_pMapAccountDBID)
+	for (TMapSession::value_type v : m_pMapAccountDBID)
 	{
 		if (v.second)
 			v.second->ResetGuildWarBuyedItems();

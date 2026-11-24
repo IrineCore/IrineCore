@@ -2,7 +2,7 @@
 #pragma once
 #include <windows.h>
 #include <stdio.h>
-#include <DbgHelp.h>
+#include <dbghelp.h>
 #include <crtdbg.h>
 
 enum _DUMPTYPE

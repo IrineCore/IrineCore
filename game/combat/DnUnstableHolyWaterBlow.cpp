@@ -62,7 +62,7 @@ CDnUnstableHolyWaterBlow::~CDnUnstableHolyWaterBlow(void)
 
 void CDnUnstableHolyWaterBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 #if defined( _GAMESERVER )
 	
 	if( !m_hActor || !m_hActor->IsPlayerActor() )
@@ -142,13 +142,13 @@ void CDnUnstableHolyWaterBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnUnstableHolyWaterBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 }
 
 void CDnUnstableHolyWaterBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 }
 

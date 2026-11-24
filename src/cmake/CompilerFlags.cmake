@@ -71,6 +71,24 @@ if(MSVC)
         endif()
     endfunction()
 elseif(UNIX)
-    add_compile_options(-fshort-wchar -pthread -Wno-deprecated-declarations)
+    add_compile_options(
+        -fshort-wchar
+        -U_FORTIFY_SOURCE
+        -D_FORTIFY_SOURCE=0
+        -pthread
+        -Wno-deprecated-declarations
+        -Wno-unknown-pragmas
+        -Wno-write-strings
+        -Wno-multichar
+        -Wno-switch
+        -Wno-format-security
+        -Wno-sign-compare
+        -Wno-unused-variable
+        -Wno-unused-but-set-variable
+        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-reorder>"
+        "$<$<COMPILE_LANGUAGE:CXX>:-fpermissive>"
+        "$<$<COMPILE_LANGUAGE:CXX>:-include;${CMAKE_SOURCE_DIR}/common/platform/linux/LinuxPrefix.h>"
+    )
     add_link_options(-pthread)
+    include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/common/platform/linux/compat")
 endif()

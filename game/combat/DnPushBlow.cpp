@@ -95,7 +95,7 @@ void CDnPushBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnPushBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #ifndef _GAMESERVER
 

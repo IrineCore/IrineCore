@@ -16,4 +16,4 @@ add_library(dep_zlib STATIC
     "zutil.c"
 )
 target_include_directories(dep_zlib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_compile_definitions(dep_zlib PRIVATE WIN64 NDEBUG _CRT_SECURE_NO_WARNINGS)
+target_compile_definitions(dep_zlib PRIVATE $<$<BOOL:${WIN32}>:WIN64> NDEBUG _CRT_SECURE_NO_WARNINGS)

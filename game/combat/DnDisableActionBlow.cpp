@@ -46,13 +46,13 @@ void CDnDisableActionBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnDisableActionBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 
 void CDnDisableActionBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 }
 
 #if defined(PRE_ADD_PREFIX_SYSTE_RENEW)

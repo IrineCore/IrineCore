@@ -45,7 +45,7 @@ protected:
 	virtual void OnFall( float fCurVelocity );
 	virtual void OnBeginLook();
 	virtual void OnEndLook();
-	virtual void OnMoveNavi( EtVector3 &vPosition );
+	virtual void OnMoveNavi( const EtVector3 &vPosition );
 #ifdef PRE_MOD_NAVIGATION_PATH
 	virtual void OnAutoMoving( EtVector3& vPosition, EtVector3& vCurrentPosition );
 #endif // PRE_MOD_NAVIGATION_PATH
@@ -65,7 +65,7 @@ public:
 	virtual void PushAndCollisionCheck( EtVector3 &vPush ) {}
 
 	virtual void SetMoveVectorX( EtVector3 &vVec ) {}
-	virtual void SetMoveVectorZ( EtVector3 &vVec ) {}
+	virtual void SetMoveVectorZ( const EtVector3 &vVec ) {}
 	virtual EtVector3 *GetMoveVectorX() { return NULL; }
 	virtual EtVector3 *GetMoveVectorZ() { return NULL; }
 
@@ -79,26 +79,26 @@ public:
 #ifdef PRE_MOD_NAVIGATION_PATH
 	virtual void AutoMoving( EtVector3& vTargetPos, float fMinDistance, const char* szActionName, bool bGeneratePath ) {}
 #endif // PRE_MOD_NAVIGATION_PATH
-	virtual void MoveToWorld( EtVector2 &vVec ) {}
+	virtual void MoveToWorld( const EtVector2 &vVec ) {}
 	virtual EtVector3 *GetMovePos() { return NULL; }
 	virtual void ResetMove() {}
 	virtual DnActorHandle GetMoveTarget();
 	virtual DnActorHandle GetNaviTarget();
 
-	virtual void Look( EtVector2 &vVec, bool bForceRotate = true ) {}
-	virtual void ForceLook( EtVector2 &vVec ) {}
-	virtual void LookTarget( DnActorHandle &hActor ) {}
+	virtual void Look( const EtVector2 &vVec, bool bForceRotate = true ) {}
+	virtual void ForceLook( const EtVector2 &vVec ) {}
+	virtual void LookTarget( const DnActorHandle &hActor ) {}
 	virtual EtVector3 *GetLookDir() { return NULL; }
 	virtual EtVector2 *GetLookDirTarget() { return NULL; }
 	virtual DnActorHandle GetLookTarget();
 	virtual void ResetLook() {}
 
-	virtual void SetVelocity( EtVector3 &vVec ) {}
+	virtual void SetVelocity( const EtVector3 &vVec ) {}
 	virtual void SetVelocityX( float fPower ) {}
 	virtual void SetVelocityY( float fPower ) {}
 	virtual void SetVelocityZ( float fPower ) {}
 
-	virtual void SetResistance( EtVector3 &vVec ) {}
+	virtual void SetResistance( const EtVector3 &vVec ) {}
 	virtual void SetResistanceX( float fPower ) {}
 	virtual void SetResistanceY( float fPower ) {}
 	virtual void SetResistanceZ( float fPower ) {}
@@ -112,7 +112,7 @@ public:
 	virtual void SetAppliedYDistance( bool bAppliedYDistance ) {}
 #endif // PRE_ADD_GRAVITY_PROPERTY
 
-	virtual void SetMagnetDir( EtVector2 &vPos ) {}
+	virtual void SetMagnetDir( const EtVector2 &vPos ) {}
 	virtual void SetMagnetLength( float fLength ) {}
 
 	virtual void SetMoveYDistancePerSec( float fMoveYDistancePerSec, float fWholeMoveYDistance, bool bMaintainYDistance ) {};
@@ -131,7 +131,7 @@ public:
 	virtual bool IsFloorCollision() { return false; }
 	virtual void SetMagnetPosition( EtVector3 &vPos ){}
 	virtual EtVector2* GetJumpMovement() { return NULL; }
-	virtual void SetJumpMovement( EtVector2& vVec ){ }
+	virtual void SetJumpMovement( const EtVector2& vVec ){ }
 	virtual void EnableDebugDraw(bool bDebugRender ) {}
 	
 	virtual void			ValidateCurCell(){}

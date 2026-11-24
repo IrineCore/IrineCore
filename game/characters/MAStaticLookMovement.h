@@ -9,10 +9,10 @@ public:
 
 	MAStaticLookMovement();
 
-	virtual void Look( EtVector2 &vVec, bool bForceRotate = true );
+	virtual void Look( const EtVector2 &vVec, bool bForceRotate = true );
 	virtual EtVector3 *GetLookDir();
 	virtual EtVector2 *GetLookDirTarget() { return &m_vTargetLookVec; }
-	virtual void LookTarget( DnActorHandle &hActor );
+	virtual void LookTarget( const DnActorHandle &hActor );
 	virtual DnActorHandle GetLookTarget();
 	virtual void ResetLook();
 

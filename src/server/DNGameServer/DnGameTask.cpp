@@ -2386,13 +2386,13 @@ void CDnGameTask::RequestDestroyNpc(int nAreaUniqueID)
 	RemoveBirthAreaList(nAreaUniqueID);
 }
 
-DnActorHandle CDnGameTask::RequestGenerationMonsterFromMonsterID( int nMonsterID, EtVector3 &vPosition, EtVector3& vVel, EtVector3& vResistance,
+DnActorHandle CDnGameTask::RequestGenerationMonsterFromMonsterID( int nMonsterID, const EtVector3 &vPosition, const EtVector3& vVel, const EtVector3& vResistance,
 																 SOBB *pGenerationArea, int nAreaUniqueID, int nTeamSetting )
 {
 	return RequestGenerationMonsterFromActorID( nMonsterID, -1, vPosition, vVel, vResistance, pGenerationArea, nAreaUniqueID, nTeamSetting );
 }
 
-DnActorHandle CDnGameTask::RequestGenerationMonsterFromActorID( int nMonsterID, int nActorID, EtVector3 &vPosition, EtVector3& vVel, EtVector3& vResistance,
+DnActorHandle CDnGameTask::RequestGenerationMonsterFromActorID( int nMonsterID, int nActorID, const EtVector3 &vPosition, const EtVector3& vVel, const EtVector3& vResistance,
 																SOBB *pGenerationArea, int nAreaUniqueID, int nTeamSetting, bool bRandomFrameSummon, EtQuat* pqRotation, int nForceSkillLevel /*= -1*/ )
 {
 	DNTableFileFormat* pSox = GetDNTable( CDnTableDB::TMONSTER );
@@ -2421,7 +2421,8 @@ DnActorHandle CDnGameTask::RequestGenerationMonsterFromActorID( int nMonsterID, 
 	CDnMonsterActor* pMonster = static_cast<CDnMonsterActor*>(hMonster.GetPointer());
 	
 	pMonster->SetTriggerMonster( nRandomSeed );
-	hMonster->SetPosition( vPosition );
+	EtVector3 vSpawnPos = vPosition;
+	hMonster->SetPosition( vSpawnPos );
 #ifdef PRE_MOD_DARKLAIR_RECONNECT
 	pMonster->SetEventAreaUniqueID( nAreaUniqueID );
 #endif // PRE_MOD_DARKLAIR_RECONNECT
