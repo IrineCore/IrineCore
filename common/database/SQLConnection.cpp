@@ -100,7 +100,8 @@ namespace
 		const WCHAR* relCandidates[] = {
 			L"./config/odbc.ini",
 			L"./Config/odbc.ini",
-			L"./odbc.ini"
+			L"./odbc.ini",
+			L"./config/odbc.ini.dist"
 		};
 		for (size_t i = 0; i < _countof(relCandidates); ++i)
 		{

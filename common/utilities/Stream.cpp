@@ -184,7 +184,12 @@ bool CFileStream::Open( const char *pFileName, int nMode )
 			break;
 	}
 
+#if !defined(_WIN32)
+	m_pStream = NULL;
+	fopen_s( &m_pStream, pFileName, szModeString );
+#else
 	m_pStream = fopen( pFileName, szModeString );
+#endif
 	m_szFileName = pFileName;
 
 	return IsValid();

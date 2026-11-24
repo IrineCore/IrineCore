@@ -12,6 +12,8 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
+#include <dirent.h>
+#include <strings.h>
 #include <signal.h>
 #include <execinfo.h>
 #include <chrono>
@@ -184,6 +186,105 @@ std::wstring NormalizePathW(const std::wstring& path)
     std::wstring out = path;
     std::replace(out.begin(), out.end(), L'\\', L'/');
     return out;
+}
+
+std::string ResolveCaseInsensitivePath(const std::string& path, bool forWrite)
+{
+    if (path.empty()) return {};
+
+    std::string norm = NormalizePath(path);
+    // Collapse redundant consecutive slashes (e.g. "a//b" -> "a/b")
+    std::string collapsed;
+    collapsed.reserve(norm.size());
+    for (char c : norm)
+    {
+        if (c == '/' && !collapsed.empty() && collapsed.back() == '/')
+            continue;
+        collapsed.push_back(c);
+    }
+    norm.swap(collapsed);
+
+    // O(1) fast path: exact casing already exists on disk
+    struct stat sb{};
+    if (::lstat(norm.c_str(), &sb) == 0)
+        return norm;
+
+    bool isAbs = (!norm.empty() && norm[0] == '/');
+    std::vector<std::string> parts;
+    size_t pos = isAbs ? 1 : 0;
+    while (pos < norm.size())
+    {
+        size_t next = norm.find('/', pos);
+        if (next == std::string::npos) next = norm.size();
+        if (next > pos)
+            parts.emplace_back(norm.data() + pos, next - pos);
+        pos = next + 1;
+    }
+
+    if (parts.empty())
+        return isAbs ? "/" : norm;
+
+    std::string cur = isAbs ? "/" : ".";
+    bool hasLeadingRelDot = (!isAbs && norm.size() >= 2 && norm[0] == '.' && norm[1] == '/');
+
+    auto joinPath = [&](const std::string& base, const std::string& comp) -> std::string {
+        if (base == "/") return "/" + comp;
+        if (base == ".") return hasLeadingRelDot ? ("./" + comp) : comp;
+        return base + "/" + comp;
+    };
+
+    for (size_t i = 0; i < parts.size(); ++i)
+    {
+        const std::string& comp = parts[i];
+        if (comp == ".") continue;
+        if (comp == "..")
+        {
+            cur = joinPath(cur, "..");
+            continue;
+        }
+
+        std::string exact = joinPath(cur, comp);
+        if (::lstat(exact.c_str(), &sb) == 0)
+        {
+            cur.swap(exact);
+            continue;
+        }
+
+        // Case-insensitive lookup inside current directory
+        DIR* dir = ::opendir(cur.c_str());
+        std::string matched;
+        if (dir)
+        {
+            while (struct dirent* ent = ::readdir(dir))
+            {
+                if (::strcasecmp(ent->d_name, comp.c_str()) == 0)
+                {
+                    matched = ent->d_name;
+                    break;
+                }
+            }
+            ::closedir(dir);
+        }
+
+        if (!matched.empty())
+        {
+            cur = joinPath(cur, matched);
+            continue;
+        }
+
+        // Component does not exist in cur
+        if (forWrite && i + 1 == parts.size())
+        {
+            return joinPath(cur, comp);
+        }
+
+        // Append remaining unresolved components so caller receives standard ENOENT
+        for (size_t j = i; j < parts.size(); ++j)
+            cur = joinPath(cur, parts[j]);
+        return cur;
+    }
+
+    return cur;
 }
 
 bool EnsureDirectoryExists(const std::string& path)

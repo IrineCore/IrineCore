@@ -280,7 +280,9 @@ UINT __stdcall CThreadManager::WorkerThread(void *pParam)
 #endif //#if defined(PRE_DEL_ONNULL)
 	}
 
+#if defined(_WIN32)
 	_endthreadex(0);
+#endif
 
 	return 1;
 }
@@ -316,7 +318,9 @@ UINT __stdcall CThreadManager::WorkerThread(void *pParam)
 #endif
 	}
 
+#if defined(_WIN32)
 	_endthreadex(0);
+#endif
 
 	return 1;
 }

@@ -3,11 +3,23 @@
 // Unit tests for PlatformTypes, UTF-16LE WCHAR, and EtMathPortable.h.
 // =============================================================================
 #include "../../common/platform/Platform.h"
+#include <windows.h>
 #include "EtMathPortable.h"
+#include "MtRandom.h"
+#include <map>
+#include <vector>
+#ifndef ASSERT
+#define ASSERT(x) ((void)0)
+#endif
+#include "DNTableFile.h"
 #include <boost/format.hpp>
 #include <cmath>
 #include <cstdio>
 #include <sstream>
+#if !defined(_WIN32)
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 int RunUnitTests()
 {
@@ -72,6 +84,65 @@ int RunUnitTests()
     D3DXMatrixMultiply(&mProd, &mTrans, &mInv);
     check(std::fabs(det - 1.0f) < 1e-5f && D3DXMatrixIsIdentity(&mProd) != 0,
           "D3DXMatrixTranslation * D3DXMatrixInverse == Identity");
+
+    // 3b. CMtRandom 64-bit safety (exercises next_state() including M - N twist)
+    {
+        CMtRandom rng;
+        rng.srand(123456789UL);
+        bool rangeOk = true;
+        for (int i = 0; i < 700; ++i)
+        {
+            int r = rng.rand(100);
+            if (r < 0 || r >= 100) { rangeOk = false; break; }
+        }
+        check(rangeOk, "CMtRandom::next_state() & rand(100) work safely across full 624-word twist on x86_64");
+    }
+
+    // 3c. CDNTableFile::Cell null-this safety (requires -fno-delete-null-pointer-checks under GCC -O3)
+    {
+        volatile CDNTableFile::Cell* vNull = nullptr;
+        const CDNTableFile::Cell* pNull = const_cast<const CDNTableFile::Cell*>(vNull);
+        check(pNull->GetInteger() == 0 && pNull->GetFloat() == 0.0f && std::string(pNull->GetString()).empty(),
+              "CDNTableFile::Cell null-this getters safely return defaults under Release optimization");
+    }
+
+#if !defined(_WIN32)
+    // 4. Case-insensitive path resolution on Linux (ext4 / GameRes paths)
+    {
+        char rootBuf[128] = { 0 };
+        std::snprintf(rootBuf, sizeof(rootBuf), "/tmp/irine_ci_test_%d", static_cast<int>(::getpid()));
+        std::string root = rootBuf;
+        std::string dir1 = root + "/GameRes";
+        std::string dir2 = dir1 + "/Resource";
+        std::string dir3 = dir2 + "/Ext";
+        std::string realFile = dir3 + "/SampleTable.dnt";
+
+        ::mkdir(root.c_str(), 0755);
+        ::mkdir(dir1.c_str(), 0755);
+        ::mkdir(dir2.c_str(), 0755);
+        ::mkdir(dir3.c_str(), 0755);
+        FILE* wf = std::fopen(realFile.c_str(), "wb");
+        if (wf) { std::fputs("IRINE_OK", wf); std::fclose(wf); }
+
+        std::string mixedQuery = root + "\\gameres\\RESOURCE\\ext\\sampletable.dnt";
+        std::string resolved = Irine::Platform::ResolveCaseInsensitivePath(mixedQuery, false);
+        check(resolved == realFile,
+              "ResolveCaseInsensitivePath maps mixed-case backslash GameRes path on Linux");
+
+        FILE* rf = nullptr;
+        errno_t ferc = fopen_s(&rf, mixedQuery.c_str(), "rb");
+        char readBuf[16] = { 0 };
+        if (rf) { std::fread(readBuf, 1, 8, rf); std::fclose(rf); }
+        check(ferc == 0 && std::string(readBuf) == "IRINE_OK",
+              "fopen_s opens mixed-case backslash GameRes file on Linux");
+
+        ::unlink(realFile.c_str());
+        ::rmdir(dir3.c_str());
+        ::rmdir(dir2.c_str());
+        ::rmdir(dir1.c_str());
+        ::rmdir(root.c_str());
+    }
+#endif
 
     return failures;
 }

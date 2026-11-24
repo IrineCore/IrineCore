@@ -207,7 +207,7 @@ DWORD GetPrivateProfileStringW(
     };
     if (!lpAppName || !lpKeyName || !lpFileName) return copyOut(defStr);
 
-    std::string path = Irine::Platform::NormalizePath(Irine::Platform::WideToUtf8(lpFileName));
+    std::string path = Irine::Platform::ResolveCaseInsensitivePath(Irine::Platform::WideToUtf8(lpFileName), false);
     std::ifstream ifs(path, std::ios::binary);
     if (!ifs) return copyOut(defStr);
 

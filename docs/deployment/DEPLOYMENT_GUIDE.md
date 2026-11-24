@@ -60,10 +60,12 @@ cmake --install build --config Release
 ```
 
 ### Linux (Ubuntu 22.04–26.04 LTS / Debian 12+, x64)
+> For the full step-by-step Linux walkthrough (including **`GameRes` setup**, ODBC Driver 18, SQL Server, ports/firewall, `systemd`, and troubleshooting), see [LINUX_SETUP.md](LINUX_SETUP.md).
+
 ```bash
-./deploy/linux/install.sh
+./irine.sh install          # or: ./deploy/linux/install.sh
 ```
-Or if dependencies are already installed:
+Or if dependencies and Microsoft ODBC Driver 18 are already installed:
 ```bash
 ./apps/compiler/compile.sh
 ```

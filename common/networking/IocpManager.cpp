@@ -63,6 +63,7 @@ struct CIocpManager::LinuxEpollContext
 	};
 	std::mutex sockMtx;
 	std::unordered_map<CSocketContext*, SockState> sockStates;
+	std::vector<HANDLE> workerHandles;
 
 	bool Init()
 	{
@@ -238,6 +239,9 @@ int CIocpManager::Init(int nSocketCountMax, int nWorkerThreadSize)
 		handle = (HANDLE)_beginthreadex(NULL, 0, WorkerThread, this, 0, &nThreadID);
 #ifdef _USE_ACCEPTEX
 		m_vWorkerThreadHandle.push_back( handle );
+#elif !defined(_WIN32)
+		if (handle && handle != INVALID_HANDLE_VALUE)
+			m_pLinuxEpoll->workerHandles.push_back( handle );
 #else
 		if (handle != INVALID_HANDLE_VALUE)
 			CloseHandle(handle);
@@ -259,6 +263,11 @@ int CIocpManager::Init(int nSocketCountMax, int nWorkerThreadSize)
 
 void CIocpManager::Final()
 {
+#if !defined(_WIN32)
+	// Ensure all IOCP worker threads have exited before destroying m_pLinuxEpoll
+	if (m_pLinuxEpoll && !m_pLinuxEpoll->workerHandles.empty())
+		ThreadStop();
+#endif
 	// Terminate SendThread
 	SAFE_DELETE( m_pSendThread );
 
@@ -1156,6 +1165,19 @@ void CIocpManager::ThreadStop()
 	{
 		WaitForSingleObject( m_vWorkerThreadHandle[i], INFINITE );
 		CloseHandle( m_vWorkerThreadHandle[i] );
+	}
+#elif !defined(_WIN32)
+	if (m_pLinuxEpoll)
+	{
+		for (HANDLE h : m_pLinuxEpoll->workerHandles)
+		{
+			if (h && h != INVALID_HANDLE_VALUE)
+			{
+				WaitForSingleObject(h, INFINITE);
+				CloseHandle(h);
+			}
+		}
+		m_pLinuxEpoll->workerHandles.clear();
 	}
 #endif
 }

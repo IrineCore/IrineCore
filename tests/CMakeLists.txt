@@ -25,9 +25,9 @@ target_compile_definitions(irine_tests PRIVATE
 target_link_libraries(irine_tests PRIVATE
     irine_modules
     irine_platform
+    irine_utility
     $<$<BOOL:${IRINE_BUILD_TOOLS}>:irine_tool_common>
     $<$<BOOL:${IRINE_BUILD_TOOLS}>:irine_etfilesystem>
-    $<$<BOOL:${IRINE_BUILD_TOOLS}>:irine_utility>
     $<$<BOOL:${IRINE_BUILD_TOOLS}>:dep_zlib>
 )
 if(WIN32)

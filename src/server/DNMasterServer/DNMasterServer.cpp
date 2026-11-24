@@ -2,6 +2,7 @@
 //
 
 #include "stdafx.h"
+#include "ServerConsole.h"
 #include "DNConfig.h"
 #include "DNIocpManager.h"
 #include "DNLoginConnection.h"
@@ -47,7 +48,7 @@ void LoadPartyID()
 	{
 		//Create the file if it does not exist.
 		fp = fopen(szFileName.c_str(), "a");
-		fclose(fp);
+		if (fp) fclose(fp);
 	}
 	fp = fopen(szFileName.c_str(), "rb");
 
@@ -83,7 +84,7 @@ void LoadVoiceChannelID()
 	{
 		//Create the file if it does not exist.
 		fp = fopen(szFileName.c_str(), "a");
-		fclose(fp);
+		if (fp) fclose(fp);
 	}
 	fp = fopen(szFileName.c_str(), "rb");
 
@@ -612,8 +613,7 @@ int _tmain(int argc, TCHAR* argv[])
 		}
 #endif
 		
-		printf("CMD>");
-		(fgets(szCmd, sizeof(szCmd), stdin) ? (szCmd[strcspn(szCmd, "\r\n")] = '\0') : (szCmd[0] = '\0'));
+		if (!Irine::ServerConsole::ReadCommand(szCmd, sizeof(szCmd))) break;
 	}
 
 	SavePartyID();

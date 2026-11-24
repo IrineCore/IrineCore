@@ -772,8 +772,7 @@ bool CDNGameDataManager::LoadMapInfo()
 	for( int i=0 ; i<pSox->GetItemCount() ; i++ )
 	{
 		int nItemID = pSox->GetItemID(i);
-		TMapInfo* pMapInfo = new TMapInfo;
-		memset(pMapInfo, 0, sizeof(TMapInfo));
+		TMapInfo* pMapInfo = new TMapInfo();
 
 		int iIdx = pSox->GetIDXprimary( nItemID );
 
@@ -6882,8 +6881,7 @@ bool CDNGameDataManager::LoadCollectionBookData()
 		int nItemID = pTable->GetItemID(i);
 		int iIdx = pTable->GetIDXprimary( nItemID );
 
-		TCollectionBookData Data;
-		memset( &Data, 0, sizeof(TCollectionBookData) );
+		TCollectionBookData Data = {};
 #if defined(PRE_MOD_APPELLATIONBOOK_RENEWAL)
 		int nRewardAppellationID = pTable->GetFieldFromLablePtr( iIdx, sFieldNum._RewardAppellation )->GetInteger();
 		Data.nRewardAppellationArrayIndex = ( nRewardAppellationID < 1 ) ? -1 : GetAppellationArrayIndex( nRewardAppellationID );
@@ -7985,11 +7983,10 @@ bool CDNGameDataManager::GetCashCommodityItemSNListByPackage(int nPackageSN, std
 
 	ScopeLock <CSyncLock> Lock(m_Sync);
 
-	TCashCommodityData CashData;
 	for (int i = 0; i < (int)Package.nVecCommoditySN.size(); i++){
 		if (VecItemSNIDList[i].nItemSN > 0) continue;
 
-		memset(&CashData, 0, sizeof(TCashCommodityData));
+		TCashCommodityData CashData = {};
 		bool bRet = GetCashCommodityData(Package.nVecCommoditySN[i], CashData);
 		if (!bRet) continue;
 
@@ -14580,8 +14577,7 @@ bool CDNGameDataManager::LoadRemoteQuestData()
 
 		int iIdx = pTable->GetIDXprimary( nItemID );
 
-		TRemoteQuestData *pData = new TRemoteQuestData;
-		memset( pData, 0, sizeof(TRemoteQuestData) );
+		TRemoteQuestData *pData = new TRemoteQuestData();
 
 		pData->bActivate		= ( pTable->GetFieldFromLablePtr( iIdx, sFieldNum._Activate )->GetInteger() == TRUE ) ? true : false;
 		pData->nQuestID			= pTable->GetFieldFromLablePtr( iIdx, sFieldNum._QuestID )->GetInteger();

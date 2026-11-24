@@ -34,6 +34,73 @@ distribution.
 
 bool TiXmlBase::condenseWhiteSpace = true;
 
+#if !defined(_WIN32)
+#include <sys/stat.h>
+#include <dirent.h>
+#include <strings.h>
+#include <string>
+#include <vector>
+
+static std::string TiXmlResolvePosixPath( const char* filename )
+{
+	if ( !filename ) return std::string();
+	std::string norm( filename );
+	for ( size_t i = 0; i < norm.size(); ++i )
+	{
+		if ( norm[i] == '\\' ) norm[i] = '/';
+	}
+	struct stat sb;
+	if ( ::stat( norm.c_str(), &sb ) == 0 )
+		return norm;
+
+	bool isAbs = ( !norm.empty() && norm[0] == '/' );
+	std::vector<std::string> parts;
+	size_t pos = isAbs ? 1 : 0;
+	while ( pos < norm.size() )
+	{
+		size_t next = norm.find( '/', pos );
+		if ( next == std::string::npos ) next = norm.size();
+		if ( next > pos )
+			parts.push_back( norm.substr( pos, next - pos ) );
+		pos = next + 1;
+	}
+	if ( parts.empty() ) return norm;
+
+	std::string cur = isAbs ? "/" : ".";
+	for ( size_t i = 0; i < parts.size(); ++i )
+	{
+		if ( parts[i] == "." ) continue;
+		std::string exact = ( cur == "/" ) ? ( "/" + parts[i] ) : ( cur == "." ? parts[i] : cur + "/" + parts[i] );
+		if ( ::stat( exact.c_str(), &sb ) == 0 )
+		{
+			cur = exact;
+			continue;
+		}
+		DIR* dir = ::opendir( cur.c_str() );
+		std::string matched;
+		if ( dir )
+		{
+			while ( struct dirent* ent = ::readdir( dir ) )
+			{
+				if ( ::strcasecmp( ent->d_name, parts[i].c_str() ) == 0 )
+				{
+					matched = ent->d_name;
+					break;
+				}
+			}
+			::closedir( dir );
+		}
+		if ( !matched.empty() )
+		{
+			cur = ( cur == "/" ) ? ( "/" + matched ) : ( cur == "." ? matched : cur + "/" + matched );
+			continue;
+		}
+		return norm;
+	}
+	return cur;
+}
+#endif
+
 // Microsoft compiler security
 FILE* TiXmlFOpen( const char* filename, const char* mode )
 {
@@ -43,6 +110,9 @@ FILE* TiXmlFOpen( const char* filename, const char* mode )
 		if ( !err && fp )
 			return fp;
 		return 0;
+	#elif !defined(_WIN32)
+		std::string resolved = TiXmlResolvePosixPath( filename );
+		return fopen( resolved.c_str(), mode );
 	#else
 		return fopen( filename, mode );
 	#endif

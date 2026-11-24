@@ -136,7 +136,7 @@ void CLog::CalcCounter()
 {
 	if (m_cType == LOGTYPE_FILE) {
 		std::vector<std::string> szVecFileList;
-		FindFileListInDirectory(".\\Log", "*.log", szVecFileList);
+		FindFileListInDirectory(".\\log", "*.log", szVecFileList);
 		int nCount = 0;
 		const char *pszTemp, *pszTemp2;
 		for (DWORD i = 0; i < szVecFileList.size(); i++) {
@@ -227,11 +227,16 @@ void CLog::LogTypeLog(LogType::eLogType eType, WCHAR* buf)
 void CLog::Display(wchar_t* buf)
 {
 	wprintf(L"%s", buf);
+	fflush(stdout);
 }
 
 bool CLog::Filelog(wchar_t* buf)
 {
 	char temp_file_name[512] = { 0, };
+	char szDirName[256] = { 0, };
+	char szFileName[256] = { 0, };
+	WideCharToMultiByte(CP_ACP, 0, m_wszDirName, -1, szDirName, _countof(szDirName), NULL, NULL);
+	WideCharToMultiByte(CP_ACP, 0, m_wszFileName, -1, szFileName, _countof(szFileName), NULL, NULL);
 	SYSTEMTIME st;
 	GetLocalTime(&st);
 
@@ -245,8 +250,8 @@ bool CLog::Filelog(wchar_t* buf)
 	{
 	case LOGTYPE_FILE:
 	{
-		_snprintf_s(temp_file_name, _countof(temp_file_name), _TRUNCATE, "%S\\%S_%04u-%02u-%02u_%d.log",
-			m_wszDirName, m_wszFileName, st.wYear, st.wMonth, st.wDay, m_nCounter);
+		_snprintf_s(temp_file_name, _countof(temp_file_name), _TRUNCATE, "%s/%s_%04u-%02u-%02u_%d.log",
+			szDirName, szFileName, st.wYear, st.wMonth, st.wDay, m_nCounter);
 
 		if (m_pFile)
 		{
@@ -270,8 +275,8 @@ bool CLog::Filelog(wchar_t* buf)
 	case LOGTYPE_CRT_FILE_TRIGGER_TEST:
 #endif // #if defined( PRE_TRIGGER_LOG )
 	{
-		_snprintf_s(temp_file_name, _countof(temp_file_name), _TRUNCATE, "%S\\%S_%04u-%02u-%02u-%02u.log",
-			m_wszDirName, m_wszFileName, st.wYear, st.wMonth, st.wDay, st.wHour);
+		_snprintf_s(temp_file_name, _countof(temp_file_name), _TRUNCATE, "%s/%s_%04u-%02u-%02u-%02u.log",
+			szDirName, szFileName, st.wYear, st.wMonth, st.wDay, st.wHour);
 
 		if (m_nOldDay != nDayKey || m_nOldHour != (int)st.wHour || m_pFile == NULL)
 		{
@@ -298,8 +303,8 @@ bool CLog::Filelog(wchar_t* buf)
 	case LOGTYPE_FILE_DAY:
 	case LOGTYPE_FILEDB_DAY:
 	{
-		_snprintf_s(temp_file_name, _countof(temp_file_name), _TRUNCATE, "%S\\%S_%04u-%02u-%02u.log",
-			m_wszDirName, m_wszFileName, st.wYear, st.wMonth, st.wDay);
+		_snprintf_s(temp_file_name, _countof(temp_file_name), _TRUNCATE, "%s/%s_%04u-%02u-%02u.log",
+			szDirName, szFileName, st.wYear, st.wMonth, st.wDay);
 
 		if (m_nOldDay != nDayKey || m_pFile == NULL)
 		{

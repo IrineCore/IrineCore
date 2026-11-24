@@ -247,11 +247,39 @@ cmd_doctor() {
     if [[ -f "${ROOT_DIR}/.env" ]]; then
         gameres_env="$(grep -E '^IRINE_GAMERES_PATH=' "${ROOT_DIR}/.env" | tail -n1 | cut -d= -f2- | tr -d '\r"'\''' || true)"
     fi
-    local gameres_check="${IRINE_GAMERES_PATH:-${gameres_env:-${ROOT_DIR}/env/GameRes}}"
+    local gameres_check="${IRINE_GAMERES_PATH:-${gameres_env:-}}"
+    if [[ -z "${gameres_check}" ]]; then
+        if [[ -d "${DIST_DIR}/GameRes" ]]; then
+            gameres_check="${DIST_DIR}/GameRes"
+        else
+            gameres_check="${ROOT_DIR}/env/GameRes"
+        fi
+    fi
     if [[ -d "${gameres_check}" ]] && [[ -n "$(ls -A "${gameres_check}" 2>/dev/null)" ]]; then
         ok "GameRes found and non-empty: ${gameres_check}"
+        local has_res=0 has_map=0
+        for d in "${gameres_check}"/*; do
+            [[ -d "${d}" ]] || continue
+            case "$(basename "${d}" | tr '[:upper:]' '[:lower:]')" in
+                resource) has_res=1 ;;
+                mapdata)  has_map=1 ;;
+            esac
+        done
+        if (( has_res == 1 && has_map == 1 )); then
+            ok "GameRes contains Resource/ and MapData/"
+        else
+            warn "GameRes at '${gameres_check}' is missing Resource/ or MapData/ subdirectory"
+        fi
     else
-        warn "GameRes directory missing or empty at '${gameres_check}' (set IRINE_GAMERES_PATH in .env)"
+        warn "GameRes directory missing or empty at '${gameres_check}' (place GameRes in env/dist/GameRes or set IRINE_GAMERES_PATH in .env)"
+    fi
+    if [[ -d "${DIST_DIR}/config" ]]; then
+        for ini in DNDB.ini DNCash.ini DNLogin.ini DNMaster.ini DNVillage.ini DNGame.ini; do
+            local ini_path="${DIST_DIR}/config/${ini}"
+            if [[ -f "${ini_path}" ]] && grep -Eiq '^[[:space:]]*Path[[:space:]]*=[[:space:]]*[A-Za-z]:\\' "${ini_path}"; then
+                warn "config/${ini} still has a Windows drive path under [Resource] Path= (update to ./GameRes or a Linux path)"
+            fi
+        done
     fi
 
     echo "[5/5] SQL Server Connectivity (127.0.0.1:1433)"
