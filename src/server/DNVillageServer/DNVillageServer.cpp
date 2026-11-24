@@ -2,6 +2,7 @@
 //
 
 #include "stdafx.h"
+#include "ServerConsole.h"
 #include "FireWall.h"
 #include "IniFile.h"
 #include "EtResourceMng.h"
@@ -876,9 +877,7 @@ int _tmain(int argc, TCHAR* argv[])
 
 
 	
-		printf("CMD>");
-		if (fgets(szCmd, sizeof(szCmd), stdin) == NULL) break;
-		szCmd[strcspn(szCmd, "\r\n")] = '\0';
+		if (!Irine::ServerConsole::ReadCommand(szCmd, sizeof(szCmd))) break;
 	}	
 
 	Irine::Modules::ModuleRegistry::Instance().NotifyServerShutdown();

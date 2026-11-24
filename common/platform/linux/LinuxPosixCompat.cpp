@@ -179,15 +179,28 @@ struct WinHandleObj
     std::unique_ptr<Irine::Platform::IPlatformPoller> poller;
 };
 
-static std::mutex g_handleRegistryMtx;
-static std::unordered_map<HANDLE, WinHandleObj*> g_handleRegistry;
+// Keep handle registry immortal across process shutdown so static destructors
+// in server translation units (e.g. ~CThreadManager) can safely call
+// WaitForSingleObject / CloseHandle after libirine_platform globals unwind.
+static std::mutex& HandleRegistryMtx()
+{
+    static auto* mtx = new std::mutex();
+    return *mtx;
+}
+
+static std::unordered_map<HANDLE, WinHandleObj*>& HandleRegistry()
+{
+    static auto* reg = new std::unordered_map<HANDLE, WinHandleObj*>();
+    return *reg;
+}
 
 static WinHandleObj* LookupHandle(HANDLE h)
 {
     if (!h || h == INVALID_HANDLE_VALUE) return nullptr;
-    std::lock_guard<std::mutex> lk(g_handleRegistryMtx);
-    auto it = g_handleRegistry.find(h);
-    if (it == g_handleRegistry.end()) return nullptr;
+    std::lock_guard<std::mutex> lk(HandleRegistryMtx());
+    auto& reg = HandleRegistry();
+    auto it = reg.find(h);
+    if (it == reg.end()) return nullptr;
     WinHandleObj* obj = it->second;
     if (obj && obj->magic == WinHandleObj::kMagic)
     {
@@ -214,8 +227,8 @@ static void ReleaseHandleRef(WinHandleObj* obj)
 static HANDLE RegisterHandle(WinHandleObj* obj)
 {
     HANDLE h = reinterpret_cast<HANDLE>(obj);
-    std::lock_guard<std::mutex> lk(g_handleRegistryMtx);
-    g_handleRegistry[h] = obj;
+    std::lock_guard<std::mutex> lk(HandleRegistryMtx());
+    HandleRegistry()[h] = obj;
     return h;
 }
 
@@ -265,16 +278,16 @@ struct FindHandleState
     std::string pattern;
 };
 
-static std::string NormalizeLinuxPath(const char* p)
+static std::string NormalizeLinuxPath(const char* p, bool forWrite = false)
 {
     if (!p) return {};
-    return Irine::Platform::NormalizePath(p);
+    return Irine::Platform::ResolveCaseInsensitivePath(p, forWrite);
 }
 
-static std::string NormalizeLinuxPathW(const WCHAR* p)
+static std::string NormalizeLinuxPathW(const WCHAR* p, bool forWrite = false)
 {
     if (!p) return {};
-    return Irine::Platform::NormalizePath(Irine::Platform::WideToUtf8(p));
+    return Irine::Platform::ResolveCaseInsensitivePath(Irine::Platform::WideToUtf8(p), forWrite);
 }
 
 static void UnixTimeToFileTime(time_t t, FILETIME* ft)
@@ -584,12 +597,13 @@ BOOL CloseHandle(HANDLE hObject) noexcept
     if (!hObject || hObject == INVALID_HANDLE_VALUE) return FALSE;
     WinHandleObj* obj = nullptr;
     {
-        std::lock_guard<std::mutex> lk(g_handleRegistryMtx);
-        auto it = g_handleRegistry.find(hObject);
-        if (it != g_handleRegistry.end())
+        std::lock_guard<std::mutex> lk(HandleRegistryMtx());
+        auto& reg = HandleRegistry();
+        auto it = reg.find(hObject);
+        if (it != reg.end())
         {
             obj = it->second;
-            g_handleRegistry.erase(it);
+            reg.erase(it);
         }
     }
     if (!obj) return FALSE;
@@ -715,7 +729,7 @@ DWORD_PTR SetThreadAffinityMask(HANDLE, DWORD_PTR dwThreadAffinityMask) noexcept
 BOOL CreateDirectoryA(LPCSTR lpPathName, void*) noexcept
 {
     if (!lpPathName) return FALSE;
-    std::string p = NormalizeLinuxPath(lpPathName);
+    std::string p = NormalizeLinuxPath(lpPathName, true);
     if (::mkdir(p.c_str(), 0755) == 0) return TRUE;
     g_tlsLastError = (errno == EEXIST) ? ERROR_ALREADY_EXISTS : static_cast<DWORD>(errno);
     return FALSE;
@@ -810,7 +824,7 @@ BOOL DeleteFileW(LPCWSTR lpFileName) noexcept
 BOOL MoveFileA(LPCSTR lpExistingFileName, LPCSTR lpNewFileName) noexcept
 {
     if (!lpExistingFileName || !lpNewFileName) return FALSE;
-    return ::rename(NormalizeLinuxPath(lpExistingFileName).c_str(), NormalizeLinuxPath(lpNewFileName).c_str()) == 0 ? TRUE : FALSE;
+    return ::rename(NormalizeLinuxPath(lpExistingFileName, false).c_str(), NormalizeLinuxPath(lpNewFileName, true).c_str()) == 0 ? TRUE : FALSE;
 }
 
 BOOL MoveFileW(LPCWSTR lpExistingFileName, LPCWSTR lpNewFileName) noexcept
@@ -822,8 +836,8 @@ BOOL MoveFileW(LPCWSTR lpExistingFileName, LPCWSTR lpNewFileName) noexcept
 BOOL CopyFileA(LPCSTR lpExistingFileName, LPCSTR lpNewFileName, BOOL bFailIfExists) noexcept
 {
     if (!lpExistingFileName || !lpNewFileName) return FALSE;
-    std::string src = NormalizeLinuxPath(lpExistingFileName);
-    std::string dst = NormalizeLinuxPath(lpNewFileName);
+    std::string src = NormalizeLinuxPath(lpExistingFileName, false);
+    std::string dst = NormalizeLinuxPath(lpNewFileName, true);
     if (bFailIfExists && ::access(dst.c_str(), F_OK) == 0) return FALSE;
     std::ifstream ifs(src, std::ios::binary);
     if (!ifs) return FALSE;
@@ -855,7 +869,7 @@ int _waccess(const WCHAR* path, int mode) noexcept
 
 int _mkdir(const char* path) noexcept
 {
-    return path ? ::mkdir(NormalizeLinuxPath(path).c_str(), 0755) : -1;
+    return path ? ::mkdir(NormalizeLinuxPath(path, true).c_str(), 0755) : -1;
 }
 
 int _wmkdir(const WCHAR* path) noexcept
@@ -866,7 +880,11 @@ int _wmkdir(const WCHAR* path) noexcept
 HANDLE CreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD, LPSECURITY_ATTRIBUTES, DWORD dwCreationDisposition, DWORD, HANDLE) noexcept
 {
     if (!lpFileName) return INVALID_HANDLE_VALUE;
-    std::string p = NormalizeLinuxPath(lpFileName);
+    bool forWrite = ((dwDesiredAccess & GENERIC_WRITE) != 0) ||
+                    (dwCreationDisposition == CREATE_NEW) ||
+                    (dwCreationDisposition == CREATE_ALWAYS) ||
+                    (dwCreationDisposition == OPEN_ALWAYS);
+    std::string p = NormalizeLinuxPath(lpFileName, forWrite);
     int flags = 0;
     if ((dwDesiredAccess & GENERIC_READ) && (dwDesiredAccess & GENERIC_WRITE)) flags |= O_RDWR;
     else if (dwDesiredAccess & GENERIC_WRITE) flags |= O_WRONLY;
@@ -999,9 +1017,10 @@ BOOL SetFileAttributesW(LPCWSTR, DWORD) noexcept { return TRUE; }
 HANDLE FindFirstFileA(LPCSTR lpFileName, LPWIN32_FIND_DATAA lpFindFileData) noexcept
 {
     if (!lpFileName || !lpFindFileData) return INVALID_HANDLE_VALUE;
-    std::string norm = NormalizeLinuxPath(lpFileName);
+    std::string norm = Irine::Platform::NormalizePath(lpFileName);
     size_t slash = norm.find_last_of('/');
-    std::string dirPath = (slash == std::string::npos) ? "." : norm.substr(0, slash);
+    std::string rawDir  = (slash == std::string::npos) ? "." : (slash == 0 ? "/" : norm.substr(0, slash));
+    std::string dirPath = Irine::Platform::ResolveCaseInsensitivePath(rawDir, false);
     std::string pattern = (slash == std::string::npos) ? norm : norm.substr(slash + 1);
     if (pattern == "*.*") pattern = "*";
 
@@ -1025,9 +1044,10 @@ HANDLE FindFirstFileA(LPCSTR lpFileName, LPWIN32_FIND_DATAA lpFindFileData) noex
 HANDLE FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData) noexcept
 {
     if (!lpFileName || !lpFindFileData) return INVALID_HANDLE_VALUE;
-    std::string norm = NormalizeLinuxPathW(lpFileName);
+    std::string norm = Irine::Platform::NormalizePath(Irine::Platform::WideToUtf8(lpFileName));
     size_t slash = norm.find_last_of('/');
-    std::string dirPath = (slash == std::string::npos) ? "." : norm.substr(0, slash);
+    std::string rawDir  = (slash == std::string::npos) ? "." : (slash == 0 ? "/" : norm.substr(0, slash));
+    std::string dirPath = Irine::Platform::ResolveCaseInsensitivePath(rawDir, false);
     std::string pattern = (slash == std::string::npos) ? norm : norm.substr(slash + 1);
     if (pattern == "*.*") pattern = "*";
 
@@ -1098,8 +1118,17 @@ HANDLE CreateFileMappingW(HANDLE hFile, LPSECURITY_ATTRIBUTES sa, DWORD flProtec
     return CreateFileMappingA(hFile, sa, flProtect, dwMaxHi, dwMaxLo, nullptr);
 }
 
-static std::mutex g_mmapMtx;
-static std::unordered_map<const void*, size_t> g_mmapSizes;
+static std::mutex& MmapMtx()
+{
+    static auto* mtx = new std::mutex();
+    return *mtx;
+}
+
+static std::unordered_map<const void*, size_t>& MmapSizes()
+{
+    static auto* m = new std::unordered_map<const void*, size_t>();
+    return *m;
+}
 
 LPVOID MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwOffHi, DWORD dwOffLo, SIZE_T dwNumberOfBytesToMap) noexcept
 {
@@ -1114,8 +1143,8 @@ LPVOID MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwO
     ReleaseHandleRef(obj);
     if (ptr == MAP_FAILED) return nullptr;
     {
-        std::lock_guard<std::mutex> lk(g_mmapMtx);
-        g_mmapSizes[ptr] = len;
+        std::lock_guard<std::mutex> lk(MmapMtx());
+        MmapSizes()[ptr] = len;
     }
     return ptr;
 }
@@ -1125,11 +1154,12 @@ BOOL UnmapViewOfFile(LPCVOID lpBaseAddress) noexcept
     if (!lpBaseAddress) return FALSE;
     size_t len = 0;
     {
-        std::lock_guard<std::mutex> lk(g_mmapMtx);
-        auto it = g_mmapSizes.find(lpBaseAddress);
-        if (it == g_mmapSizes.end()) return FALSE;
+        std::lock_guard<std::mutex> lk(MmapMtx());
+        auto& m = MmapSizes();
+        auto it = m.find(lpBaseAddress);
+        if (it == m.end()) return FALSE;
         len = it->second;
-        g_mmapSizes.erase(it);
+        m.erase(it);
     }
     return ::munmap(const_cast<void*>(lpBaseAddress), len) == 0 ? TRUE : FALSE;
 }
@@ -1420,7 +1450,6 @@ errno_t _wcsupr_s(WCHAR* str, size_t) noexcept { if (!str) return EINVAL; _wcsup
 FILE* _wfopen(const WCHAR* filename, const WCHAR* mode) noexcept
 {
     if (!filename || !mode) return nullptr;
-    std::string p = NormalizeLinuxPathW(filename);
     std::string m = Irine::Platform::WideToUtf8(mode);
     // Strip Windows-specific fopen flags like 't' or ', ccs=...'
     std::string cleanMode;
@@ -1430,19 +1459,26 @@ FILE* _wfopen(const WCHAR* filename, const WCHAR* mode) noexcept
         if (c == 'r' || c == 'w' || c == 'a' || c == '+' || c == 'b') cleanMode.push_back(c);
     }
     if (cleanMode.empty()) cleanMode = "r";
+    bool forWrite = (cleanMode.find('w') != std::string::npos ||
+                     cleanMode.find('a') != std::string::npos ||
+                     cleanMode.find('+') != std::string::npos);
+    std::string p = NormalizeLinuxPathW(filename, forWrite);
     return ::fopen(p.c_str(), cleanMode.c_str());
 }
 
 errno_t fopen_s(FILE** pFile, const char* filename, const char* mode)
 {
     if (!pFile || !filename || !mode) return EINVAL;
-    std::string p = NormalizeLinuxPath(filename);
     std::string cleanMode;
     for (const char* c = mode; *c && *c != ',' && *c != ' '; ++c)
     {
         if (*c == 'r' || *c == 'w' || *c == 'a' || *c == '+' || *c == 'b') cleanMode.push_back(*c);
     }
     if (cleanMode.empty()) cleanMode = "r";
+    bool forWrite = (cleanMode.find('w') != std::string::npos ||
+                     cleanMode.find('a') != std::string::npos ||
+                     cleanMode.find('+') != std::string::npos);
+    std::string p = NormalizeLinuxPath(filename, forWrite);
     *pFile = ::fopen(p.c_str(), cleanMode.c_str());
     return (*pFile != nullptr) ? 0 : (errno ? errno : ENOENT);
 }

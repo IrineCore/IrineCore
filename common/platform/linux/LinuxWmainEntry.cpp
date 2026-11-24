@@ -20,6 +20,7 @@ extern int _tmain(int argc, WCHAR* argv[]);
 int main(int argc, char* argv[])
 {
     ::signal(SIGPIPE, SIG_IGN);
+    Irine::Platform::InstallCrashHandler(argc > 0 && argv[0] ? argv[0] : "IrineCore");
 
     std::vector<std::wstring> wideArgs;
     wideArgs.reserve(static_cast<size_t>(argc > 0 ? argc : 0));

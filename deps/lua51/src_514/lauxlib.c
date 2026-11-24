@@ -560,8 +560,22 @@ LUALIB_API int luaL_loadfile (lua_State *L, const char *filename) {
     lf.f = stdin;
   }
   else {
+#if !defined(_WIN32)
+    char normbuf[1024];
+    const char *openname = filename;
+    size_t flen = strlen(filename);
+    if (flen < sizeof(normbuf)) {
+      size_t k;
+      for (k = 0; k <= flen; ++k)
+        normbuf[k] = (filename[k] == '\\') ? '/' : filename[k];
+      openname = normbuf;
+    }
+    lua_pushfstring(L, "@%s", filename);
+    lf.f = fopen(openname, "r");
+#else
     lua_pushfstring(L, "@%s", filename);
     lf.f = fopen(filename, "r");
+#endif
     if (lf.f == NULL) return errfile(L, "open", fnameindex);
   }
   c = getc(lf.f);
@@ -571,7 +585,20 @@ LUALIB_API int luaL_loadfile (lua_State *L, const char *filename) {
     if (c == '\n') c = getc(lf.f);
   }
   if (c == LUA_SIGNATURE[0] && filename) {  /* binary file? */
+#if !defined(_WIN32)
+    char normbuf2[1024];
+    const char *reopenname = filename;
+    size_t flen2 = strlen(filename);
+    if (flen2 < sizeof(normbuf2)) {
+      size_t k;
+      for (k = 0; k <= flen2; ++k)
+        normbuf2[k] = (filename[k] == '\\') ? '/' : filename[k];
+      reopenname = normbuf2;
+    }
+    lf.f = freopen(reopenname, "rb", lf.f);  /* reopen in binary mode */
+#else
     lf.f = freopen(filename, "rb", lf.f);  /* reopen in binary mode */
+#endif
     if (lf.f == NULL) return errfile(L, "reopen", fnameindex);
     /* skip eventual `#!...' */
    while ((c = getc(lf.f)) != EOF && c != LUA_SIGNATURE[0]) ;

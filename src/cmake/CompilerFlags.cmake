@@ -73,6 +73,7 @@ if(MSVC)
 elseif(UNIX)
     add_compile_options(
         -fshort-wchar
+        -fno-delete-null-pointer-checks
         -U_FORTIFY_SOURCE
         -D_FORTIFY_SOURCE=0
         -pthread

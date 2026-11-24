@@ -2,6 +2,7 @@
 //
 
 #include "stdafx.h"
+#include "ServerConsole.h"
 #include "IniFile.h"
 #include "DNIocpManager.h"
 #include "DNThreadManager.h"
@@ -184,8 +185,7 @@ int _tmain(int argc, TCHAR* argv[])
 
 		if (strcmp(szCmd, "exit") == 0)	break;		
 
-		printf("CMD>");
-		(fgets(szCmd, sizeof(szCmd), stdin) ? (szCmd[strcspn(szCmd, "\r\n")] = '\0') : (szCmd[0] = '\0'));
+		if (!Irine::ServerConsole::ReadCommand(szCmd, sizeof(szCmd))) break;
 	}
 
 	ClearApp();

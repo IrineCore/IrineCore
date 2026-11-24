@@ -72,9 +72,38 @@ void CEtResourceMng::ReserchAddResourcePath( const char* szPath )
 bool CEtResourceMng::_AddResourcePath( const char *szPath, bool bIncludeSubDir )
 {
 	ScopeLock<CSyncLock> Lock(m_SyncLock, m_bUseDynamic );
+#if !defined(_WIN32)
+	if( !szPath || !szPath[0] ) return false;
+	std::string strResolved = Irine::Platform::ResolveCaseInsensitivePath( szPath, false );
+	CFileNameString szActual = strResolved.c_str();
+	if( szActual.size() >= 2 && szActual[0] == '.' && ( szActual[1] == '/' || szActual[1] == '\\' ) && !m_szVecResourcePath.empty() ) {
+		char szTempPath[1024] = { 0, };
+		sprintf_s( szTempPath, "%s/%s", m_szVecResourcePath[0].c_str(), szActual.c_str() + 2 );
+		szActual = Irine::Platform::ResolveCaseInsensitivePath( szTempPath, false ).c_str();
+	}
+	CFileNameString szLowerKey = szActual;
+	ToLowerA( szLowerKey );
+	if( m_szMapCacheFolderList.find( szLowerKey ) != m_szMapCacheFolderList.end() ) return false;
+
+	m_szVecResourcePath.push_back( szActual );
+	m_szMapCacheFolderList.insert( make_pair( szLowerKey, (int)m_szVecResourcePath.size() - 1 ) );
+
+	CacheFileList( (int)m_szVecResourcePath.size() - 1, true );
+
+	if( bIncludeSubDir == true ) {
+		std::vector<CFileNameString> szVecList;
+		char szTempPath[1024];
+		_FindFolder( szActual.c_str(), szVecList );
+		for( DWORD i=0; i<szVecList.size(); i++ ) {
+			sprintf_s( szTempPath, "%s/%s", szActual.c_str(), szVecList[i].c_str() );
+			_AddResourcePath( szTempPath, true );
+		}
+	}
+	return true;
+#else
 	CFileNameString szTemp = szPath;
 	ToLowerA( szTemp );
-	if( szTemp[0] == '.' && szTemp[1] == '\\' ) {
+	if( szTemp[0] == '.' && ( szTemp[1] == '\\' || szTemp[1] == '/' ) ) {
 		char szTempPath[_MAX_PATH] = { 0, };
 		sprintf_s( szTempPath, "%s\\%s", m_szVecResourcePath[0].c_str(), szTemp.c_str() + 2 );
 		/*
@@ -112,6 +141,7 @@ bool CEtResourceMng::_AddResourcePath( const char *szPath, bool bIncludeSubDir )
 		}
 	}
 	return true;
+#endif
 }
 
 void CEtResourceMng::_RemoveResourcePath( const char *szPath, bool bIncludeSubDir )
@@ -262,7 +292,12 @@ CFileNameString CEtResourceMng::GetFullName( const char *szFileName, bool *bFind
 	else 
 	{
 		char szTemp[4096];
-		if( szFileName && strlen(szFileName) > 2 && ( ( szFileName[1] == ':' ) || ( szFileName[0] == '\\' && szFileName[1] == '\\' ) ) ) 
+#if !defined(_WIN32)
+		bool bAbsolute = ( szFileName && ( szFileName[0] == '/' || ( strlen(szFileName) > 2 && ( ( szFileName[1] == ':' ) || ( szFileName[0] == '\\' && szFileName[1] == '\\' ) ) ) ) );
+#else
+		bool bAbsolute = ( szFileName && strlen(szFileName) > 2 && ( ( szFileName[1] == ':' ) || ( szFileName[0] == '\\' && szFileName[1] == '\\' ) ) );
+#endif
+		if( bAbsolute ) 
 		{
 			if( bFind ) *bFind = IsExistFile( szFileName );
 			strFullName = szFileName;
@@ -435,35 +470,33 @@ CFileNameString CEtResourceMng::GetFullPath( const char *szPath, bool bSearchSub
 		int nLength = (int)strlen(szPath);
 		for( DWORD i=0; i<m_szVecResourcePath.size(); i++ ) {
 			szVecList.clear();
+#if !defined(_WIN32)
+			CFileNameString szTempPath = Irine::Platform::NormalizePath( szPath ).c_str();
+			ToLowerA( szTempPath );
+			CFileNameString szResPathLower = m_szVecResourcePath[i];
+			ToLowerA( szResPathLower );
+			const char *pFindPtr = strstr( szResPathLower.c_str(), szTempPath.c_str() );
+			if( pFindPtr && ( pFindPtr[nLength] == '/' || pFindPtr[nLength] == '\\' || pFindPtr[nLength] == '\r' || pFindPtr[nLength] == '\n' || pFindPtr[nLength] == 0 ) )
+				return m_szVecResourcePath[i];
+#else
 			CFileNameString szTempPath = szPath;
 			ToLowerA( szTempPath );
 			char *pFindPtr = (char*)strstr( m_szVecResourcePath[i].c_str(), szTempPath.c_str() );
-			/*
-			if( pFindPtr ) {
-				if( pFindPtr[nLength] == '\\' || pFindPtr[nLength] == '\r' || pFindPtr[nLength] == '\n' || pFindPtr[nLength] == 0 )
-					return m_szVecResourcePath[i];
-				else {
-					strncpy_s( szTemp, m_szVecResourcePath[i].c_str(), strlen(m_szVecResourcePath[i].c_str()) - strlen(pFindPtr) - 1 );
-					_FindFolder( szTemp, szVecList );
-					for( DWORD j=0; j<szVecList.size(); j++ ) {
-						if( _stricmp( szVecList[j].c_str(), szTempPath.c_str() ) == NULL ) {
-							szTempPath = szTemp + CFileNameString("\\") + szVecList[j];
-							return szTempPath;
-						}
-					}
-				}
-			}
-			*/
 			if( pFindPtr && ( pFindPtr[nLength] == '\\' || pFindPtr[nLength] == '\r' || pFindPtr[nLength] == '\n' || pFindPtr[nLength] == 0 ) )
 				return m_szVecResourcePath[i];
+#endif
 			else if( bSearchSubDir ) {
 				_FindFolder( m_szVecResourcePath[i].c_str(), szVecList );
 				for( DWORD j=0; j<szVecList.size(); j++ ) {
 					if( _stricmp( szVecList[j].c_str(), szTempPath.c_str() ) == NULL ) {
+#if !defined(_WIN32)
+						sprintf_s( szTemp, "%s/%s", m_szVecResourcePath[i].c_str(), szVecList[j].c_str() );
+#else
 						if( m_szVecResourcePath[i][0] == '.' && m_szVecResourcePath[i][1] == '\\' ) {
 							sprintf_s( szTemp, "%s\\%s\\%s", m_szVecResourcePath[0].c_str(), m_szVecResourcePath[i].c_str() + 2, szTempPath.c_str() );
 						}
 						else sprintf_s( szTemp, "%s\\%s", m_szVecResourcePath[i].c_str(), szTempPath.c_str() );
+#endif
 						return szTemp;
 					}
 				}
@@ -487,12 +520,23 @@ void CEtResourceMng::FindFullPathList( const char *szPath, std::vector<CFileName
 		int nLength = (int)strlen(szPath);
 		for( DWORD i=0; i<m_szVecResourcePath.size(); i++ ) {
 			szVecList.clear();
+#if !defined(_WIN32)
+			CFileNameString szTempPath = Irine::Platform::NormalizePath( szPath ).c_str();
+			ToLowerA( szTempPath );
+			CFileNameString szResPathLower = m_szVecResourcePath[i];
+			ToLowerA( szResPathLower );
+			const char *pFindPtr = strstr( szResPathLower.c_str(), szTempPath.c_str() );
+
+			if( pFindPtr && ( pFindPtr[nLength] == '/' || pFindPtr[nLength] == '\\' || pFindPtr[nLength] == '\r' || pFindPtr[nLength] == '\n' || pFindPtr[nLength] == 0 ) )
+				szVecResult.push_back( m_szVecResourcePath[i] );
+#else
 			CFileNameString szTempPath = szPath;
 			ToLowerA( szTempPath );
 			char *pFindPtr = (char*)strstr( m_szVecResourcePath[i].c_str(), szTempPath.c_str() );
 
 			if( pFindPtr && ( pFindPtr[nLength] == '\\' || pFindPtr[nLength] == '\r' || pFindPtr[nLength] == '\n' || pFindPtr[nLength] == 0 ) )
 				szVecResult.push_back( m_szVecResourcePath[i] );
+#endif
 			/*
 			else if( bSearchSubDir ) {
 				_FindFolder( m_szVecResourcePath[i].c_str(), szVecList );
@@ -687,11 +731,19 @@ void CEtResourceMng::CacheFileList( int nIndex, bool bAdd )
 	CFileNameString szFullName;
 
 
+#if !defined(_WIN32)
+	if( m_szVecResourcePath[nIndex][0] == '.' && ( m_szVecResourcePath[nIndex][1] == '\\' || m_szVecResourcePath[nIndex][1] == '/' ) ) {
+		sprintf_s( szTemp, "%s/%s/", m_szVecResourcePath[0].c_str(), m_szVecResourcePath[nIndex].c_str() + 2 );
+	}
+	else
+		sprintf_s( szTemp, "%s/", m_szVecResourcePath[nIndex].c_str() );
+#else
 	if( m_szVecResourcePath[nIndex][0] == '.' && m_szVecResourcePath[nIndex][1] == '\\' ) {
 		sprintf_s( szTemp, "%s\\%s\\", m_szVecResourcePath[0].c_str(), m_szVecResourcePath[nIndex].c_str() + 2 );
 	}
 	else
 		sprintf_s( szTemp, "%s\\", m_szVecResourcePath[nIndex].c_str() );
+#endif
 
 	if( bAdd ) {
 		OffsetStruct Struct;
@@ -807,8 +859,9 @@ void CEtResourceAccess::Initialize( const char *pFileName, bool bSelfDelete, boo
 	if( IsFullName( pFileName ) ) {
 		memset( m_szAddPath, 0, sizeof(m_szAddPath) );
 		_GetPath( m_szAddPath, _countof(m_szAddPath), pFileName );
-		if( m_szAddPath[strlen(m_szAddPath)-1] == '\\' )
-			m_szAddPath[strlen(m_szAddPath)-1] = 0;
+		size_t nAddLen = strlen(m_szAddPath);
+		if( nAddLen > 0 && ( m_szAddPath[nAddLen-1] == '\\' || m_szAddPath[nAddLen-1] == '/' ) )
+			m_szAddPath[nAddLen-1] = 0;
 		if( CEtResourceMng::GetInstance().IsUseDynamic() )
 			m_bAddPath = CEtResourceMng::GetInstance().AddResourcePath( m_szAddPath, m_bIncludeSubPath );
 	}

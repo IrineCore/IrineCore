@@ -14,6 +14,13 @@ namespace Platform {
 std::string  NormalizePath(const std::string& path);
 std::wstring NormalizePathW(const std::wstring& path);
 
+// On Linux (case-sensitive filesystems such as ext4), normalizes separators
+// and resolves existing path components case-insensitively (with an O(1) fast
+// path when the exact casing already exists). When forWrite is true, existing
+// parent directories are resolved while keeping a non-existent final filename.
+// On Windows, simply returns NormalizePath(path).
+std::string  ResolveCaseInsensitivePath(const std::string& path, bool forWrite = false);
+
 bool EnsureDirectoryExists(const std::string& path);
 std::string GetExecutableDirectory();
 

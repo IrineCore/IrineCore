@@ -38,9 +38,9 @@ void CMtRandom::next_state(void)
 		*p = p[M] ^ MT_TWIST(p[0], p[1]);
 
 	for (j=M; --j; p++)
-		*p = p[M-N] ^ MT_TWIST(p[0], p[1]);
+		*p = p[(int)M - (int)N] ^ MT_TWIST(p[0], p[1]);
 
-	*p = p[M-N] ^ MT_TWIST(p[0], m_state[0]);
+	*p = p[(int)M - (int)N] ^ MT_TWIST(p[0], m_state[0]);
 }
 
 float CMtRandom::genrand_real2(void)

@@ -43,7 +43,13 @@ bool Thread::Terminate( DWORD nExitCode )
 	if( m_hThreadHandle == INVALID_HANDLE_VALUE )
 		return true;
 
+#if defined(_WIN32)
 	::_endthreadex(nExitCode);
+#else
+	(void)nExitCode;
+	m_bRunning = false;
+	WaitForTerminate(1000);
+#endif
 
 	CloseHandle( m_hThreadHandle );
 	m_hThreadHandle	= INVALID_HANDLE_VALUE;

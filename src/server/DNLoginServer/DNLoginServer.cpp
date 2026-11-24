@@ -2,6 +2,7 @@
 //
 
 #include "stdafx.h"
+#include "ServerConsole.h"
 // #include "FireWall.h"
 #include "IniFile.h"
 #include "DNIocpManager.h"
@@ -475,8 +476,7 @@ int _tmain(int argc, TCHAR* argv[])
 			printf("recv A[%d]P[%d]R[%d]\n", nA, nP, nR);
 		}
 
-		printf("CMD>");
-		(fgets(szCmd, sizeof(szCmd), stdin) ? (szCmd[strcspn(szCmd, "\r\n")] = '\0') : (szCmd[0] = '\0'));
+		if (!Irine::ServerConsole::ReadCommand(szCmd, sizeof(szCmd))) break;
 	}
 
 	SaveUserSessionID();	

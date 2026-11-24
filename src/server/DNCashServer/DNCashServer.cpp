@@ -2,6 +2,7 @@
 //
 
 #include "stdafx.h"
+#include "ServerConsole.h"
 #include "DNConfig.h"
 #include "IniFile.h"
 #include "Log.h"
@@ -301,8 +302,7 @@ int _tmain(int argc, _TCHAR* argv[])
 			g_pExtManager->SetProhibitSaleList();
 		}
 
-		printf("CMD>");
-		(fgets(szCmd, sizeof(szCmd), stdin) ? (szCmd[strcspn(szCmd, "\r\n")] = '\0') : (szCmd[0] = '\0'));
+		if (!Irine::ServerConsole::ReadCommand(szCmd, sizeof(szCmd))) break;
 	}	
 
 	ClearApp();

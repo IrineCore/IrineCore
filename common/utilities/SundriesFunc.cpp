@@ -4,6 +4,11 @@
 #include <stdarg.h>
 #include <windows.h>
 #include <boost/algorithm/string.hpp>
+#if !defined(_WIN32)
+#include <dirent.h>
+#include <fnmatch.h>
+#include <sys/stat.h>
+#endif
 
 #ifdef _DEBUG
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)
@@ -531,8 +536,110 @@ LONG AddRegistryKey( HKEY hKey, char *pSubKey, char *pValueName )
 	return Result;
 }
 
+#if !defined(_WIN32)
+namespace {
+
+static std::string StripTrailingSlashPosix(std::string p)
+{
+	while (p.size() > 1 && p.back() == '/')
+		p.pop_back();
+	return p;
+}
+
+static bool IsDirEntryDirectory(const std::string& dirPath, const struct dirent* ent)
+{
+#if defined(DT_DIR) && defined(DT_REG)
+	if (ent->d_type == DT_DIR) return true;
+	if (ent->d_type == DT_REG) return false;
+#endif
+	struct stat sb{};
+	std::string full = (dirPath == "/") ? ("/" + std::string(ent->d_name)) : (dirPath + "/" + ent->d_name);
+	return (::stat(full.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode));
+}
+
+template <typename StringT>
+static void FindFileListInDirectoryPosix(const char* szFolderName, const char* szExt, std::vector<StringT>& szVecResult, bool bIncludeFolder, bool bSearchSubDir, bool bIncludeFolderName)
+{
+	if (!szFolderName || !szFolderName[0]) return;
+	std::string dirPath = StripTrailingSlashPosix(Irine::Platform::ResolveCaseInsensitivePath(szFolderName, false));
+	DIR* dir = ::opendir(dirPath.c_str());
+	if (!dir) return;
+
+	bool matchAll = (!szExt || !szExt[0] || strcmp(szExt, "*.*") == 0 || strcmp(szExt, "*") == 0);
+	while (struct dirent* ent = ::readdir(dir))
+	{
+		const char* name = ent->d_name;
+		bool isDot = (strcmp(name, ".") == 0 || strcmp(name, "..") == 0);
+		if (!matchAll && ::fnmatch(szExt, name, FNM_CASEFOLD) != 0)
+			continue;
+
+		bool isDir = isDot ? true : IsDirEntryDirectory(dirPath, ent);
+		if (!isDir || bIncludeFolder)
+		{
+			if (bIncludeFolderName)
+			{
+				std::string full = (dirPath == "/") ? ("/" + std::string(name)) : (dirPath + "/" + name);
+				szVecResult.push_back(StringT(full.c_str()));
+			}
+			else
+			{
+				szVecResult.push_back(StringT(name));
+			}
+		}
+		if (isDir && bSearchSubDir && !isDot)
+		{
+			std::string sub = (dirPath == "/") ? ("/" + std::string(name)) : (dirPath + "/" + name);
+			FindFileListInDirectoryPosix(sub.c_str(), szExt, szVecResult, bIncludeFolder, bSearchSubDir, bIncludeFolderName);
+		}
+	}
+	::closedir(dir);
+}
+
+template <typename StringT>
+static void FindFolderPosix(const char* szFolderName, std::vector<StringT>& szVecResult, bool bSearchSubDir, const char* szRootPathName)
+{
+	if (!szFolderName || !szFolderName[0]) return;
+	std::string dirPath = StripTrailingSlashPosix(Irine::Platform::ResolveCaseInsensitivePath(szFolderName, false));
+	DIR* dir = ::opendir(dirPath.c_str());
+	if (!dir) return;
+
+	while (struct dirent* ent = ::readdir(dir))
+	{
+		const char* name = ent->d_name;
+		if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+			continue;
+		if (!IsDirEntryDirectory(dirPath, ent))
+			continue;
+
+		if (bSearchSubDir && szRootPathName && strcmp(szFolderName, szRootPathName) != 0)
+		{
+			int nOffset = (int)strlen(szRootPathName) + 1;
+			std::string rel = std::string(szFolderName + nOffset) + "/" + name;
+			szVecResult.push_back(StringT(rel.c_str()));
+		}
+		else
+		{
+			szVecResult.push_back(StringT(name));
+		}
+
+		if (bSearchSubDir)
+		{
+			std::string sub = (dirPath == "/") ? ("/" + std::string(name)) : (dirPath + "/" + name);
+			FindFolderPosix(sub.c_str(), szVecResult, bSearchSubDir, szRootPathName);
+		}
+	}
+	::closedir(dir);
+}
+
+} // anonymous namespace
+#endif
+
 void FindFileListInDirectory( const char *szFolderName, const char *szExt, std::vector<CFileNameString> &szVecResult, bool bIncludeFolder, bool bSearchSubDir, bool bIncludeFolderName )
 {
+#if !defined(_WIN32)
+	FindFileListInDirectoryPosix(szFolderName, szExt, szVecResult, bIncludeFolder, bSearchSubDir, bIncludeFolderName);
+	return;
+#else
 	WIN32_FIND_DATA FindFileData;
 	HANDLE hFind;
 	char szFindFile[512];
@@ -567,10 +674,15 @@ void FindFileListInDirectory( const char *szFolderName, const char *szExt, std::
 	}
 
 	FindClose( hFind );
+#endif
 }
 
 void FindFileListInDirectory( const char *szFolderName, const char *szExt, std::vector<std::string> &szVecResult, bool bIncludeFolder, bool bSearchSubDir, bool bIncludeFolderName )
 {
+#if !defined(_WIN32)
+	FindFileListInDirectoryPosix(szFolderName, szExt, szVecResult, bIncludeFolder, bSearchSubDir, bIncludeFolderName);
+	return;
+#else
 	WIN32_FIND_DATA FindFileData;
 	HANDLE hFind;
 	char szFindFile[512];
@@ -605,10 +717,15 @@ void FindFileListInDirectory( const char *szFolderName, const char *szExt, std::
 	}
 
 	FindClose( hFind );
+#endif
 }
 
 void _FindFolder( const char *szFolderName, std::vector<CFileNameString> &szVecResult, bool bSearchSubDir, char *szRootPathName ) 
 {
+#if !defined(_WIN32)
+	FindFolderPosix(szFolderName, szVecResult, bSearchSubDir, szRootPathName);
+	return;
+#else
 	WIN32_FIND_DATA FindFileData;
 	HANDLE hFind;
 	char szFindFile[512];
@@ -639,10 +756,15 @@ void _FindFolder( const char *szFolderName, std::vector<CFileNameString> &szVecR
 	}
 
 	FindClose( hFind );
+#endif
 }
 
 void _FindFolder( const char *szFolderName, std::vector<std::string> &szVecResult, bool bSearchSubDir, char *szRootPathName ) 
 {
+#if !defined(_WIN32)
+	FindFolderPosix(szFolderName, szVecResult, bSearchSubDir, szRootPathName);
+	return;
+#else
 	WIN32_FIND_DATA FindFileData;
 	HANDLE hFind;
 	char szFindFile[512];
@@ -673,6 +795,7 @@ void _FindFolder( const char *szFolderName, std::vector<std::string> &szVecResul
 	}
 
 	FindClose( hFind );
+#endif
 }
 
 bool _CopyFile( const char *pSource, const char *pTarget, bool bExistOverwrite, bool bMoveFile )
@@ -788,6 +911,12 @@ const char *FindFileName( const char *pFullName )
 
 bool IsFullName( const char *pFileName )
 {
+	if( !pFileName || !pFileName[0] )
+		return false;
+#if !defined(_WIN32)
+	if( pFileName[0] == '/' )
+		return true;
+#endif
 	if( pFileName[ 1 ] == ':' )
 	{
 		return true;

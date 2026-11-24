@@ -90,6 +90,11 @@ std::wstring NormalizePathW(const std::wstring& path)
     return out;
 }
 
+std::string ResolveCaseInsensitivePath(const std::string& path, bool /*forWrite*/)
+{
+    return NormalizePath(path);
+}
+
 bool EnsureDirectoryExists(const std::string& path)
 {
     if (path.empty()) return false;
