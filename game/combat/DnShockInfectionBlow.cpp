@@ -179,7 +179,7 @@ void CDnShockInfectionBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 	}
 #endif
 
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 }
 
 void CDnShockInfectionBlow::Process( LOCAL_TIME LocalTime, float fDelta )
@@ -407,7 +407,7 @@ void CDnShockInfectionBlow::DoShockInfection( DnActorHandle hHitTargetActor, DnA
 
 void CDnShockInfectionBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 }
 

@@ -1,7 +1,7 @@
 
 #include "stdafx.h"
 #include "CryptPacket.h"
-#include <MMSystem.h>
+#include <mmsystem.h>
 
 #ifdef _DEBUG
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)

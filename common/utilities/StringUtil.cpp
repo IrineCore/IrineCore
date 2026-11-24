@@ -7,7 +7,7 @@
 
 const int STR_LEN_ = 16384;
 
-bool ToMultiString(IN std::wstring& wstr, OUT std::string& str )
+bool ToMultiString(IN const std::wstring& wstr, OUT std::string& str )
 {
 	char szBuff[STR_LEN_] = "";
 	ZeroMemory(szBuff, sizeof(char)*STR_LEN_);
@@ -17,7 +17,7 @@ bool ToMultiString(IN std::wstring& wstr, OUT std::string& str )
 
 }
 
-bool ToWideString(IN std::string& str, OUT std::wstring& wstr )
+bool ToWideString(IN const std::string& str, OUT std::wstring& wstr )
 {
 	WCHAR wszBuff[STR_LEN_] = L"";
 	ZeroMemory(wszBuff, sizeof(WCHAR)*STR_LEN_);
@@ -28,23 +28,25 @@ bool ToWideString(IN std::string& str, OUT std::wstring& wstr )
 
 bool ToMultiString(IN WCHAR* wstr, OUT std::string& str )
 {
-	return ToMultiString(std::wstring(wstr), str);
+	std::wstring tmp(wstr);
+	return ToMultiString(tmp, str);
 }
 
 bool ToWideString(IN CHAR* str, OUT std::wstring& wstr )
 {
-	return ToWideString(std::string(str), wstr);
+	std::string tmp(str);
+	return ToWideString(tmp, wstr);
 
 }
 
 void ToLowerA(std::string& str)
 {
-	std::transform(str.begin(), str.end(), str.begin(), tolower); 
+	std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return static_cast<char>(::tolower(c)); }); 
 }
 
 void ToLowerA( CFileNameString& str)
 {
-	std::transform(str.begin(), str.end(), str.begin(), tolower); 
+	std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return static_cast<char>(::tolower(c)); }); 
 }
 
 void ToLowerW(std::wstring& str)
@@ -54,7 +56,7 @@ void ToLowerW(std::wstring& str)
 
 void ToUpperA(std::string& str)
 {
-	std::transform(str.begin(), str.end(), str.begin(), toupper); 
+	std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return static_cast<char>(::toupper(c)); }); 
 }
 void ToUpperW(std::wstring& str)
 {
@@ -159,7 +161,7 @@ void TokenizeW( const std::wstring& str, std::deque<std::wstring>& tokens, const
 	}
 }
 
-void TokenizeW( std::wstring& str, std::vector<std::wstring>& tokens, std::wstring& szBegin, std::wstring& szEnd, bool bIncludeDelimiters )
+void TokenizeW( const std::wstring& str, std::vector<std::wstring>& tokens, const std::wstring& szBegin, const std::wstring& szEnd, bool bIncludeDelimiters )
 {
 	std::wstring::size_type pos = str.find_first_of( szBegin, 0 );
 	std::wstring::size_type lastPos = str.find_first_of( szEnd, pos );
@@ -177,7 +179,7 @@ void TokenizeW( std::wstring& str, std::vector<std::wstring>& tokens, std::wstri
 	}
 }
 
-void TokenizeA( std::string& str, std::vector<std::string>& tokens, std::string& szBegin, std::string& szEnd, bool bIncludeDelimiters )
+void TokenizeA( const std::string& str, std::vector<std::string>& tokens, const std::string& szBegin, const std::string& szEnd, bool bIncludeDelimiters )
 {
 	std::string::size_type pos = str.find_first_of( szBegin, 0 );
 	std::string::size_type lastPos = str.find_first_of( szEnd, pos );
@@ -199,7 +201,7 @@ void TokenizeA( std::string& str, std::vector<std::string>& tokens, std::string&
 // Remove all whitespace from the string.
 void RemoveSpaceA(std::string& str)
 {
-	str.erase(remove_if(str.begin(), str.end(), isspace), str.end());	
+	str.erase(remove_if(str.begin(), str.end(), [](unsigned char c) { return ::isspace(c) != 0; }), str.end());	
 }
 
 void RemoveSpaceW(std::wstring& str)

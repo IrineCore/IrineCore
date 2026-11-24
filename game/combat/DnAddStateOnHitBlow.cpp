@@ -32,13 +32,13 @@ CDnAddStateOnHitBlow::~CDnAddStateOnHitBlow(void)
 
 void CDnAddStateOnHitBlow::OnBegin(LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 	OutputDebug( "CDnBlockBlow::OnBegin, Value:%d \n", (int)m_fValue );
 }
 
 void CDnAddStateOnHitBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 #if defined(_GAMESERVER)
 	m_bCalcProb = m_bOnDamaged = false;
@@ -48,7 +48,7 @@ void CDnAddStateOnHitBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnAddStateOnHitBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 }
 

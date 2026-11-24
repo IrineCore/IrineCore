@@ -20,6 +20,7 @@ target_include_directories(irine_tests PRIVATE ${IRINE_COMMON_INCLUDES})
 target_compile_definitions(irine_tests PRIVATE
     UNICODE _UNICODE
     $<$<BOOL:${IRINE_BUILD_TOOLS}>:IRINE_HAS_TOOLS_TESTS>
+    $<$<BOOL:${WIN32}>:_HAS_AUTO_PTR_ETC=1>
 )
 target_link_libraries(irine_tests PRIVATE
     irine_modules

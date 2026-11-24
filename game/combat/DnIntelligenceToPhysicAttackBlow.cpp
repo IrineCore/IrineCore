@@ -36,7 +36,7 @@ CDnIntelligenceToPhysicAttackBlow::~CDnIntelligenceToPhysicAttackBlow(void)
 
 void CDnIntelligenceToPhysicAttackBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	if (!m_hActor)
 		return;
@@ -85,13 +85,13 @@ void CDnIntelligenceToPhysicAttackBlow::OnBegin( LOCAL_TIME LocalTime, float fDe
 
 void CDnIntelligenceToPhysicAttackBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 }
 
 
 void CDnIntelligenceToPhysicAttackBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if defined(PRE_ADD_BUFF_STATE_LIMIT)
 	if (m_pBasicBlow)

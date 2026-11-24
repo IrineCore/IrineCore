@@ -34,12 +34,12 @@ CDnBreakSuperArmorBlow::~CDnBreakSuperArmorBlow(void)
 
 void CDnBreakSuperArmorBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 }
 
 void CDnBreakSuperArmorBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 	
 #if !defined(_GAMESERVER)
 	if (m_bTrigger)
@@ -73,7 +73,7 @@ void CDnBreakSuperArmorBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnBreakSuperArmorBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if !defined(_GAMESERVER)
 	_DetachGraphicEffect();

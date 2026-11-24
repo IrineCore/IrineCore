@@ -11,7 +11,7 @@
 #include "DebugUtil.h"
 #include "SafeStringMacros.h"
 #include "StringSet.h"
-#include <IO.H>		// _access
+#include <io.h>		// _access
 
 #ifdef _DEBUG
 #define new new(_NORMAL_BLOCK,__FILE__,__LINE__)

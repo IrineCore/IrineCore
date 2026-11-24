@@ -2,7 +2,7 @@
 #include "DnNLPASoceress.h"
 #include "DnWeapon.h"
 
-TDnPlayerSoceress< CDnPlayerActor >::RotateBoneStruct TDnPlayerSoceress< CDnPlayerActor >::s_RotateBoneDefine[] = { 
+template<> TDnPlayerSoceress< CDnPlayerActor >::RotateBoneStruct TDnPlayerSoceress< CDnPlayerActor >::s_RotateBoneDefine[] = { 
 	{ "Bip01 Spine", -1, 0.3f },
 	{ "Bip01 Spine1", -1, 0.3f },
 	{ "Bip01 Neck", -1, 0.4f },

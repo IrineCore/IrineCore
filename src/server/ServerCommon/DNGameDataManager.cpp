@@ -3122,7 +3122,7 @@ bool CDNGameDataManager::GetTalk(const WCHAR* _wszTalkFileName, OUT TALK_PARAGRA
 	return false;
 }
 
-bool CDNGameDataManager::GetTalkParagraph(IN std::wstring& wszIndex, IN std::wstring& wszTarget, OUT TALK_PARAGRAPH& talk )
+bool CDNGameDataManager::GetTalkParagraph(IN const std::wstring& wszIndex, IN const std::wstring& wszTarget, OUT TALK_PARAGRAPH& talk )
 {
 	TALK_MAP_IT iter = m_TalkMap.find(wszTarget);
 	if( iter == m_TalkMap.end() )
@@ -3201,7 +3201,7 @@ bool CDNGameDataManager::GetTalkIndexName(DWORD nHashCode, OUT std::wstring& wsz
 	return true;
 }
 
-bool CDNGameDataManager::CheckTalkAnswer(IN std::wstring& wszIndex, IN std::wstring& wszTarget)
+bool CDNGameDataManager::CheckTalkAnswer(IN const std::wstring& wszIndex, IN const std::wstring& wszTarget)
 {
 	TALK_ANSWER_MAP_IT iter = m_TalkAnswerMap.find(wszTarget);
 	if(m_TalkAnswerMap.end() == iter) {

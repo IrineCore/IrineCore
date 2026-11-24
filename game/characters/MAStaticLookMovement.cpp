@@ -11,7 +11,7 @@ MAStaticLookMovement::MAStaticLookMovement()
 
 }
 
-void MAStaticLookMovement::Look( EtVector2 &vVec, bool bForceRotate )
+void MAStaticLookMovement::Look( const EtVector2 &vVec, bool bForceRotate )
 {
 	if( bForceRotate ) {
 		if( EtVec2LengthSq( &vVec ) > 0.f ) {
@@ -31,7 +31,7 @@ EtVector3 *MAStaticLookMovement::GetLookDir()
 	return &m_pMatExWorld->m_vZAxis;
 }
 
-void MAStaticLookMovement::LookTarget( DnActorHandle &hActor )
+void MAStaticLookMovement::LookTarget( const DnActorHandle &hActor )
 {
 	m_hLookTarget = hActor;
 

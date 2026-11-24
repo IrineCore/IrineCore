@@ -23,6 +23,69 @@
 
 DEFINE_SINGLETON_CLASS(CExceptionReport);
 
+#if !defined(_WIN32)
+CExceptionReport::CExceptionReport()
+    : m_MiniDumpType(MiniDumpNormal), m_MachineType(IMAGE_FILE_MACHINE_AMD64), m_bDoSetFilter(FALSE),
+      m_bDoCallStack(FALSE), m_InitSymbolEngine(FALSE), m_lpstExceptionPointers(NULL),
+      m_lpfnOutputLogProc(NULL), m_lpOutputLogProcParam(NULL),
+      m_pInvalidParameterHandler(NULL), m_pPureCallHandler(NULL), m_bIsDumping(false)
+{
+    ::memset(&m_stContext, 0, sizeof(m_stContext));
+    ::memset(m_szFilePath, 0, sizeof(m_szFilePath));
+    ::memset(m_szFileName, 0, sizeof(m_szFileName));
+    ::memset(m_szText, 0, sizeof(m_szText));
+    ::memset(m_szExceptionDesc, 0, sizeof(m_szExceptionDesc));
+    ::memset(m_btSymbol, 0, sizeof(m_btSymbol));
+    ::memset(&m_Line, 0, sizeof(m_Line));
+    ::memset(&m_StackFame, 0, sizeof(m_StackFame));
+}
+CExceptionReport::~CExceptionReport() {}
+DWORD CExceptionReport::Open(LPCTSTR lpszFilePath, BOOL bDoSetFilter, BOOL bDoCallStack, MINIDUMP_TYPE pMiniDumpType)
+{
+    if (lpszFilePath) STRNCPY(m_szFilePath, COUNT_OF(m_szFilePath), lpszFilePath);
+    m_bDoSetFilter = bDoSetFilter;
+    m_bDoCallStack = bDoCallStack;
+    m_MiniDumpType = pMiniDumpType;
+    return NOERROR;
+}
+VOID CExceptionReport::Close() { m_MiniDump.Close(); }
+VOID CExceptionReport::SetUserMessage(LPCTSTR lpszUserMessage) { m_MiniDump.SetUserMessage(lpszUserMessage); }
+VOID CExceptionReport::SetOutputLogProc(CExceptionReport::LPFN_OUTPUT_LOGPROC lpfnOutputLogProc, LPVOID lpOutputLogProcParam)
+{
+    m_lpfnOutputLogProc = lpfnOutputLogProc;
+    m_lpOutputLogProcParam = lpOutputLogProcParam;
+}
+DWORD WINAPI CExceptionReport::_StackOverflowException(LPVOID) { return 0; }
+LONG WINAPI CExceptionReport::Proc(LPEXCEPTION_POINTERS) { return 0; }
+LONG WINAPI CExceptionReport::Proc(LPEXCEPTION_POINTERS, MINIDUMP_TYPE) { return 0; }
+LONG WINAPI CExceptionReport::ProcNoLock(LPEXCEPTION_POINTERS, MINIDUMP_TYPE) { return 0; }
+VOID CExceptionReport::InitSymbolEngine() {}
+const LPTSTR CExceptionReport::GetFaultReason(LPCTSTR) { return m_szText; }
+const LPTSTR CExceptionReport::GetStackTraceString(LPCTSTR) { return m_szText; }
+const LPTSTR CExceptionReport::GetFirstStackTraceString(LPCTSTR) { return m_szText; }
+const LPTSTR CExceptionReport::GetNextStackTraceString(LPCTSTR) { return m_szText; }
+const LPTSTR CExceptionReport::GetRegisterString() { return m_szText; }
+VOID CExceptionReport::Write(LPCTSTR, EF_WRITEFLAGE) {}
+BOOL __stdcall CExceptionReport::ReadProcessMemoryWork(HANDLE, DWORD64, LPVOID, DWORD, LPDWORD) { return FALSE; }
+const LPTSTR CExceptionReport::GetUserMemoryString()
+{
+    ::memset(m_szText, 0, sizeof(m_szText));
+    ::wsprintf(m_szText, _T("[ACC:%d][CHRID:%I64d][MainCmd:%d][SubCmd:%d]"), m_nAccountID, m_biCharacterDBID, m_nMainCmd, m_nSubCmd);
+    return m_szText;
+}
+void CExceptionReport::SetValues(UINT nAccountID, INT64 biCharacterDBID, int nMainCmd, int nSubCmd)
+{
+    m_nAccountID = nAccountID;
+    m_biCharacterDBID = biCharacterDBID;
+    m_nMainCmd = nMainCmd;
+    m_nSubCmd = nSubCmd;
+}
+UINT CExceptionReport::m_nAccountID = 0;
+INT64 CExceptionReport::m_biCharacterDBID = 0;
+int CExceptionReport::m_nMainCmd = 0;
+int CExceptionReport::m_nSubCmd = 0;
+#else
+
 // Invalid STL Container index reference
 static void myInvalidParameterHandler(const wchar_t* expression,
 									  const wchar_t* function, 
@@ -877,3 +940,4 @@ UINT CExceptionReport::m_nAccountID = 0;
 INT64 CExceptionReport::m_biCharacterDBID = 0;
 int CExceptionReport::m_nMainCmd = 0;
 int CExceptionReport::m_nSubCmd = 0;
+#endif // _WIN32

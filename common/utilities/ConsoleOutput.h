@@ -186,8 +186,12 @@ BOOL CConsoleOutput::Initialize(LPCTSTR lpszConsoleTitle)
 		return FALSE;
 	}
 
+#if defined(_WIN32)
 	// Get console window handle
 	m_hConsoleWindow = ::GetConsoleWindow();
+#else
+	m_hConsoleWindow = NULL;
+#endif
 
 	// Set console title
 	if (lpszConsoleTitle) {
@@ -251,7 +255,16 @@ VOID CConsoleOutput::Write(LPCTSTR lpszFormat, ...)
 #endif	// #if	(_MSC_VER >= 1400)
 	va_end(szArgs);
 
+#if defined(_WIN32)
 	::WriteConsole(m_hConsoleOutput, m_szBuffer, iTextCount, &dwWrittenBytes, NULL);
+#else
+	(void)dwWrittenBytes;
+	if (iTextCount > 0)
+	{
+		std::string u8 = Irine::Platform::WideToUtf8(m_szBuffer, iTextCount);
+		std::fwrite(u8.data(), 1, u8.size(), stdout);
+	}
+#endif
 }
 
 
@@ -266,9 +279,13 @@ VOID CConsoleOutput::Write(LPCTSTR lpszFormat, ...)
 //*---------------------------------------------------------------
 VOID CConsoleOutput::ShowWindow(BOOL bShow)
 {
+#if defined(_WIN32)
 	if (m_hConsoleWindow) {
 		::ShowWindow(m_hConsoleWindow, bShow);
 	}
+#else
+	(void)bShow;
+#endif
 }
 
 

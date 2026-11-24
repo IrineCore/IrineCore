@@ -25,11 +25,11 @@ public:
 
 	void DumpAllQuest(IN OUT std::vector<CDNQuest*>& questList);
 	bool AddQuest(int nQuestIndex, CDNQuest* pQuest);
-	bool AddQuest(std::wstring& szTalkFile, CDNQuest* pQuest);
+	bool AddQuest(const std::wstring& szTalkFile, CDNQuest* pQuest);
 
 	//bool RemoveQuest(int nQuestIndex);
 	CDNQuest* GetQuest(int nQuestIndex);
-	CDNQuest* GetQuest(std::wstring& szTalkFile);
+	CDNQuest* GetQuest(const std::wstring& szTalkFile);
 
 	bool bIsMainQuest( const int nQuestIndex );
 	bool bIsSubQuest( const int nQuestIndex );

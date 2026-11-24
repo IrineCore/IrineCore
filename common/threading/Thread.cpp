@@ -76,6 +76,7 @@ unsigned int WINAPI Thread::_Runner( void * pParam )
 
 void Thread::SetThreadName( DWORD dwThreadID, const char* szThreadName) 
 { 
+#if defined(_MSC_VER)
 	THREADNAME_INFO info; 
 	info.dwType = 0x1000; 
 	info.szName = szThreadName; 
@@ -90,4 +91,12 @@ void Thread::SetThreadName( DWORD dwThreadID, const char* szThreadName)
 	__except (EXCEPTION_CONTINUE_EXECUTION) 
 	{ 
 	} 
+#elif defined(__linux__)
+	if (szThreadName && szThreadName[0])
+	{
+		char shortName[16] = { 0 };
+		strncpy(shortName, szThreadName, sizeof(shortName) - 1);
+		pthread_setname_np(pthread_self(), shortName);
+	}
+#endif
 } 

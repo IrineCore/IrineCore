@@ -54,5 +54,5 @@ public:
 };
 
 #define DECL_DN_SMART_PTR_STATIC( name, MAXCOUNT, count ) \
-	std::vector<name *> CDnUnknownRenderObject<name, MAXCOUNT>::s_pVecProcessList[MAXCOUNT]; \
+	template<> std::vector<name *> CDnUnknownRenderObject<name, MAXCOUNT>::s_pVecProcessList[MAXCOUNT]{}; \
 	DECL_MULTISMART_PTR_STATIC( name, MAXCOUNT, count ) 

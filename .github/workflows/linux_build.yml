@@ -56,3 +56,59 @@ jobs:
           bash ./irine.sh help >/dev/null
           bash ./irine.sh module list
           bash ./irine.sh db status --offline
+
+  linux-cpp-build:
+    name: Native Linux x64 C++ Build, Install & CTest (GCC / Ninja)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux C++ build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential ccache cmake ninja-build unixodbc-dev zlib1g-dev
+
+      - name: Configure IrineCore (Release, Static Modules, Tools, Tests)
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$PWD/dist" \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DIRINE_MODULES=static \
+            -DIRINE_BUILD_SERVERS=ON \
+            -DIRINE_BUILD_TOOLS=ON \
+            -DIRINE_BUILD_TESTS=ON
+
+      - name: Build all 7 servers, modules, tools and tests
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: Run CTest test suite
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Install & verify all server and tool ELF binaries
+        run: |
+          cmake --install build
+          for bin in \
+            DNLogServer64 \
+            DNDBServer64 \
+            DNCashServer64 \
+            DNLoginServer64 \
+            DNMasterServer64 \
+            DNVillageServer64 \
+            DNGameServer64; do
+            test -x "dist/$bin"
+            echo "Checking $bin..."
+            ! ldd "dist/$bin" | grep -q "not found"
+          done
+          for tool in \
+            DnMakeMD5 \
+            DnMakeFullPatch \
+            PatchBuilder \
+            DnClientCreator; do
+            test -x "dist/tools/$tool"
+            echo "Checking tools/$tool..."
+            ! ldd "dist/tools/$tool" | grep -q "not found"
+          done
+          ls -lh dist/DN*Server64 dist/tools/

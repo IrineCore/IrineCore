@@ -13,7 +13,7 @@ public:
 	{
 #pragma warning( disable:4311 4312 )
 		Initialize( pRoom );
-#if defined( WIN64 )
+#if defined( WIN64 ) || defined( __x86_64__ ) || defined( _LP64 )
 		STATIC_INSTANCE(s_pObj) = static_cast<T*>(this);
 #else 
 		ASSERT( !STATIC_INSTANCE(s_pObj) && "Duplicate instance created." );

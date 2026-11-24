@@ -25,7 +25,7 @@ void MAStaticMovement::Process( LOCAL_TIME LocalTime, float fDelta )
 	m_pMatExWorld->m_vPosition += m_pMatExWorld->m_vZAxis * vDist->z;
 }
 
-void MAStaticMovement::ForceLook( EtVector2 &vVec )
+void MAStaticMovement::ForceLook( const EtVector2 &vVec )
 {
 	if( EtVec2LengthSq( &vVec ) > 0.f ) 
 	{

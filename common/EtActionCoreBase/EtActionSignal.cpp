@@ -21,7 +21,7 @@ CEtActionSignal::~CEtActionSignal()
 {
 	if( m_pData ) {
 
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 		const int usingCount = GetSignalDataUsingCount64(m_nSignalIndex);
 		const bool bUnbounded = (usingCount >= 64);
 #else
@@ -86,7 +86,7 @@ bool CEtActionSignal::LoadSignal( CStream *pStream )
 #ifdef _TEST_DEFAULT_SIGNAL_ALLOC
 	m_pData = new int[64];
 	pStream->Read( m_pData, 256 );
-#elif defined(WIN64)
+#elif defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	// Binary .act signal payloads are always serialized in 32-bit (64 x 4-byte) slot layout.
 	const int usingCount32 = GetSignalDataUsingCount(m_nSignalIndex);
 	const int usingCount = GetSignalDataUsingCount64(m_nSignalIndex);
@@ -176,7 +176,7 @@ bool CEtActionSignal::LoadSignal( CStream *pStream )
 		ReadStdString( szStr, pStream );
 		szVecList.push_back( szStr );
 	}
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	// For 64-bit, expand every schema pointer slot (including runtime pointers like
 	// SoundStruct::nVecSoundIndex and pointer fields omitted in older .act files)
 	// as well as serialized pointer table slots from 4 bytes to 8 bytes.
@@ -288,7 +288,7 @@ bool CEtActionSignal::LoadSignal( CStream *pStream )
 #endif
 
 	////////////////////
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	const int nWriteLimit = nAllocCount;
 #else
 	const int nWriteLimit = usingCount;
@@ -379,10 +379,10 @@ bool CEtActionSignal::SkipSignal( CStream *pStream )
 	return true;
 }
 
-void CEtActionSignal::InsertVec2Table( EtVector2 *pPtr, EtVector2 &vVec )
+void CEtActionSignal::InsertVec2Table( EtVector2 *pPtr, const EtVector2 &vVec )
 {
 	if( !m_pData ) return;
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	const int nMaxSlot = GetSignalDataUsingCount64(m_nSignalIndex) - (int)(sizeof(int*) / sizeof(int));
 #else
 	const int nMaxSlot = GetSignalDataUsingCount(m_nSignalIndex) - 1;
@@ -401,10 +401,10 @@ void CEtActionSignal::InsertVec2Table( EtVector2 *pPtr, EtVector2 &vVec )
 	}
 }
 
-void CEtActionSignal::InsertVec3Table( EtVector3 *pPtr, EtVector3 &vVec )
+void CEtActionSignal::InsertVec3Table( EtVector3 *pPtr, const EtVector3 &vVec )
 {
 	if( !m_pData ) return;
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	const int nMaxSlot = GetSignalDataUsingCount64(m_nSignalIndex) - (int)(sizeof(int*) / sizeof(int));
 #else
 	const int nMaxSlot = GetSignalDataUsingCount(m_nSignalIndex) - 1;
@@ -423,10 +423,10 @@ void CEtActionSignal::InsertVec3Table( EtVector3 *pPtr, EtVector3 &vVec )
 	}
 }
 
-void CEtActionSignal::InsertVec4Table( EtVector4 *pPtr, EtVector4 &vVec )
+void CEtActionSignal::InsertVec4Table( EtVector4 *pPtr, const EtVector4 &vVec )
 {
 	if( !m_pData ) return;
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	const int nMaxSlot = GetSignalDataUsingCount64(m_nSignalIndex) - (int)(sizeof(int*) / sizeof(int));
 #else
 	const int nMaxSlot = GetSignalDataUsingCount(m_nSignalIndex) - 1;
@@ -445,10 +445,10 @@ void CEtActionSignal::InsertVec4Table( EtVector4 *pPtr, EtVector4 &vVec )
 	}
 }
 
-void CEtActionSignal::InsertStrTable( char *pPtr, std::string &szStr )
+void CEtActionSignal::InsertStrTable( char *pPtr, const std::string &szStr )
 {
 	if( !m_pData ) return;
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	const int nMaxSlot = GetSignalDataUsingCount64(m_nSignalIndex) - (int)(sizeof(int*) / sizeof(int));
 #else
 	const int nMaxSlot = GetSignalDataUsingCount(m_nSignalIndex) - 1;
@@ -469,7 +469,7 @@ void CEtActionSignal::InsertStrTable( char *pPtr, std::string &szStr )
 	}
 }
 
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 char CEtActionSignal::IsPointerTable( int nIndex )
 {
 	if( std::find( m_nVec2Index.begin(), m_nVec2Index.end(), nIndex ) != m_nVec2Index.end() ) return 0;

@@ -160,7 +160,7 @@ function(irine_register_module)
             ${IRINE_COMMON_INCLUDES}
         )
         target_compile_definitions(${_vs_target} PRIVATE
-            WIN64 NDEBUG _CONSOLE _VILLAGESERVER _FINAL_BUILD UNICODE _UNICODE
+            $<$<BOOL:${WIN32}>:WIN64> NDEBUG _CONSOLE _VILLAGESERVER _FINAL_BUILD UNICODE _UNICODE
             "${_mod_define}"
             ${MOD_COMPILE_DEFINITIONS}
         )
@@ -187,7 +187,7 @@ function(irine_register_module)
             ${IRINE_COMMON_INCLUDES}
         )
         target_compile_definitions(${_gs_target} PRIVATE
-            WIN64 NDEBUG _CONSOLE _GAMESERVER _FINAL_BUILD UNICODE _UNICODE
+            $<$<BOOL:${WIN32}>:WIN64> NDEBUG _CONSOLE _GAMESERVER _FINAL_BUILD UNICODE _UNICODE
             "${_mod_define}"
             ${MOD_COMPILE_DEFINITIONS}
         )

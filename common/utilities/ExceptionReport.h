@@ -26,7 +26,7 @@ Copyright (c) 2002~2009 B4nFter (b4nfter@gmail.com) and Co-Writers. All Rights R
 #include "CriticalSection.h"
 #include "MiniDumpSet.h"
 #include "FileSet.h"
-#include <PSAPI.H>
+#include <psapi.h>
 
 #pragma comment(lib, "PSAPI.LIB")
 

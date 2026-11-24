@@ -24,9 +24,9 @@ Copyright (c) 2002~2007 B4nFter (b4nfter@gmail.com) and Co-Writers. All Rights R
 //	INCLUDE
 ///////////////////////////////////////////////////////////////////
 
-#include <TCHAR.H>
-#include <WINDOWS.H>
-#include <WININET.H>
+#include <tchar.h>
+#include <windows.h>
+#include <wininet.h>
 
 #pragma comment(lib, "WININET.LIB")
 

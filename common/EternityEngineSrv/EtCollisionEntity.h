@@ -56,8 +56,8 @@ public:
 	void DrawCollisionPrimitive();
 
 	bool TestCollision( SCollisionPrimitive &Primitive );
-	bool FindCollision( SCollisionPrimitive &TragetPrimitive, EtVector3 &vMove, SCollisionResponse &Response, bool bCalcContactTime );
-	bool FindCollision( std::vector<SCollisionPrimitive *> &TragetPrimitive, EtVector3 &vMove, DNVector(SCollisionResponse) &vecResponse, bool bCalcContactTime = true );
+	bool FindCollision( SCollisionPrimitive &TragetPrimitive, const EtVector3 &vMove, SCollisionResponse &Response, bool bCalcContactTime );
+	bool FindCollision( std::vector<SCollisionPrimitive *> &TragetPrimitive, const EtVector3 &vMove, DNVector(SCollisionResponse) &vecResponse, bool bCalcContactTime = true );
 	bool TestSegmentCollision( SSegment &Segment );
 	bool FindSegmentCollision( SSegment &Segment, SCollisionResponse &Response, DNVector(SCollisionResponse) *pvResponse=NULL );
 	bool FindCapsuleCollision( SCollisionCapsule &Capsule, SCollisionResponse &Response, DNVector(SCollisionResponse) *pvResponse=NULL );

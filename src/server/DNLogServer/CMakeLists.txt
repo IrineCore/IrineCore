@@ -42,7 +42,7 @@ target_include_directories(DNLogServer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     ${IRINE_COMMON_INCLUDES}
 )
-target_compile_definitions(DNLogServer PRIVATE WIN64 NDEBUG _CONSOLE _LOGSERVER UNICODE _UNICODE)
+target_compile_definitions(DNLogServer PRIVATE $<$<BOOL:${WIN32}>:WIN64> NDEBUG _CONSOLE _LOGSERVER UNICODE _UNICODE)
 target_link_libraries(DNLogServer PRIVATE
     irine_modules
     irine_platform

@@ -112,7 +112,7 @@ CDNConnection::CDNConnection(void): CConnection()
 
 CDNConnection::~CDNConnection(void)
 {
-	for each (std::map<unsigned char, CDNMessageTask*>::value_type v in m_MessageTasks)
+	for (std::map<unsigned char, CDNMessageTask*>::value_type v : m_MessageTasks)
 	{
 		delete v.second;
 	}

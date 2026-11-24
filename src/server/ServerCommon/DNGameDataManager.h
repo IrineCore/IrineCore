@@ -655,13 +655,13 @@ public:
 	bool AddTalk(const WCHAR* _wszTalkFileName);
 	bool RemoveTalk(const WCHAR* wszTalkFileName);
 	bool GetTalk(const WCHAR* wszTalkFileName, OUT TALK_PARAGRAPH_MAP& TalkParagraphMap );
-	bool GetTalkParagraph(IN std::wstring& wszIndex, IN std::wstring& wszTarget, OUT TALK_PARAGRAPH& talk );
+	bool GetTalkParagraph(IN const std::wstring& wszIndex, IN const std::wstring& wszTarget, OUT TALK_PARAGRAPH& talk );
 	TALK_PARAGRAPH & GetEmptyTalkParagraph();
 	void GetTalkFileList(IN OUT std::vector<std::wstring>& TalkFileList);
 	DWORD GetStringHashCode(const WCHAR* pString);
 	bool GetTalkFileName(DWORD nHashCode, OUT std::wstring& wszIndex);
 	bool GetTalkIndexName(DWORD nHashCode, OUT std::wstring& wszIndex);
-	bool CheckTalkAnswer(IN std::wstring& wszIndex, IN std::wstring& wszTarget);
+	bool CheckTalkAnswer(IN const std::wstring& wszIndex, IN const std::wstring& wszTarget);
 
 	bool LoadQuestReward();
 	bool GetQuestReward(UINT nRewardCheck, OUT TQuestReward& recom);

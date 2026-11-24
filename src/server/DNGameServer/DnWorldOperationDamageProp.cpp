@@ -17,14 +17,14 @@ CDnWorldOperationDamageProp::~CDnWorldOperationDamageProp()
 
 bool CDnWorldOperationDamageProp::Initialize( CEtWorldSector *pParentSector, const char *szPropName, EtVector3 &vPos, EtVector3 &vRotate, EtVector3 &vScale )
 {
-	if( __super::Initialize( pParentSector, szPropName, vPos, vRotate, vScale ) == false ) return false;
+	if( CDnWorldOperationProp::Initialize( pParentSector, szPropName, vPos, vRotate, vScale ) == false ) return false;
 	if( m_hMonster ) *m_hMonster->GetMatEx() = *GetMatEx();
 	return true;
 }
 
 bool CDnWorldOperationDamageProp::InitializeTable( int nTableID )
 {
-	if( __super::InitializeTable( nTableID ) == false ) return false;
+	if( CDnWorldOperationProp::InitializeTable( nTableID ) == false ) return false;
 
 	bool bResult = false;
 

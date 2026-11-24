@@ -25,12 +25,14 @@ struct _addr_less_ : std::binary_function <SOCKADDR_IN *, SOCKADDR_IN, bool>
 		if (a->sin_port < b->sin_port)
 			return true;
 		if (a->sin_port == b->sin_port &&
-			a->sin_addr.S_un.S_addr < b->sin_addr.S_un.S_addr)
+			a->sin_addr.s_addr < b->sin_addr.s_addr)
 			return true;
 		return false;
 	}
 };
 
+
+class CRUDPConnect;
 
 class CRUDPSocketFrame
 {

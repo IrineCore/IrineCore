@@ -799,13 +799,13 @@ public:
 	// Master-apprentice system
 	void SendMasterSystemSimpleInfo( TMasterSystemSimpleInfo& SimpleInfo, bool bRefresh = false );
 	void SendMasterSystemCountInfo( int iMasterCount, int iPupilCount, int iClassmateCount );
-	void SendMasterSystemMasterList( int iRet, std::vector<TMasterInfo>& vMasterList );
+	void SendMasterSystemMasterList( int iRet, const std::vector<TMasterInfo>& vMasterList );
 	void SendMasterSystemMasterCharacterInfo( int iRet, TMasterCharacterInfo* pMasterCharacterInfo=NULL );
-	void SendMasterSystemPupilList( int iRet, INT64 biCharacterDBID, std::vector<TPupilInfo>& vPupilList );
+	void SendMasterSystemPupilList( int iRet, INT64 biCharacterDBID, const std::vector<TPupilInfo>& vPupilList );
 	void SendMasterSystemIntroductionOnOff( int iRet, bool bRegister, WCHAR* pwszText );
 	void SendMasterSystemMasterApplication( int iRet );
 	void SendMasterSystemJoin( int iRet, bool bIsDirectMenu, bool bIsAddPupil, bool bIsTransactor );
-	void SendMasterSystemMasterAndClassmateInfo( int iRet, std::vector<TMasterAndClassmateInfo>& vList );
+	void SendMasterSystemMasterAndClassmateInfo( int iRet, const std::vector<TMasterAndClassmateInfo>& vList );
 	void SendMasterSystemClassmateInfo( int iRet, TClassmateInfo* pClassmateInfo=NULL );
 	void SendMasterSystemMyMasterInfo( int iRet, TMyMasterInfo* pMyMasterInfo=NULL );
 	void SendMasterSystemLeave( int iRet, bool bIsDelPupil=false, int iPenaltyRespectPoint=0 );
@@ -898,9 +898,9 @@ public:
 	void SendSpecialRebirthItem( int nItemID, int nRebirthCount );
 	void SendPlayerCustomEventUI(SCGetPlayerCustomEventUI * pPacket);
 	//Guild recruitment board
-	void SendGuildRecruitList( int iRet, UINT uiPage, std::vector<TGuildRecruitInfo>& vGuildRecruitList );
-	void SendGuildRecruitCharacter( int iRet, std::vector<TGuildRecruitCharacter>& vGuildRecruitCharacterList );
-	void SendMyGuildRecruit( int iRet, std::vector<TGuildRecruitInfo>& vMyGuildRecruitList );
+	void SendGuildRecruitList( int iRet, UINT uiPage, const std::vector<TGuildRecruitInfo>& vGuildRecruitList );
+	void SendGuildRecruitCharacter( int iRet, const std::vector<TGuildRecruitCharacter>& vGuildRecruitCharacterList );
+	void SendMyGuildRecruit( int iRet, const std::vector<TGuildRecruitInfo>& vMyGuildRecruitList );
 	void SendGuildRecruitRequestCount( int iRet, int nRequestCount, GuildRecruitSystem::Max::eType type );
 #if defined( PRE_ADD_GUILD_EASYSYSTEM )
 	void SendRegisterGuildRecruitInfo( BYTE* cClassCode, int nMinLevel, int nMaxLevel, WCHAR* wszGuildIntroduction, BYTE cPurposeCode, bool bCheckHomePage );

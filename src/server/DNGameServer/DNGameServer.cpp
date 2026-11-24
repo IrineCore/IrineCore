@@ -74,6 +74,9 @@ TGameConfig g_Config;
 
 int AddToFirewall()
 {
+#if !defined(_WIN32)
+	return 0;
+#else
 	HRESULT hr = S_OK;
 	HRESULT comInit = E_FAIL;
 	INetFwProfile* fwProfile = NULL;
@@ -133,6 +136,7 @@ error:
 	}
 
 	return 0;
+#endif
 }
 
 bool LoadConfig(int argc, TCHAR * argv[])

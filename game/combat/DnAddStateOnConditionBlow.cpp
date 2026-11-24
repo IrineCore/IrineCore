@@ -40,12 +40,12 @@ CDnAddStateOnConditionBlow::~CDnAddStateOnConditionBlow(void)
 
 void CDnAddStateOnConditionBlow::OnBegin(LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 }
 
 void CDnAddStateOnConditionBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 #if defined(_GAMESERVER)
 	m_bCalcProb = m_bOnDamaged = false;
@@ -81,7 +81,7 @@ void CDnAddStateOnConditionBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnAddStateOnConditionBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if !defined(_GAMESERVER)
 	_DetachGraphicEffect();

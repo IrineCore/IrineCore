@@ -55,14 +55,14 @@ CDnAddDamageOnCriticalBlow::~CDnAddDamageOnCriticalBlow(void)
 
 void CDnAddDamageOnCriticalBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 }
 
 
 void CDnAddDamageOnCriticalBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	m_bCalcProb = m_bOnDamaged = false;
@@ -98,7 +98,7 @@ void CDnAddDamageOnCriticalBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnAddDamageOnCriticalBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if !defined(_GAMESERVER)
 	_DetachGraphicEffect();

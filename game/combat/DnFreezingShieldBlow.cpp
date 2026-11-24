@@ -73,7 +73,7 @@ void CDnFreezingShieldBlow::SetInfo(const char* szValue)
 
 void CDnFreezingShieldBlow::OnBegin(LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	if (m_hActor)
 	{

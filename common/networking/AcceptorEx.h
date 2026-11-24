@@ -41,6 +41,14 @@ private:
 	std::vector<int>			m_vConnectionKey;
 
 	CSyncLock					m_Lock;
+#if !defined(_WIN32)
+	static void* _LinuxAcceptThread(void* pParam);
+	void         _LinuxAcceptLoop();
+	pthread_t    m_acceptThread;
+	bool         m_bAcceptThreadStarted;
+	volatile bool m_bAcceptRunning;
+	int          m_wakeFd;
+#endif
 };
 
 #endif // #ifdef _USE_ACCEPTEX

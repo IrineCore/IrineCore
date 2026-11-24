@@ -63,13 +63,13 @@ void CDnBurnCriticalBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnBurnCriticalBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 
 void CDnBurnCriticalBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 }
 
 #if defined(PRE_ADD_PREFIX_SYSTE_RENEW)

@@ -47,7 +47,7 @@ void CDnRemoveStateBlow::SetInfo(const char* szValue)
 
 void CDnRemoveStateBlow::OnBegin(LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	RemoveStateBlowBySkillID();
@@ -56,13 +56,13 @@ void CDnRemoveStateBlow::OnBegin(LOCAL_TIME LocalTime, float fDelta )
 
 void CDnRemoveStateBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 
 void CDnRemoveStateBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 }
 
 #if defined(_GAMESERVER)

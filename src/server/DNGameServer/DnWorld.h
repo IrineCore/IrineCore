@@ -121,7 +121,7 @@ public:
 
 	// 2009.7.30 hanki
 	// Return y position accounting for prop height
-	float GetHeightWithProp( EtVector3 &vPos, NavigationCell *pCurCell = NULL, EtVector3 *pNormal = NULL );
+	float GetHeightWithProp( const EtVector3 &vPos, NavigationCell *pCurCell = NULL, EtVector3 *pNormal = NULL );
 	//
 
 #if defined(PRE_FIX_55855)
@@ -130,7 +130,7 @@ public:
 #endif // PRE_FIX_55855
 
 	void RevisionPosByNaviMesh( MatrixEx& Cross, const EtVector3& vPrevPos );
-	bool IsOnNavigationMesh( EtVector3& vPos );
+	bool IsOnNavigationMesh( const EtVector3& vPos );
 
 	//////////////////////////////////////////////////////////////////////////
 	// Code for checking Sea Dragon Nest [2011/01/12 semozz]

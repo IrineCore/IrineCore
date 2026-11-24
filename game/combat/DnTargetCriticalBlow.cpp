@@ -24,20 +24,20 @@ CDnTargetCriticalBlow::~CDnTargetCriticalBlow(void)
 
 void CDnTargetCriticalBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s Critical Value : %f\n", __FUNCTION__, m_fValue);
 }
 
 void CDnTargetCriticalBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 
 void CDnTargetCriticalBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s \n", __FUNCTION__);
 }

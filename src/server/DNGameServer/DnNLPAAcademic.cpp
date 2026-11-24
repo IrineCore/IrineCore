@@ -3,7 +3,7 @@
 #include "DnNLPAAcademic.h"
 #include "DnWeapon.h"
 
-TDnPlayerAcademic< CDnPlayerActor >::RotateBoneStruct TDnPlayerAcademic< CDnPlayerActor >::s_RotateBoneDefine[] = { 
+template<> TDnPlayerAcademic< CDnPlayerActor >::RotateBoneStruct TDnPlayerAcademic< CDnPlayerActor >::s_RotateBoneDefine[] = { 
 	{ "Bip01 Spine", -1, 0.3f },
 	{ "Bip01 Spine1", -1, 0.3f },
 	{ "Bip01 Neck", -1, 0.4f },

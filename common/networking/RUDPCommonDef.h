@@ -51,35 +51,45 @@ struct _ADDR {
 static unsigned long _inet_addr(const char * cp)
 {
 	int s_b[4] = { 0, 0, 0, 0};
-	struct in_addr in;
 	sscanf(cp, "%d.%d.%d.%d", &s_b[0], &s_b[1], &s_b[2], &s_b[3]);
-	in.S_un.S_un_b.s_b1 = s_b[0];
-	in.S_un.S_un_b.s_b2 = s_b[1];
-	in.S_un.S_un_b.s_b3 = s_b[2];
-	in.S_un.S_un_b.s_b4 = s_b[3];
-	return in.S_un.S_addr;
+	unsigned char b[4] = {
+		static_cast<unsigned char>(s_b[0]),
+		static_cast<unsigned char>(s_b[1]),
+		static_cast<unsigned char>(s_b[2]),
+		static_cast<unsigned char>(s_b[3])
+	};
+	unsigned int addr = 0;
+	memcpy(&addr, b, 4);
+	return static_cast<unsigned long>(addr);
 }
 
 static unsigned long _inet_addr(const WCHAR * cp)
 {
 	int s_b[4] = { 0, 0, 0, 0};
-	struct in_addr in;
+#if defined(_WIN32)
 	swscanf(cp, L"%d.%d.%d.%d", &s_b[0], &s_b[1], &s_b[2], &s_b[3]);
-	in.S_un.S_un_b.s_b1 = s_b[0];
-	in.S_un.S_un_b.s_b2 = s_b[1];
-	in.S_un.S_un_b.s_b3 = s_b[2];
-	in.S_un.S_un_b.s_b4 = s_b[3];
-	return in.S_un.S_addr;
+#else
+	if (cp) {
+		std::string narrow = Irine::Platform::WideToUtf8(cp);
+		sscanf(narrow.c_str(), "%d.%d.%d.%d", &s_b[0], &s_b[1], &s_b[2], &s_b[3]);
+	}
+#endif
+	unsigned char b[4] = {
+		static_cast<unsigned char>(s_b[0]),
+		static_cast<unsigned char>(s_b[1]),
+		static_cast<unsigned char>(s_b[2]),
+		static_cast<unsigned char>(s_b[3])
+	};
+	unsigned int addr = 0;
+	memcpy(&addr, b, 4);
+	return static_cast<unsigned long>(addr);
 }
 
 static unsigned long _inet_addr(const unsigned char * ip)
 {
-	struct in_addr in;
-	in.S_un.S_un_b.s_b1 = ip[0];
-	in.S_un.S_un_b.s_b2 = ip[1];
-	in.S_un.S_un_b.s_b3 = ip[2];
-	in.S_un.S_un_b.s_b4 = ip[3];
-	return in.S_un.S_addr;
+	unsigned int addr = 0;
+	memcpy(&addr, ip, 4);
+	return static_cast<unsigned long>(addr);
 }
 
 static void _inet_addr(unsigned long i, char * p)

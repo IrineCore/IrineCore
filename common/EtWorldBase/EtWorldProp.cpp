@@ -89,7 +89,7 @@ bool CEtWorldProp::LoadCustomInfo( CStream *pStream )
 	m_pData = new int[256];
 	memset( m_pData, 0, 1024 );
 	pStream->Read( m_pData, 1024 );
-#elif defined(WIN64)
+#elif defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	int usingCount = 256;
 	m_pData = AllocPropData(usingCount);
 	if (usingCount * 4 > 1024)
@@ -183,7 +183,7 @@ bool CEtWorldProp::LoadCustomInfo( CStream *pStream )
 		ReadStdString( szStr, pStream );
 		szVecList.push_back( szStr );
 	}
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 	// For 64-bit, expand every schema pointer slot (even if empty/omitted in older map data,
 	// e.g. ChestStruct::strLevelBound*) and serialized pointer table slot from 4 bytes to 8 bytes.
 	m_nVec2Index64.clear();
@@ -374,7 +374,7 @@ void CEtWorldProp::SetCustomParam( void *pCustomParam )
 	m_pData = pCustomParam;
 }
 
-#ifdef WIN64
+#if defined(WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 char CEtWorldProp::IsPointerTable( int nIndex )
 {
 	if( std::find( m_nVec2Index.begin(), m_nVec2Index.end(), nIndex ) != m_nVec2Index.end() ) return 0;

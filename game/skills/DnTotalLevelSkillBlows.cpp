@@ -69,13 +69,13 @@ void CDnAddCriticalRateBlow::ApplyCriticalIncBlow()
 
 void CDnAddCriticalRateBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnAddCriticalRateBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 	if (m_bActivated == true)
 	{
@@ -90,7 +90,7 @@ void CDnAddCriticalRateBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 }
 void CDnAddCriticalRateBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -159,19 +159,19 @@ void CDnDamageChagneBlow::ApplyDamageChange()
 
 void CDnDamageChagneBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnDamageChagneBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnDamageChagneBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -206,18 +206,18 @@ CDnExpIncBlow::~CDnExpIncBlow(void)
 
 void CDnExpIncBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnExpIncBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 }
 void CDnExpIncBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -250,19 +250,19 @@ CDnPetExpIncBlow::~CDnPetExpIncBlow(void)
 
 void CDnPetExpIncBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnPetExpIncBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 
 }
 void CDnPetExpIncBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -295,18 +295,18 @@ CDnMoveSpeedIncBlow::~CDnMoveSpeedIncBlow(void)
 
 void CDnMoveSpeedIncBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnMoveSpeedIncBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 }
 void CDnMoveSpeedIncBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -339,19 +339,19 @@ CDnVehicleMoveSpeedBlow::~CDnVehicleMoveSpeedBlow(void)
 
 void CDnVehicleMoveSpeedBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnVehicleMoveSpeedBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 
 }
 void CDnVehicleMoveSpeedBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -384,19 +384,19 @@ CDnIgnoreDurationBlow::~CDnIgnoreDurationBlow(void)
 
 void CDnIgnoreDurationBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnIgnoreDurationBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 
 }
 void CDnIgnoreDurationBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -429,19 +429,19 @@ CDnNpcReputationIncBlow::~CDnNpcReputationIncBlow(void)
 
 void CDnNpcReputationIncBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnNpcReputationIncBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 
 }
 void CDnNpcReputationIncBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -490,19 +490,19 @@ CDnAddMedalBlow::~CDnAddMedalBlow(void)
 
 void CDnAddMedalBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnAddMedalBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 
 }
 void CDnAddMedalBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -535,19 +535,19 @@ CDnFarmingTimeBlow::~CDnFarmingTimeBlow(void)
 
 void CDnFarmingTimeBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnFarmingTimeBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 
 }
 void CDnFarmingTimeBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -580,19 +580,19 @@ CDnLadderStoreSaleBlow::~CDnLadderStoreSaleBlow(void)
 
 void CDnLadderStoreSaleBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnLadderStoreSaleBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 
 }
 void CDnLadderStoreSaleBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -624,19 +624,19 @@ CDnAutoFishingTimeBlow::~CDnAutoFishingTimeBlow(void)
 
 void CDnAutoFishingTimeBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnAutoFishingTimeBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 
 }
 void CDnAutoFishingTimeBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -671,19 +671,19 @@ CDnCookingExpIncBlow::~CDnCookingExpIncBlow(void)
 
 void CDnCookingExpIncBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnCookingExpIncBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 
 }
 void CDnCookingExpIncBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -716,19 +716,19 @@ CDnGoldIncBlow::~CDnGoldIncBlow(void)
 
 void CDnGoldIncBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnGoldIncBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 
 }
 void CDnGoldIncBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
@@ -761,7 +761,7 @@ CDnGlobalCoolTimeBlow::~CDnGlobalCoolTimeBlow(void)
 
 void CDnGlobalCoolTimeBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	//Adjust global cooldown time that has already started..
 #if defined( PRE_ADD_TOTAL_LEVEL_SKILL )
@@ -774,13 +774,13 @@ void CDnGlobalCoolTimeBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnGlobalCoolTimeBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 }
 
 void CDnGlobalCoolTimeBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	//Adjust global cooldown time that has already started..
 #if defined(PRE_ADD_TOTAL_LEVEL_SKILL)
@@ -820,18 +820,18 @@ CDnPartyDropRateBlow::~CDnPartyDropRateBlow(void)
 
 void CDnPartyDropRateBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }
 void CDnPartyDropRateBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 }
 void CDnPartyDropRateBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	OutputDebug("%s\n", __FUNCTION__);
 }

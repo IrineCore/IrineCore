@@ -129,6 +129,7 @@ inline BOOL CBaseSet::IsLittleEndian()
 //*---------------------------------------------------------------
 inline BOOL CBaseSet::IsWindowStationVisible()
 {
+#if defined(_WIN32)
 	HWINSTA hWindowStation = ::GetProcessWindowStation();
 	if (hWindowStation != NULL) {
 		USEROBJECTFLAGS	stUOF;
@@ -137,5 +138,6 @@ inline BOOL CBaseSet::IsWindowStationVisible()
 			return ((WSF_VISIBLE & stUOF.dwFlags) == WSF_VISIBLE);
 		}
 	}
+#endif
 	return FALSE;
 }

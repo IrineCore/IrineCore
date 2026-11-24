@@ -11,7 +11,7 @@ public:
 #pragma warning( disable:4311 4312 )
 		ASSERT( !s_pObj && "Duplicate instance created." );
 
-#if defined( WIN64 )
+#if defined( WIN64 ) || defined( __x86_64__ ) || defined( _LP64 )
 		s_pObj = static_cast<T*>(this);
 #else // #if defined( WIN64 )
 		int offset = ( int )( T * )1 - ( int )( CSingleton < T > * )( T * )1;

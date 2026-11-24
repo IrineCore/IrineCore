@@ -10398,7 +10398,7 @@ int CDNUserBase::OnRecvWarpVillageList(const CSWarpVillageList* pPacket)
 	vector<WarpVillage::WarpVillageInfo> vList;
 	vector<int> vVillageMaps = g_pDataManager->GetVillageMaps();
 
-	for each (int nMapID in vVillageMaps)
+	for (int nMapID : vVillageMaps)
 	{
 		int nLevel = g_pDataManager->GetMapPermitLevel(nMapID);
 		if (nLevel < 0)

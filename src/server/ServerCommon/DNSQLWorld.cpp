@@ -789,14 +789,14 @@ int CDNSQLWorld::QueryGetListCharacter(UINT nAccountDBID, int nWorldID, int nCha
 					break;									
 				}
 #if defined(PRE_CHARLIST_SORTING)
-				CTimeParamSet LastLoginDate(&QueryTimeLog, CharData.LastLoginDate, LastLoginDate, nWorldID, nAccountDBID);
-				if (!LastLoginDate.IsValid())
+				CTimeParamSet LastLoginTime(&QueryTimeLog, CharData.LastLoginDate, LastLoginDate, nWorldID, nAccountDBID);
+				if (!LastLoginTime.IsValid())
 				{
 					nResult = ERROR_DB;
 					break;									
 				}
-				CTimeParamSet CreateDate(&QueryTimeLog, CharData.CreateDate, CreateDate, nWorldID, nAccountDBID);
-				if (!CreateDate.IsValid())
+				CTimeParamSet CreateTime(&QueryTimeLog, CharData.CreateDate, CreateDate, nWorldID, nAccountDBID);
+				if (!CreateTime.IsValid())
 				{
 					nResult = ERROR_DB;
 					break;									

@@ -43,16 +43,20 @@ errno_t wmemcpy_s(WCHAR* dest, size_t destElements, const WCHAR* src, size_t cou
 errno_t strcpy_s(char* dest, size_t destSize, const char* src);
 errno_t strncpy_s(char* dest, size_t destSize, const char* src, size_t count);
 errno_t strcat_s(char* dest, size_t destSize, const char* src);
+errno_t strncat_s(char* dest, size_t destSize, const char* src, size_t count);
 errno_t wcscpy_s(WCHAR* dest, size_t destElements, const WCHAR* src);
 errno_t wcsncpy_s(WCHAR* dest, size_t destElements, const WCHAR* src, size_t count);
 errno_t wcscat_s(WCHAR* dest, size_t destElements, const WCHAR* src);
+errno_t wcsncat_s(WCHAR* dest, size_t destElements, const WCHAR* src, size_t count);
 
 template <size_t N> inline errno_t strcpy_s(char (&dest)[N], const char* src) { return strcpy_s(dest, N, src); }
 template <size_t N> inline errno_t strncpy_s(char (&dest)[N], const char* src, size_t count) { return strncpy_s(dest, N, src, count); }
 template <size_t N> inline errno_t strcat_s(char (&dest)[N], const char* src) { return strcat_s(dest, N, src); }
+template <size_t N> inline errno_t strncat_s(char (&dest)[N], const char* src, size_t count) { return strncat_s(dest, N, src, count); }
 template <size_t N> inline errno_t wcscpy_s(WCHAR (&dest)[N], const WCHAR* src) { return wcscpy_s(dest, N, src); }
 template <size_t N> inline errno_t wcsncpy_s(WCHAR (&dest)[N], const WCHAR* src, size_t count) { return wcsncpy_s(dest, N, src, count); }
 template <size_t N> inline errno_t wcscat_s(WCHAR (&dest)[N], const WCHAR* src) { return wcscat_s(dest, N, src); }
+template <size_t N> inline errno_t wcsncat_s(WCHAR (&dest)[N], const WCHAR* src, size_t count) { return wcsncat_s(dest, N, src, count); }
 
 // Numeric <-> wide/narrow conversions
 int     _wtoi(const WCHAR* str);
@@ -88,6 +92,25 @@ int _snwprintf(WCHAR* buffer, size_t count, const WCHAR* format, ...);
 int _snwprintf_s(WCHAR* buffer, size_t sizeOfBuffer, size_t count, const WCHAR* format, ...);
 int swprintf_s(WCHAR* buffer, size_t sizeOfBuffer, const WCHAR* format, ...);
 
+// Legacy MSVC _CRT_NON_CONFORMING_SWPRINTFS 2-arg swprintf / _swprintf overloads
+inline int swprintf(WCHAR* buffer, const WCHAR* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    int r = _vsnwprintf(buffer, 65536, format, args);
+    va_end(args);
+    return r;
+}
+
+inline int _swprintf(WCHAR* buffer, const WCHAR* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    int r = _vsnwprintf(buffer, 65536, format, args);
+    va_end(args);
+    return r;
+}
+
 template <size_t N>
 inline int sprintf_s(char (&buffer)[N], const char* format, ...)
 {
@@ -106,6 +129,18 @@ inline int swprintf_s(WCHAR (&buffer)[N], const WCHAR* format, ...)
     int r = _vsnwprintf_s(buffer, N, N - 1, format, args);
     va_end(args);
     return r;
+}
+
+template <size_t N>
+inline int _vsnprintf_s(char (&buffer)[N], size_t count, const char* format, va_list argptr)
+{
+    return _vsnprintf_s(buffer, N, count, format, argptr);
+}
+
+template <size_t N>
+inline int _vsnwprintf_s(WCHAR (&buffer)[N], size_t count, const WCHAR* format, va_list argptr)
+{
+    return _vsnwprintf_s(buffer, N, count, format, argptr);
 }
 
 #ifndef _TRUNCATE

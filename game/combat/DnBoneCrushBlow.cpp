@@ -29,13 +29,13 @@ CDnBoneCrushBlow::~CDnBoneCrushBlow(void)
 
 void CDnBoneCrushBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 }
 
 
 void CDnBoneCrushBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process(LocalTime, fDelta);
+	CDnBlow::Process(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 #if defined(PRE_FIX_61382)
@@ -72,7 +72,7 @@ void CDnBoneCrushBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnBoneCrushBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 }
 
 #if defined(_GAMESERVER)

@@ -29,7 +29,7 @@ CDnSpectatorBlow::~CDnSpectatorBlow(void)
 
 void CDnSpectatorBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	if( !m_hActor || !m_hActor->IsPlayerActor() )
 		return;
@@ -41,7 +41,7 @@ void CDnSpectatorBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnSpectatorBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 	if( m_pCantUseMPUsingSkillBlow ) m_pCantUseMPUsingSkillBlow->Process( LocalTime, fDelta );
 }
@@ -49,7 +49,7 @@ void CDnSpectatorBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnSpectatorBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 	if( !m_hActor || !m_hActor->IsPlayerActor() )
 		return;

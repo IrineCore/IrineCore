@@ -3514,7 +3514,7 @@ void CDNUserSendManager::SendLimitedShopItemData(std::map<int, LimitedShop::Limi
 	packet.bAllClear = bAllClear;
 
 	size_t i = 0;
-	for each (std::map<int, LimitedShop::LimitedItemData>::value_type v in mapLimitedShop)
+	for (std::map<int, LimitedShop::LimitedItemData>::value_type v : mapLimitedShop)
 	{		
 		packet.items[i] = v.second;
 		++i;
@@ -5947,7 +5947,7 @@ void CDNUserSendManager::SendGuildWarBuyedItemList(const std::map<int, int>& ite
 	packet.count = static_cast<short>(items.size());
 
 	size_t i = 0;
-	for each (std::map<int, int>::value_type v in items)
+	for (std::map<int, int>::value_type v : items)
 	{
 		packet.items[i].id = v.first;
 		packet.items[i].count = v.second;
@@ -7961,7 +7961,7 @@ void CDNUserSendManager::SendMasterSystemCountInfo( int iMasterCount, int iPupil
 
 }
 
-void CDNUserSendManager::SendMasterSystemMasterList( int iRet, std::vector<TMasterInfo>& vMasterList )
+void CDNUserSendManager::SendMasterSystemMasterList( int iRet, const std::vector<TMasterInfo>& vMasterList )
 {
 	MasterSystem::SCMasterList TxPacket;
 	memset( &TxPacket, 0, sizeof(TxPacket) );
@@ -7999,7 +7999,7 @@ void CDNUserSendManager::SendMasterSystemMasterCharacterInfo( int iRet, TMasterC
 
 }
 
-void CDNUserSendManager::SendMasterSystemPupilList( int iRet, INT64 biCharacterDBID, std::vector<TPupilInfo>& vPupilList )
+void CDNUserSendManager::SendMasterSystemPupilList( int iRet, INT64 biCharacterDBID, const std::vector<TPupilInfo>& vPupilList )
 {
 	MasterSystem::SCPupilList TxPacket;
 	memset( &TxPacket, 0, sizeof(TxPacket) );
@@ -8021,7 +8021,7 @@ void CDNUserSendManager::SendMasterSystemPupilList( int iRet, INT64 biCharacterD
 
 	for( UINT i=0 ; i<TxPacket.cCount ; ++i )
 	{
-		TxPacket.PupilInfoList[i]			= vPupilList[i];
+		static_cast<TPupilInfo&>(TxPacket.PupilInfoList[i]) = vPupilList[i];
 		TxPacket.PupilInfoList[i].Location	= MasterSystem::CCacheRepository::GetInstance().GetLocationInfo( vPupilList[i].biCharacterDBID );
 	}
 
@@ -8071,7 +8071,7 @@ void CDNUserSendManager::SendMasterSystemJoin( int iRet, bool bIsDirectMenu, boo
 
 }
 
-void CDNUserSendManager::SendMasterSystemMasterAndClassmateInfo( int iRet, std::vector<TMasterAndClassmateInfo>& vList )
+void CDNUserSendManager::SendMasterSystemMasterAndClassmateInfo( int iRet, const std::vector<TMasterAndClassmateInfo>& vList )
 {
 	MasterSystem::SCMasterClassmate TxPacket;
 	memset( &TxPacket, 0, sizeof(TxPacket) );
@@ -8092,7 +8092,7 @@ void CDNUserSendManager::SendMasterSystemMasterAndClassmateInfo( int iRet, std::
 
 	for( UINT i=0 ; i<TxPacket.cCount ; ++i )
 	{
-		TxPacket.DataList[i]			= vList[i];
+		static_cast<TMasterAndClassmateInfo&>(TxPacket.DataList[i]) = vList[i];
 		TxPacket.DataList[i].Location	= MasterSystem::CCacheRepository::GetInstance().GetLocationInfo( vList[i].biCharacterDBID );
 	}
 
@@ -8950,7 +8950,7 @@ void CDNUserSendManager::SendPlayerCustomEventUI(SCGetPlayerCustomEventUI * pPac
 	m_pSession->AddSendData(SC_CUSTOMEVENTUI, ePlayerCustomEventUI::SC_GETPLAYERUI, reinterpret_cast<char*>(pPacket), sizeof(SCGetPlayerCustomEventUI) - sizeof(pPacket->UIs) + (sizeof(TCustomEventInfo) * pPacket->cCount));
 }
 
-void CDNUserSendManager::SendGuildRecruitList( int iRet, UINT uiPage, std::vector<TGuildRecruitInfo>& vGuildRecruitList )
+void CDNUserSendManager::SendGuildRecruitList( int iRet, UINT uiPage, const std::vector<TGuildRecruitInfo>& vGuildRecruitList )
 {
 	GuildRecruitSystem::SCGuildRecruitList TxPacket;
 	memset( &TxPacket, 0, sizeof(TxPacket) );
@@ -8965,7 +8965,7 @@ void CDNUserSendManager::SendGuildRecruitList( int iRet, UINT uiPage, std::vecto
 	m_pSession->AddSendData( SC_GUILDRECRUIT, eGuildRecruit::SC_GUILDRECRUIT_LIST, reinterpret_cast<char*>(&TxPacket), iSize );
 }
 
-void CDNUserSendManager::SendGuildRecruitCharacter( int iRet, std::vector<TGuildRecruitCharacter>& vGuildRecruitCharacterList )
+void CDNUserSendManager::SendGuildRecruitCharacter( int iRet, const std::vector<TGuildRecruitCharacter>& vGuildRecruitCharacterList )
 {
 	GuildRecruitSystem::SCGuildRecruitCharacterList TxPacket;
 	memset( &TxPacket, 0, sizeof(TxPacket) );
@@ -8979,7 +8979,7 @@ void CDNUserSendManager::SendGuildRecruitCharacter( int iRet, std::vector<TGuild
 	m_pSession->AddSendData( SC_GUILDRECRUIT, eGuildRecruit::SC_GUILDREQUEST_CHARACTER, reinterpret_cast<char*>(&TxPacket), iSize );
 }
 
-void CDNUserSendManager::SendMyGuildRecruit( int iRet, std::vector<TGuildRecruitInfo>& vMyGuildRecruitList )
+void CDNUserSendManager::SendMyGuildRecruit( int iRet, const std::vector<TGuildRecruitInfo>& vMyGuildRecruitList )
 {
 	GuildRecruitSystem::SCMyGuildRecruitList TxPacket;
 	memset( &TxPacket, 0, sizeof(TxPacket) );

@@ -45,14 +45,14 @@ public:
 		m_hKick[3] = CDnWeapon::CreateWeapon( GetRoom(), 29, 0 );
 		for( int i=0; i<4; i++ ) m_hKick[i]->CreateObject();
 
-		m_nKickActionIndex[0] = GetElementIndex( "Attack_SideKick" );
-		m_nKickActionIndex[1] = GetElementIndex( "Attack_SoccerKick" );
-		m_nKickActionIndex[2] = GetElementIndex( "Attack_Down" );
-		m_nKickActionIndex[3] = GetElementIndex( "Jump_Kick" );
+		m_nKickActionIndex[0] = this->GetElementIndex( "Attack_SideKick" );
+		m_nKickActionIndex[1] = this->GetElementIndex( "Attack_SoccerKick" );
+		m_nKickActionIndex[2] = this->GetElementIndex( "Attack_Down" );
+		m_nKickActionIndex[3] = this->GetElementIndex( "Jump_Kick" );
 
 		for( int i=0; ; i++ ) {
 			if( s_RotateBoneDefine[i].szBoneName == NULL ) break;
-			s_RotateBoneDefine[i].nBoneIndex = GetBoneIndex( s_RotateBoneDefine[i].szBoneName );
+			s_RotateBoneDefine[i].nBoneIndex = this->GetBoneIndex( s_RotateBoneDefine[i].szBoneName );
 		}
 		return true;
 	}
@@ -74,7 +74,7 @@ public:
 	{
 		if( nEquipIndex == 0 ) {
 			for( int i=0; i<4; i++ ) {
-				if( m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
+				if( this->m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
 			}
 		}
 
@@ -84,7 +84,7 @@ public:
 	{
 		if( nEquipIndex == 0 ) {
 			for( int i=0; i<4; i++ ) {
-				if( m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
+				if( this->m_nActionIndex == m_nKickActionIndex[i] ) return m_hKick[i];
 			}
 		}
 

@@ -1018,7 +1018,7 @@ void CDnMonsterActor::CmdMixedAction( const char *szActionBone, const char *szMa
 
 }
 
-void CDnMonsterActor::CmdWarp( EtVector3 &vPos, EtVector2 &vLook, CDNUserSession* pGameSession, bool bCheckPlayerFollowSummonedMonster/*=false*/ )
+void CDnMonsterActor::CmdWarp( const EtVector3 &vPos, const EtVector2 &vLook, CDNUserSession* pGameSession, bool bCheckPlayerFollowSummonedMonster/*=false*/ )
 {
 	CDnActor::CmdWarp( vPos, vLook, pGameSession, bCheckPlayerFollowSummonedMonster );
 
@@ -1308,7 +1308,8 @@ bool CDnMonsterActor::AddSkill( int nSkillTableID, int nLevel/* = 1*/, int iSkil
 	m_vlhSkillList.push_back( hSkill );
 	m_vbSelfAllocList.push_back( true );
 #else
-	AddSkillObject( S_SKILL_OBJECT(hSkill, true) );
+	S_SKILL_OBJECT skillObj(hSkill, true);
+	AddSkillObject( skillObj );
 #endif // #ifndef PRE_FIX_SKILLLIST
 
 	if( hSkill->GetActor() )

@@ -32,12 +32,12 @@ void CDnBasicStateBaseAddState::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 		}
 	}
 
-	__super::OnBegin( LocalTime, fDelta );
+	CDnBlow::OnBegin( LocalTime, fDelta );
 }
 
 void CDnBasicStateBaseAddState::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 }
 
 void CDnBasicStateBaseAddState::OnEnd( LOCAL_TIME LocalTime, float fDelta )
@@ -50,7 +50,7 @@ void CDnBasicStateBaseAddState::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 		m_vecBasicBlow[itr]->OnEnd( LocalTime, fDelta );
 	}
 
-	__super::OnEnd( LocalTime, fDelta );
+	CDnBlow::OnEnd( LocalTime, fDelta );
 }
 
 // Reason nStateType changes mid-way is because the table enters the value as a ratio 

@@ -182,7 +182,7 @@ bool CSocketContext::Detach()
 
 #ifdef _USE_ACCEPTEX
 
-#include <Mswsock.h>
+#include <mswsock.h>
 
 bool CSocketContext::_bInitSocket( const BYTE cIOMode )
 {
@@ -208,6 +208,7 @@ bool CSocketContext::_bInitSocket( const BYTE cIOMode )
 
 void CSocketContext::OnAccept( sockaddr_in* pLocalAddr, sockaddr_in* pPeerAddr )
 {
+#if defined(_WIN32)
 	INT32 iAddrLen = sizeof(sockaddr_in);
 	char szLocalIP[MAX_PATH];
 	char szPeerIP[MAX_PATH];
@@ -215,10 +216,10 @@ void CSocketContext::OnAccept( sockaddr_in* pLocalAddr, sockaddr_in* pPeerAddr )
 
 	WSAAddressToStringA( (LPSOCKADDR)pLocalAddr, iAddrLen, 0, szLocalIP, &dwStringLen );
 	WSAAddressToStringA( (LPSOCKADDR)pPeerAddr, iAddrLen, 0, szPeerIP, &dwStringLen );
-
-	//g_Log.LogA( "[Accept] ListenID=%d\r\n", m_uiListenID );
-	//g_Log.LogA( "LocalAddr IP=%s\r\n", szLocalIP );
-	//g_Log.LogA( "PeerAddr IP=%s\r\n", szPeerIP );
+#else
+	(void)pLocalAddr;
+	(void)pPeerAddr;
+#endif
 }
 
 void CSocketContext::OnDisconnect()
@@ -232,6 +233,10 @@ void CSocketContext::OnDisconnect()
 
 bool CSocketContext::bInitAcceptContext()
 {
+#if !defined(_WIN32)
+	Clear();
+	return true;
+#else
 	// P.S.> Synchronized by CAcceptorEx::m_Lock instead of its own LOCK because this method itself performs the Accept operation ???
 
 	if( !_bInitSocket( IOPOST_ACCEPT ) )
@@ -254,6 +259,7 @@ bool CSocketContext::bInitAcceptContext()
 	}
 
 	return true;
+#endif
 }
 
 #endif

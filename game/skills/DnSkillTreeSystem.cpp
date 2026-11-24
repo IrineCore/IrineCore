@@ -586,7 +586,7 @@ void CDnSkillTreeSystem::GetLevelUpSkillInfo(std::vector<int>& newSkillIdList, i
 
 void CDnSkillTreeSystem::GetLevelUpSkillInfo(std::vector<int>& newSkillIdList, int newLevel, const std::vector<int>& jobHistoryVec)
 {
-	std::vector<int>::const_iterator& iter = jobHistoryVec.begin();
+	std::vector<int>::const_iterator iter = jobHistoryVec.begin();
 	for (; iter != jobHistoryVec.end(); ++iter)
 	{
 		const int& jobId = *iter;

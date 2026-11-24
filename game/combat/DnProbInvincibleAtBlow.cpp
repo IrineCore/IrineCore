@@ -43,7 +43,7 @@ void CDnProbInvincibleAtBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnProbInvincibleAtBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 #ifdef _GAMESERVER
 	CheckAllTargetSkillState();

@@ -100,7 +100,7 @@ void CDnState::CalcValueType()
 	 }
 }
 
-CDnState &CDnState::operator += ( CDnState & e )
+CDnState &CDnState::operator += ( const CDnState & e )
 {
 	if( e.m_ValueType & ValueTypeAbsolute ) {
 		m_nStrength += e.m_nStrength;
@@ -173,7 +173,7 @@ CDnState &CDnState::operator += ( CDnState & e )
 	return *this;
 }
 
-CDnState &CDnState::operator -= ( CDnState & e )
+CDnState &CDnState::operator -= ( const CDnState & e )
 {
 	if( e.m_ValueType & ValueTypeAbsolute ) {
 		m_nStrength -= e.m_nStrength;

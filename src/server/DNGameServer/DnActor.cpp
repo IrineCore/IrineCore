@@ -88,7 +88,7 @@ STATIC_DECL_INIT( CDnActor, CDnActor::mapActorSearch, s_dwMapActorSearch );
 
 float CDnActor::s_fDieDelta = 20.f;
 
-float CEtOctreeNode<DnActorHandle>::s_fMinRadius = 1000.0f;
+template<> float CEtOctreeNode<DnActorHandle>::s_fMinRadius = 1000.0f;
 
 #define DOWN_DELAY_RANDOM_RANGE 0.2f // 20 percent longer or shorter~
 
@@ -2400,12 +2400,14 @@ void CDnActor::CmdWarp()
 	CmdWarp( *GetPosition(), EtVec3toVec2( *GetLookDir() ) );
 }
 
-void CDnActor::CmdWarp( EtVector3 &vPos, EtVector2 &vLook, CDNUserSession* pGameSession/*=NULL*/, bool bCheckPlayerFollowSummonedMonster/*=false*/ )
+void CDnActor::CmdWarp( const EtVector3 &vPos, const EtVector2 &vLook, CDNUserSession* pGameSession/*=NULL*/, bool bCheckPlayerFollowSummonedMonster/*=false*/ )
 {
-	SetPosition( vPos );
-	SetPrevPosition( vPos );
-	Look( vLook, true );
-	if( abs( CDnWorld::GetInstance(GetRoom()).GetHeight( vPos ) - vPos.y ) > 5.f ) {
+	EtVector3 pos = vPos;
+	EtVector2 look = vLook;
+	SetPosition( pos );
+	SetPrevPosition( pos );
+	Look( look, true );
+	if( abs( CDnWorld::GetInstance(GetRoom()).GetHeight( pos ) - pos.y ) > 5.f ) {
 		SetVelocityY( -3.0f );
 		SetResistanceY( -18.0f );
 	}
@@ -2413,8 +2415,8 @@ void CDnActor::CmdWarp( EtVector3 &vPos, EtVector2 &vLook, CDNUserSession* pGame
 	BYTE pBuffer[128];
 	CPacketCompressStream Stream( pBuffer, 128 );
 
-	Stream.Write( &vPos, sizeof(EtVector3), CPacketCompressStream::VECTOR3_BIT );
-	Stream.Write( &vLook, sizeof(EtVector2), CPacketCompressStream::VECTOR2_SHORT );
+	Stream.Write( &pos, sizeof(EtVector3), CPacketCompressStream::VECTOR3_BIT );
+	Stream.Write( &look, sizeof(EtVector2), CPacketCompressStream::VECTOR2_SHORT );
 
 	// If pGameSession exists, send the packet only to that session.
 	if( pGameSession )
@@ -8011,7 +8013,7 @@ void CDnActor::SetState(ActorStateEnum State)
 #if defined(PRE_FIX_59939)
 	//SetState is called every frame, but since curse state effect (244) controls its own cooldown, just call it...
 	//
-	__super::SetState(State);
+	CDnActorState::SetState(State);
 
 	bool isAttackState = IsAttack();
 	if (isAttackState)
@@ -8020,7 +8022,7 @@ void CDnActor::SetState(ActorStateEnum State)
 #else
 	bool isPreAttackState = IsAttack();
 
-	__super::SetState(State);
+	CDnActorState::SetState(State);
 
 	bool isNewAttackState = IsAttack();
 	if (isPreAttackState == false && isNewAttackState == true)

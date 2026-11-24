@@ -895,7 +895,7 @@ void CDNGameRoom::OnRequestSyncStartMsg( CDNUserSession* pGameSession )
 
 void CDNGameRoom::OrgProcess()
 {
-#ifdef _FINAL_BUILD
+#if defined(_FINAL_BUILD) && defined(_MSC_VER)
 	__try { 
 #endif
 
@@ -1191,7 +1191,7 @@ void CDNGameRoom::OrgProcess()
 Allow catching Windows SEH exceptions as well
 Compile with Enable C++ Exceptions set to /EHa option.
 		*/
-#ifdef _FINAL_BUILD
+#if defined(_FINAL_BUILD) && defined(_MSC_VER)
 	}  // __try {  
 	__except(CExceptionReport::GetInstancePtr()->Proc(GetExceptionInformation(), MiniDumpNormal)) {
 	{
@@ -1232,7 +1232,7 @@ void CDNGameRoom::FinalizeProcess()
 {		
 	for( UINT i=0 ; i<m_VecMember.size() ; ++i )
 	{
-#ifdef _FINAL_BUILD
+#if defined(_FINAL_BUILD) && defined(_MSC_VER)
 		__try 
 		{ 
 #endif // #ifdef _FINAL_BUILD
@@ -1242,7 +1242,7 @@ void CDNGameRoom::FinalizeProcess()
 
 			m_VecMember[i].ReleaseEquipInventory();
 
-#ifdef _FINAL_BUILD
+#if defined(_FINAL_BUILD) && defined(_MSC_VER)
 		}  // __try {  
 		__except(CExceptionReport::GetInstancePtr()->Proc(GetExceptionInformation(), MiniDumpNormal))
 		{
@@ -1271,7 +1271,7 @@ void CDNGameRoom::_DeleteSession()
 
 void CDNGameRoom::Process()
 {
-//#ifdef _FINAL_BUILD
+#if defined(_MSC_VER)
 	__try {
 		_ProcessImpl();
 	}
@@ -1291,6 +1291,9 @@ void CDNGameRoom::Process()
 				g_pMasterConnectionManager->SendPvPDetectCrash(GetWorldSetID(), GetRoomID(), GetPvPIndex());
 		}
 	}
+#else
+	_ProcessImpl();
+#endif
 }
 
 void CDNGameRoom::_ProcessImpl()
@@ -2415,7 +2418,7 @@ void CDNGameRoom::_AddPacketQueue( CDNUserSession* pSession, const DWORD dwUniqu
 
 int CDNGameRoom::OnDispatchMessage(CDNUserSession * pSession, int iMainCmd, int iSubCmd, char * pData, int iLen, BYTE cSeqLevel)
 {
-#ifdef _FINAL_BUILD
+#if defined(_FINAL_BUILD) && defined(_MSC_VER)
 	__try { 
 #endif
 
@@ -2560,7 +2563,7 @@ int CDNGameRoom::OnDispatchMessage(CDNUserSession * pSession, int iMainCmd, int 
 Allow catching Windows SEH exceptions as well
 Compile with Enable C++ Exceptions set to /EHa option.
 	*/
-#ifdef _FINAL_BUILD
+#if defined(_FINAL_BUILD) && defined(_MSC_VER)
 	}  // __try {  
 	__except(CExceptionReport::GetInstancePtr()->Proc(GetExceptionInformation(), MiniDumpNormal))
 	{

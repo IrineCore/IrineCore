@@ -119,7 +119,7 @@ bool CDNRUDPGameServer::Start(int iPort, int iServerID, int nAffinity)
 		{
 			addr.sin_family				= AF_INET;
 			addr.sin_port				= ntohs(m_nExternalProbePort);
-			addr.sin_addr.S_un.S_addr	= inet_addr(m_szExternalProbeIP);
+			addr.sin_addr.s_addr		= inet_addr(m_szExternalProbeIP);
 			if (sendto(m_hSocket, "ping", 4, 0, (struct sockaddr *)&addr, sizeof(addr)) == -1)
 				g_Log.Log(LogType::_ERROR, L"PROBE_SEND_ERR ProbePort[%d] ErrNum(%d)\n", m_nExternalProbePort, GetLastError());
 			Sleep(4000/10);
@@ -127,7 +127,11 @@ bool CDNRUDPGameServer::Start(int iPort, int iServerID, int nAffinity)
 
 		if (m_iUDPPort == 0)
 		{//If not, just acquire it
+#if defined(_WIN32)
 			int iLen = sizeof(addr);
+#else
+			socklen_t iLen = sizeof(addr);
+#endif
 			getsockname(m_hSocket, (struct sockaddr*)&addr, &iLen);
 			m_iUDPPort = ntohs(addr.sin_port);
 		}
@@ -309,7 +313,7 @@ bool CDNRUDPGameServer::Accept(int iNetID, SOCKADDR_IN *pAddr, const void * pDat
 {
 	if (m_nExternalProbePort != 0 &&
 		pAddr->sin_port == ntohs(m_nExternalProbePort) &&
-		pAddr->sin_addr.S_un.S_addr == inet_addr(m_szExternalProbeIP))
+		pAddr->sin_addr.s_addr == inet_addr(m_szExternalProbeIP))
 	{
 		struct _RETURN_UDP_ADDR
 		{
@@ -318,7 +322,7 @@ bool CDNRUDPGameServer::Accept(int iNetID, SOCKADDR_IN *pAddr, const void * pDat
 		}	* packet = (_RETURN_UDP_ADDR*) pData;
 
 		_ASSERT(pAddr->sin_port == ntohs(m_nExternalProbePort) &&
-				pAddr->sin_addr.S_un.S_addr == inet_addr(m_szExternalProbeIP));
+				pAddr->sin_addr.s_addr == inet_addr(m_szExternalProbeIP));
 
 		if (iLen == sizeof(*packet) &&
 			packet->port[0] == packet->port[1] &&
@@ -328,9 +332,10 @@ bool CDNRUDPGameServer::Accept(int iNetID, SOCKADDR_IN *pAddr, const void * pDat
 			m_iUDPPort = packet->port[0];
 			m_iUDPAddr = packet->addr[0];
 
+			const unsigned char* pAddrBytes = reinterpret_cast<const unsigned char*>(&pAddr->sin_addr.s_addr);
 			g_Log.Log(LogType::_ERROR, L"UDP External Addr Recv [%d.%d.%d.%d (%d)] => [%d.%d.%d.%d (%d)]\n",
-				pAddr->sin_addr.S_un.S_un_b.s_b1, pAddr->sin_addr.S_un.S_un_b.s_b2,
-				pAddr->sin_addr.S_un.S_un_b.s_b3, pAddr->sin_addr.S_un.S_un_b.s_b4,
+				pAddrBytes[0], pAddrBytes[1],
+				pAddrBytes[2], pAddrBytes[3],
 				ntohs(pAddr->sin_port),
 				((unsigned char*)&m_iUDPAddr)[0], ((unsigned char*)&m_iUDPAddr)[1],
 				((unsigned char*)&m_iUDPAddr)[2], ((unsigned char*)&m_iUDPAddr)[3],
@@ -792,7 +797,7 @@ void CDNRUDPGameServer::StoredProcess()
 								{
 									TADonationTopRanker* pPacket = reinterpret_cast<TADonationTopRanker*>(pDataBuffer);
 
-									for each (std::map<unsigned int, CDNUserSession*>::value_type v in m_ConnectList)
+									for (std::map<unsigned int, CDNUserSession*>::value_type v : m_ConnectList)
 									{
 										CDNUserSession* pSession = v.second;
 										if (pSession->GetWorldSetID() != pPacket->cWorldID)

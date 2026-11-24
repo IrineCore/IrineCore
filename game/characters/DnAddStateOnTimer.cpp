@@ -28,7 +28,7 @@ CDnAddStateOnTimerBlow::~CDnAddStateOnTimerBlow(void)
 
 void CDnAddStateOnTimerBlow::OnBegin(LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	m_IntervalChecker.OnBegin( LocalTime, m_TimerTime);
@@ -37,7 +37,7 @@ void CDnAddStateOnTimerBlow::OnBegin(LOCAL_TIME LocalTime, float fDelta )
 
 void CDnAddStateOnTimerBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 #if defined(_GAMESERVER)
 	m_IntervalChecker.Process( LocalTime, fDelta );
@@ -47,7 +47,7 @@ void CDnAddStateOnTimerBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnAddStateOnTimerBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	m_IntervalChecker.OnEnd(LocalTime, fDelta);

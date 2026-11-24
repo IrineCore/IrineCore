@@ -3761,7 +3761,7 @@ void CDnPlayerActor::CmdChangeJob( int nJobID )
 
 	Stream.Write( &nJobID, sizeof(int) );
 
-	Send( eActor::SC_CHANGEJOB, m_pSession->GetSessionID(), &Stream );
+	Send( eActor::SC_CHANGEJOB, m_pSession->GetSessionID(), &Stream, GlobalEnum::ClientSessionTypeEnum::Auto );
 }
 
 void CDnPlayerActor::CmdEscape( EtVector3 &vPos )
@@ -5776,7 +5776,7 @@ void CDnPlayerActor::ResetWarpAntiCheatCheckers()
 }
 #endif
 
-void CDnPlayerActor::CmdWarp( EtVector3 &vPos, EtVector2 &vLook, CDNUserSession* pGameSession, bool bCheckPlayerFollowSummonedMonster/*=false*/ )
+void CDnPlayerActor::CmdWarp( const EtVector3 &vPos, const EtVector2 &vLook, CDNUserSession* pGameSession, bool bCheckPlayerFollowSummonedMonster/*=false*/ )
 {
 	if(IsVehicleMode() && GetMyVehicleActor() )
 		GetMyVehicleActor()->CmdWarp(vPos, vLook, pGameSession);
@@ -6499,7 +6499,7 @@ void CDnPlayerActor::ChangeSkillLevelUp(int nSkillID, int nOrigLevel)
 		if (hSkill->GetElapsedDelayTime() > 0.0f || hSkill->IsToggleOn())
 			return;
 	}
-	__super::ChangeSkillLevelUp(nSkillID, nOrigLevel);
+	CDnActor::ChangeSkillLevelUp(nSkillID, nOrigLevel);
 
 	DnSkillHandle hChangedSkill = FindSkill( nSkillID );
 	if( hChangedSkill )

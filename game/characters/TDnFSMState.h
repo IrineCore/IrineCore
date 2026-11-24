@@ -83,7 +83,7 @@ public:
 		bool bNewState = true;
 		if( false == m_vlAvailTransitState.empty() )
 		{
-			vector<S_AVAILABLE_TRANSIT_STATE>::iterator iter = find_if( m_vlAvailTransitState.begin(), m_vlAvailTransitState.end(), IsEqual(GetUniqueID()) );
+			typename vector<S_AVAILABLE_TRANSIT_STATE>::iterator iter = find_if( m_vlAvailTransitState.begin(), m_vlAvailTransitState.end(), IsEqual(GetUniqueID()) );
 			bNewState = (m_vlAvailTransitState.end() == iter);
 			_ASSERT( bNewState && "Cannot add identical States to the Transit State list." );
 		}
@@ -107,7 +107,7 @@ public:
 		bool bNewState = true;
 		if( false == m_vlAvailTransitState.empty() )
 		{
-			vector<S_AVAILABLE_TRANSIT_STATE>::iterator iter = find_if( m_vlAvailTransitState.begin(), m_vlAvailTransitState.end(), IsEqual(GetUniqueID()) );
+			typename vector<S_AVAILABLE_TRANSIT_STATE>::iterator iter = find_if( m_vlAvailTransitState.begin(), m_vlAvailTransitState.end(), IsEqual(GetUniqueID()) );
 			bNewState = (m_vlAvailTransitState.end() == iter);
 			_ASSERT( bNewState && "Cannot add identical States to the Transit State list." );
 		}

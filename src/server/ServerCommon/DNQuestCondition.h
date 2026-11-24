@@ -7,7 +7,7 @@ class ConditionBase
 {
 public:
 	bool bUse;
-	virtual void Init(std::wstring& data) { if( data.empty() ) bUse = false; }
+	virtual void Init(const std::wstring& data) { if( data.empty() ) bUse = false; }
 	virtual bool Check(CDNUserBase * pUserBase) {	return false; }
 	ConditionBase()
 	{
@@ -40,7 +40,7 @@ public:
 
 	int nItemTableNumber;
 	int nItemNumber;
-	virtual void Init(std::wstring& data);
+	virtual void Init(const std::wstring& data);
 	virtual bool Check(CDNUserBase * pUserBase);
 };
 
@@ -54,7 +54,7 @@ public:
 
 	int nMinUserLevel;
 	int nMaxUserLevel;
-	virtual void Init(std::wstring& data);
+	virtual void Init(const std::wstring& data);
 	virtual bool Check(CDNUserBase * pUserBase);
 
 };
@@ -68,7 +68,7 @@ public:
 	~__UserClass()	{}
 
 	std::vector<int> ClassIDList;
-	virtual void Init(std::wstring& data);
+	virtual void Init(const std::wstring& data);
 	virtual bool Check(CDNUserBase * pUserBase);
 };
 
@@ -81,7 +81,7 @@ public:
 	~__PrevQuest()	{}
 
 	std::vector<UINT> PrevQuestList;
-	virtual void Init(std::wstring& data);
+	virtual void Init(const std::wstring& data);
 	virtual bool Check(CDNUserBase * pUserBase);
 };
 
@@ -94,7 +94,7 @@ public:
 	~__CompleteMission()	{}
 
 	std::vector<int> MissionIDList;
-	virtual void Init(std::wstring& data);
+	virtual void Init(const std::wstring& data);
 	virtual bool Check(CDNUserBase * pUserBase);
 };
 
@@ -110,7 +110,7 @@ public:
 	int nReputationValue_Min;
 	int nReputationValue_Max;
 
-	virtual void Init(std::wstring& data);
+	virtual void Init(const std::wstring& data);
 	virtual bool Check(CDNUserBase * pUserBase);
 };
 
@@ -126,7 +126,7 @@ public:
 	int nReputationValue_Min;
 	int nReputationValue_Max;
 
-	virtual void Init(std::wstring& data);
+	virtual void Init(const std::wstring& data);
 	virtual bool Check(CDNUserBase * pUserBase);
 };
 
@@ -141,7 +141,7 @@ public:
 
 	int nItemTableNumber;
 	int nItemNumber;
-	virtual void Init(std::wstring& data);
+	virtual void Init(const std::wstring& data);
 	virtual bool Check(CDNUserBase * pUserBase);
 };
 #endif

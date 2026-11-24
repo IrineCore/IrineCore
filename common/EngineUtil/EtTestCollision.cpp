@@ -302,7 +302,9 @@ bool TestSegmentToTriangle( SSegment &Segment, SCollisionTriangle &Triangle )
 	float fSegmentLength, fDist, fBary1, fBary2;
 	fSegmentLength = EtVec3Length( &Segment.vDirection );
 	vDirection = Segment.vDirection / fSegmentLength;
-	if( TestLineToTriangle( Segment.vOrigin, vDirection, Triangle.vOrigin, Triangle.vOrigin + Triangle.vEdge1, Triangle.vOrigin + Triangle.vEdge2, 
+	EtVector3 vTriP2 = Triangle.vOrigin + Triangle.vEdge1;
+	EtVector3 vTriP3 = Triangle.vOrigin + Triangle.vEdge2;
+	if( TestLineToTriangle( Segment.vOrigin, vDirection, Triangle.vOrigin, vTriP2, vTriP3, 
 		fDist, fBary1, fBary2 ) )
 	{
 		if( ( fDist >= 0.0f ) && ( fDist < fSegmentLength ) )

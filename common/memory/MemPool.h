@@ -43,7 +43,7 @@ public:
 	}
 	static void operator delete( void* p )
 	{
-		boost::fast_pool_allocator<T,boost::default_user_allocator_new_delete,TMutex>::deallocate( (boost::fast_pool_allocator<T>::pointer)p, 1 );
+		boost::fast_pool_allocator<T,boost::default_user_allocator_new_delete,TMutex>::deallocate( (typename boost::fast_pool_allocator<T>::pointer)p, 1 );
 	}
 #if defined(_DEBUG)
 	static void* operator new( size_t, int, const char*, int )
@@ -52,7 +52,7 @@ public:
 	}
 	static void operator delete( void* p, int, const char*, int )
 	{
-		boost::fast_pool_allocator<T,boost::default_user_allocator_new_delete,TMutex>::deallocate( (boost::fast_pool_allocator<T>::pointer)p, 1 );
+		boost::fast_pool_allocator<T,boost::default_user_allocator_new_delete,TMutex>::deallocate( (typename boost::fast_pool_allocator<T>::pointer)p, 1 );
 	}
 #endif
 	static void* operator new[]( size_t size )
@@ -61,7 +61,7 @@ public:
 	}
 	static void operator delete[]( void* p, size_t size )
 	{
-		boost::fast_pool_allocator<T,boost::default_user_allocator_new_delete,TMutex>::deallocate( (boost::fast_pool_allocator<T>::pointer)p, size );
+		boost::fast_pool_allocator<T,boost::default_user_allocator_new_delete,TMutex>::deallocate( (typename boost::fast_pool_allocator<T>::pointer)p, size );
 	}
 };
 

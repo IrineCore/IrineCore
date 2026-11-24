@@ -60,7 +60,7 @@ void CDnRecoverHPByAttackBlow::OnSetParentSkillInfo()
 
 void CDnRecoverHPByAttackBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnBegin(LocalTime, fDelta);
+	CDnBlow::OnBegin(LocalTime, fDelta);
 
 	OutputDebug( "%s\n", __FUNCTION__ );
 }
@@ -68,14 +68,14 @@ void CDnRecoverHPByAttackBlow::OnBegin( LOCAL_TIME LocalTime, float fDelta )
 
 void CDnRecoverHPByAttackBlow::Process( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::Process( LocalTime, fDelta );
+	CDnBlow::Process( LocalTime, fDelta );
 
 }
 
 
 void CDnRecoverHPByAttackBlow::OnEnd( LOCAL_TIME LocalTime, float fDelta )
 {
-	__super::OnEnd(LocalTime, fDelta);
+	CDnBlow::OnEnd(LocalTime, fDelta);
 
 #if defined(_GAMESERVER)
 	//Remove state effects caused by the same skill...
